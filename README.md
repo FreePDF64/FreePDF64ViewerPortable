@@ -26,7 +26,7 @@ PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeu
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** suchen und ihre Anzahl ablesen.
 - **Flexible PDF-Anzeige:** Seitenvorschau, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi.
-- **PDF-Werkzeuge:** Unter anderem Seiten drehen, Seiten nach oben/unten verschieben, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
+- **PDF-Werkzeuge:** Unter anderem Seiten drehen, nach oben/unten verschieben, löschen, extrahieren, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
 - **Sitzung wiederherstellen:** Zuletzt geschlossene PDF-Dateien oder die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
 - **Windows-Integration:** PDF-Dateien optional mit dem Viewer verknüpfen und direkt per Doppelklick öffnen.
 - **Infobereich:** Den Viewer auf Wunsch beim Schließen in den Windows-Infobereich verschieben.
