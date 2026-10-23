@@ -1,77 +1,82 @@
+<div align="center">
+
+<img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Programmsymbol" width="250">
+
 # FreePDF64ViewerPortable
 
-**FreePDF64ViewerPortable** ist ein eigenständiger PDF-Viewer für Windows. PDF-Dokumente werden in einer übersichtlichen Oberfläche mit Registerkarten geöffnet.
+**Der portable PDF-Viewer für Windows – übersichtlich, vielseitig und kostenlos.**
+
+PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeugen bearbeiten – ohne das FreePDF64-Hauptprogramm starten zu müssen.
+
+[**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
+
+</div>
+
+---
+
+## So sieht FreePDF64ViewerPortable aus
+
+![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
+
+*Der Viewer mit Registerkarten, Seitenvorschau, Dokumentanzeige und PDF-Werkzeugen.*
+
+## Die wichtigsten Funktionen
+
+- **Mehrere PDFs in einem Fenster:** Jedes Dokument erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
+- **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
+- **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** suchen und ihre Anzahl ablesen.
+- **Flexible PDF-Anzeige:** Seitenvorschau, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi.
+- **PDF-Werkzeuge:** Unter anderem Seiten drehen, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
+- **Sitzung wiederherstellen:** Zuletzt geschlossene PDF-Dateien oder die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
+- **Windows-Integration:** PDF-Dateien optional mit dem Viewer verknüpfen und direkt per Doppelklick öffnen.
+- **Infobereich:** Den Viewer auf Wunsch beim Schließen in den Windows-Infobereich verschieben.
 
 ## Schnellstart
 
-1. `FreePDF64ViewerPortable.exe` zusammen mit den mitgelieferten Dateien in einen Ordner kopieren bzw. das Programmpaket entpacken.
-2. `FreePDF64ViewerPortable.exe` starten.
-3. Über **Datei → PDF öffnen …** oder **Strg+O** ein PDF auswählen. Alternativ können PDF-Dateien per Drag & Drop geöffnet werden.
+1. Die Dateien des Viewers gemeinsam in einen Ordner entpacken. Benötigte Bibliotheken und Zusatzprogramme müssen dabei erhalten bleiben.
+2. **`FreePDF64ViewerPortable.exe`** starten.
+3. Über **Datei → PDF öffnen …**, **Strg+O** oder **Drag & Drop** eine oder mehrere PDF-Dateien öffnen.
+4. Optional unter **Optionen** die PDF-Dateiverknüpfung für Windows einrichten.
 
-## Funktionen und Bedienung
+> **Hinweis zur Dateiverknüpfung:** Die Registrierung erfolgt für den aktuellen Windows-Benutzer. Unter Windows 10/11 muss der Viewer gegebenenfalls zusätzlich als Standard-App für `.pdf` ausgewählt werden.
 
-- **Registerkarten:** Jedes geöffnete PDF erhält einen eigenen Tab.
-- **Tab schließen:** Das kleine **×** rechts im jeweiligen Tab oder **Strg+W** schließt das aktive Dokument.
-- **Tab-Suche:** Über die **Lupe** rechts in der Registerkartenleiste lassen sich geöffnete PDF-Registerkarten suchen.
-- **PDF-Zähler:** Neben der Lupe wird die Anzahl der geöffneten PDF-Dateien angezeigt.
-- **Sitzung wiederherstellen:** Auf der leeren Startseite können über das Kontextmenü zuletzt geschlossene PDFs erneut geöffnet oder die letzte Sitzung wiederhergestellt werden, sofern entsprechende Einträge vorhanden sind.
+## Bedienung auf einen Blick
 
-## Hauptmenü
-
-### Datei
-
-| Menüpunkt | Funktion |
+| Funktion | Bedienung |
 | --- | --- |
-| **PDF öffnen …** | PDF-Datei auswählen (**Strg+O**). |
-| **Exit** | Viewer vollständig beenden (**Alt+F4**). |
+| PDF-Datei öffnen | **Strg+O** oder **Datei → PDF öffnen …** |
+| Aktiven PDF-Tab schließen | **Strg+W** oder **×** am Tab |
+| Geöffnete Tabs suchen | **Lupe** rechts in der Registerkartenleiste |
+| Viewer beenden | **Datei → Exit** oder **Alt+F4** |
+| Hilfe und Programminformationen | Menü **Hilfe** |
+| Letzte Sitzung wiederherstellen | Rechtsklick auf die leere Startseite |
 
-### Optionen
+Beim Beenden gibt es keine zusätzliche allgemeine Bestätigungsfrage. **Bei ungespeicherten PDF-Änderungen kann weiterhin eine Speicherabfrage erscheinen.**
 
-| Menüpunkt | Funktion |
-| --- | --- |
-| **Beim Schließen in den Infobereich** | Beim normalen Schließen wird der Viewer in den Windows-Infobereich ausgeblendet. Über das Infobereich-Symbol lässt er sich wieder öffnen oder vollständig beenden. |
-| **PDF-Dateien mit dem FreePDF64-Viewer verknüpfen …** | Registriert den Viewer als mögliche PDF-Anwendung für den aktuellen Windows-Benutzer. |
+## Portabler Betrieb
 
-### Hilfe
+FreePDF64ViewerPortable ist als eigenständiger Windows-PDF-Viewer ausgelegt. Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeichert. Das optionale Startbild **`FreePDF64Viewer_Startbild.jpg`** gehört ebenfalls in diesen Ordner. Bei bestimmten Vorgängen kann **`FreePDF64ViewerLog.txt`** angelegt werden.
 
-| Menüpunkt | Funktion |
-| --- | --- |
-| **Funktionsübersicht** | Hinweise zur Bedienung des Viewers. |
-| **Über FreePDF64-Viewer** | Versions- und Programminformationen. |
+Wird die EXE nach einer PDF-Dateiverknüpfung verschoben, muss die Zuordnung unter Umständen erneut eingerichtet werden.
 
-## Portable Nutzung und Dateien
+## Verwendete Komponenten und Lizenzen
 
-| Datei / Komponente | Beschreibung |
-| --- | --- |
-| `FreePDF64ViewerPortable.exe` | Ausführbare Programmdatei. |
-| `FreePDFViewer.ini` | Einstellungsdatei im Programmverzeichnis. |
-| `FreePDF64Viewer_Startbild.jpg` | Optionales Startbild für die leere Startansicht; muss neben der EXE liegen. |
-| `FreePDF64ViewerLog.txt` | Kann bei bestimmten Vorgängen als Logdatei entstehen. |
-| PDFium, qpdf, Xpdf | Verwendete Bibliotheken und Zusatzprogramme für die PDF-Anzeige und einzelne Funktionen. |
+Der Viewer nutzt **PDFium** (BSD-3-Clause License, Copyright © The PDFium Authors) sowie für bestimmte Funktionen **QPDF** und **Xpdf**. Für diese Komponenten gelten die jeweiligen Lizenz- und Copyrightbedingungen. Beachte bei der Weitergabe die zugehörigen Lizenztexte.
 
-Die benötigten Bibliotheken und Zusatzprogramme müssen zusammen mit dem Viewer bereitgestellt werden.
+## Kontakt und weitere Projekte
 
-## PDF-Dateiverknüpfung unter Windows
+Fragen, Fehlerberichte, Ideen oder Anregungen?
 
-Die optionale Registrierung erfolgt **nur für den aktuellen Benutzer (HKCU)** und benötigt keine Administratorrechte.
+- **E-Mail:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
+- **GitHub:** [FreePDF64ViewerPortable](https://github.com/FreePDF64/FreePDF64ViewerPortable)
+- **FreePDF64-Hauptprojekt:** [FreePDF64](https://github.com/FreePDF64/FreePDF64)
 
-Unter **Windows 10/11** muss die gewünschte Standard-App für PDF-Dateien gegebenenfalls zusätzlich in den Windows-Einstellungen ausgewählt werden.
+---
 
-> **Hinweis:** Wenn die EXE-Datei später in einen anderen Ordner verschoben wird, muss die Dateiverknüpfung gegebenenfalls erneut eingerichtet werden.
+<div align="center">
 
-## Beenden und Datensicherheit
-
-**Datei → Exit** beendet den Viewer ohne eine zusätzliche allgemeine Bestätigungsfrage. Falls ein PDF ungespeicherte Änderungen enthält, kann weiterhin eine Speicher- oder Sicherheitsabfrage erscheinen.
-
-Es empfiehlt sich, wichtige Original-PDFs vor umfangreichen Änderungen zu sichern.
-
-## Drittanbieterkomponenten und Lizenzen
-
-Für **PDFium**, **qpdf**, **Xpdf** und weitere gegebenenfalls mitgelieferte Komponenten gelten deren jeweilige Lizenz- und Copyrightbedingungen. Die zugehörigen Lizenztexte sind bei der Weitergabe zu beachten.
-
-## Projekt und Kontakt
-
-- **GitHub:** https://github.com/FreePDF64
-- **E-Mail:** FreePDF64@outlook.com
+**FreePDF64ViewerPortable – PDF-Dateien komfortabel anzeigen und verwalten.**
 
 Copyright © 2026 FreePDF64
+
+</div>
