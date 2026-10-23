@@ -6,7 +6,7 @@
 
 **Der portable PDF-Viewer für Windows – übersichtlich, vielseitig und kostenlos.**
 
-PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeugen bearbeiten – ohne das FreePDF64-Hauptprogramm starten zu müssen.
+PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeugen bearbeiten.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
