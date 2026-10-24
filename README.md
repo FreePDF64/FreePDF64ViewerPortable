@@ -2,9 +2,9 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Programmsymbol" width="250">
 
-# FreePDF64ViewerPortable
+# FreePDF64-Viewer Portable
 
-**Der portable schnelle PDF-Viewer für Windows – übersichtlich, vielseitig und kostenlos.**
+**Der schnelle, portable PDF-Viewer für Windows – übersichtlich, vielseitig und kostenlos.**
 
 PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeugen bearbeiten.
 
@@ -14,7 +14,7 @@ PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeu
 
 ---
 
-## So sieht FreePDF64ViewerPortable aus
+## So sieht FreePDF64-Viewer Portable aus
 
 ![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
 
@@ -24,12 +24,26 @@ PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeu
 
 - **Mehrere PDFs in einem Fenster:** Jedes Dokument erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
-- **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** suchen und ihre Anzahl ablesen.
+- **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
 - **Flexible PDF-Anzeige:** Seitenvorschau, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi.
 - **PDF-Werkzeuge:** Unter anderem Seiten drehen, nach oben/unten verschieben, löschen, extrahieren, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
+- **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
+- **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
+- **PDF neu laden:** Das aktuelle Dokument über **Datei → PDF neu laden (Änderungen verwerfen)** erneut öffnen; vor dem Verwerfen ungespeicherter Änderungen wird nachgefragt.
 - **Sitzung wiederherstellen:** Zuletzt geschlossene PDF-Dateien oder die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
 - **Windows-Integration:** PDF-Dateien optional mit dem Viewer verknüpfen und direkt per Doppelklick öffnen.
 - **Infobereich:** Den Viewer auf Wunsch beim Schließen in den Windows-Infobereich verschieben.
+
+## Verbesserungen bei Anzeige und Bearbeitung
+
+- **Schnelle erste Seitenanzeige:** Die erste sichtbare PDF-Seite wird beim Aufbau bevorzugt behandelt.
+- **Rendercache:** Bereits berechnete Seitenbilder können wiederverwendet werden, um unnötiges Neurendern zu reduzieren.
+- **Bedarfsgesteuerte Miniaturansichten:** Seitenvorschauen werden nach Bedarf aufgebaut.
+- **Direkte Seitendrehung:** Drehungen erfolgen über PDFium im Speicher, ohne dafür zunächst eine temporäre PDF-Datei anzulegen; betroffene Anzeige- und Größencaches werden aktualisiert.
+
+Die genannten Maßnahmen sind Optimierungen des vorhandenen Lade- und Renderpfads. Das Rendering erfolgt weiterhin im VCL-Hauptthread; ein eigenständiger Hintergrund-Render-Worker ist nicht Bestandteil dieser Version. Konkrete Geschwindigkeitsgewinne hängen vom PDF-Dokument und vom verwendeten System ab.
+
+> **Wichtig zur optischen Schwärzung:** Ein schwarzes Rechteck verdeckt den darunterliegenden PDF-Text lediglich optisch. Der Text wird **nicht entfernt** und kann weiterhin ausgelesen, kopiert oder wiederhergestellt werden. Die Funktion eignet sich **nicht** zum sicheren Entfernen vertraulicher Informationen.
 
 ## Schnellstart
 
@@ -46,7 +60,9 @@ PDF-Dateien öffnen, in Registerkarten verwalten und mit praktischen PDF-Werkzeu
 | --- | --- |
 | PDF-Datei öffnen | **Strg+O** oder **Datei → PDF öffnen …** |
 | Aktiven PDF-Tab schließen | **Strg+W** oder **×** am Tab |
-| Geöffnete Tabs suchen | **Lupe** rechts in der Registerkartenleiste |
+| Geöffnete Tabs suchen / Suche schließen | **Strg+Umschalt+A**, **Lupe** oder **Esc** zum Schließen |
+| PDF neu laden | **Datei → PDF neu laden (Änderungen verwerfen)** |
+| Markierungen / optische Schwärzung | **Bearbeiten** → Werkzeug auswählen |
 | Viewer beenden | **Datei → Exit** oder **Alt+F4** |
 | Hilfe und Programminformationen | Menü **Hilfe** |
 | Letzte Sitzung wiederherstellen | Rechtsklick auf die leere Startseite |
@@ -55,7 +71,7 @@ Beim Beenden gibt es keine zusätzliche allgemeine Bestätigungsfrage. **Bei ung
 
 ## Portabler Betrieb
 
-FreePDF64ViewerPortable ist als eigenständiger Windows-PDF-Viewer ausgelegt. Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeichert. Das optionale Startbild **`FreePDF64Viewer_Startbild.jpg`** gehört ebenfalls in diesen Ordner. Bei bestimmten Vorgängen kann **`FreePDF64ViewerLog.txt`** angelegt werden.
+FreePDF64-Viewer Portable ist als eigenständiger Windows-PDF-Viewer ausgelegt. Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeichert. Das optionale Startbild **`FreePDF64Viewer_Startbild.jpg`** gehört ebenfalls in diesen Ordner. Bei bestimmten Vorgängen kann **`FreePDF64ViewerLog.txt`** angelegt werden.
 
 Wird die EXE nach einer PDF-Dateiverknüpfung verschoben, muss die Zuordnung unter Umständen erneut eingerichtet werden.
 
@@ -75,7 +91,7 @@ Fragen, Fehlerberichte, Ideen oder Anregungen?
 
 <div align="center">
 
-**FreePDF64ViewerPortable – PDF-Dateien komfortabel anzeigen und verwalten.**
+**FreePDF64-Viewer Portable – PDF-Dateien komfortabel anzeigen und verwalten.**
 
 Copyright © 2026 FreePDF64
 
