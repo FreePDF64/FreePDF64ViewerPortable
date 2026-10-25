@@ -28,7 +28,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 
 ## Arbeitsbereiche komfortabel verwalten
 
-![Arbeitsbereiche verwalten – gespeicherte PDF-Sammlungen mit Name, Speicherdatum und PDF-Anzahl](images/Arbeitsbereiche.jpg)
+![Arbeitsbereiche verwalten – gespeicherte PDF-Sammlungen mit Name, Speicherdatum und PDF-Anzahl](images/Arbeitsbereiche.png)
 
 *Gespeicherte Arbeitsbereiche auf einen Blick: nach Speicherdatum sortiert, mit PDF-Anzahl und den Aktionen Öffnen, Umbenennen und Löschen.*
 
