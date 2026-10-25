@@ -145,7 +145,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 
 ## Manage workspaces with ease
 
-![Manage workspaces – saved PDF collections showing name, save date, and number of PDFs](images/Arbeitsbereiche.png)
+![Manage workspaces – saved PDF collections showing name, save date, and number of PDFs](images/Workspace.png)
 
 *Saved workspaces at a glance: sorted by save date, with the PDF count and options to open, rename, or delete each workspace.*
 
