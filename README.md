@@ -26,6 +26,12 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 
 **Der Unterschied zur typischen Browser-PDF-Anzeige:** Hier stehen nicht nur einzelne geöffnete Dokumente im Mittelpunkt, sondern die **dokumentübergreifende Suche** und **dauerhaft organisierbare PDF-Arbeitsbereiche**. Welche Funktionen ein Browser oder anderer Reader bietet, hängt von dessen Version und Erweiterungen ab.
 
+## Arbeitsbereiche komfortabel verwalten
+
+![Arbeitsbereiche verwalten – gespeicherte PDF-Sammlungen mit Name, Speicherdatum und PDF-Anzahl](images/Arbeitsbereiche.jpg)
+
+*Gespeicherte Arbeitsbereiche auf einen Blick: nach Speicherdatum sortiert, mit PDF-Anzahl und den Aktionen Öffnen, Umbenennen und Löschen.*
+
 ## So sieht FreePDF64-Viewer Portable aus
 
 ![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
