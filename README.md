@@ -151,7 +151,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 
 ## See FreePDF64-Viewer Portable in action
 
-![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/freepdf64-viewer-screenshot.jpg)
+![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/Mainwindow.png)
 
 *The viewer with tabs, page thumbnails, document display, and PDF tools.*
 
