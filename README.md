@@ -26,7 +26,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - 🗂️ **Arbeitsbereiche speichern und wieder öffnen:** Stelle häufig benötigte PDF-Gruppen zusammen, speichere sie unter einem eigenen Namen und rufe sie später wieder auf. Mehrere Arbeitsbereiche lassen sich verwalten, umbenennen und löschen. So wird aus einer einmaligen PDF-Sitzung ein wiederverwendbarer Dokumentenbestand.
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
 - 📑 **Mehrere Dokumente in einer einzigen Anwendung:** Registerkarten, Seitenvorschau und Inhaltsverzeichnis erleichtern den Überblick. Der Viewer kann weitere PDFs an die bereits laufende Instanz übergeben, statt für jede Datei ein eigenes Fenster zu öffnen.
-- 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können direkt in der Miniaturansicht mit gedrückter linker Maustaste verschoben werden.
+- 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
 **Der Unterschied zur typischen Browser-PDF-Anzeige:** Hier stehen nicht nur einzelne geöffnete Dokumente im Mittelpunkt, sondern die **dokumentübergreifende Suche** und **dauerhaft organisierbare PDF-Arbeitsbereiche**. Welche Funktionen ein Browser oder anderer Reader bietet, hängt von dessen Version und Erweiterungen ab.
@@ -42,6 +42,20 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 ![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
 
 *Der Viewer mit Registerkarten, Seitenvorschau, Dokumentanzeige und PDF-Werkzeugen.*
+
+## Miniaturansichten: Seiten direkt verwalten
+
+Die Miniaturansicht dient nicht nur zur Navigation, sondern bietet praktische Funktionen zur Seitenverwaltung:
+
+- **Vorschauen vergrößern:** Miniaturansichten lassen sich für eine bessere Übersicht vergrößern.
+- **Seiten per Drag & Drop verschieben:** Seiten mit gedrückter **linker Maustaste** innerhalb der Miniaturansicht an eine andere Position ziehen.
+- **Ausgewählte Seite(n) löschen:** Markierte Seiten über das Kontextmenü entfernen.
+- **Ausgewählte Seite(n) drehen:** Seiten um **90° im Uhrzeigersinn** oder **90° gegen den Uhrzeigersinn** drehen.
+- **Seite(n) extrahieren:** Ausgewählte Seiten über **„Seite(n) extrahieren …“** extrahieren.
+- **Pflichtfelder prüfen:** Die Prüfung über **„Pflichtfelder prüfen …“** oder **F7** aufrufen.
+- **PDF neu laden:** Über **„PDF neu laden (Änderungen verwerfen)“** das Dokument erneut laden; ungespeicherte Änderungen werden nur nach Rückfrage verworfen.
+
+Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügung.
 
 ## Weitere Funktionen im Überblick
 
@@ -140,7 +154,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - 🗂️ **Save and reopen workspaces:** Group frequently used PDFs, save the group under a custom name, and reopen it later. You can manage, rename, and delete multiple workspaces. Turn a one-time PDF session into a reusable collection of documents.
 - ⚡ **Fast startup and a responsive interface:** PDFs are loaded on demand or asynchronously so the main window becomes usable quickly. Searching embedded PDF attachments has also been moved to asynchronous processing. This is especially useful with large documents.
 - 📑 **Multiple documents in one application:** Tabs, page thumbnails, and the table of contents make it easier to navigate. The viewer can send additional PDFs to an already running instance instead of opening a separate window for each file.
-- 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
+- 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
 
 **How it differs from a typical browser PDF viewer:** The focus is not just on individual open documents, but on **cross-document search** and **reusable PDF workspaces**. The features available in a browser or another reader depend on its version and extensions.
@@ -156,6 +170,20 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 ![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/Mainwindow.png)
 
 *The viewer with tabs, page thumbnails, document display, and PDF tools.*
+
+## Page thumbnails: Manage pages directly
+
+The thumbnail pane is more than a navigation aid: it also provides convenient page-management tools.
+
+- **Enlarge thumbnails:** Increase thumbnail size for a clearer view.
+- **Reorder pages with drag and drop:** Hold down the **left mouse button** and drag a page to a different position in the thumbnail pane.
+- **Delete selected page(s):** Remove selected pages from the context menu.
+- **Rotate selected page(s):** Rotate pages **90° clockwise** or **90° counterclockwise**.
+- **Extract page(s):** Use **Extract Page(s)…** for selected pages.
+- **Check required fields:** Run **Check Required Fields…** or press **F7**.
+- **Reload PDF:** Use **Reload PDF (Discard Changes)** to reopen the document; the viewer asks before discarding unsaved changes.
+
+These actions are available from the **thumbnail pane's context menu**.
 
 ## More features at a glance
 
