@@ -12,7 +12,7 @@
 
 # Deutsch
 
-**Mehr als eine PDF-Anzeige: Alle geöffneten PDFs gemeinsam durchsuchen, Dokumentgruppen als Arbeitsbereiche speichern und große Dateien schnell öffnen.**
+**Mehr als eine PDF-Anzeige: Alle geöffneten PDFs gemeinsam durchsuchen, Dokumentgruppen als Arbeitsbereiche speichern, Formulare bearbeiten und große Dateien schnell öffnen.**
 
 Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows mit Registerkarten, dokumentübergreifender Suche und integrierten PDF-Werkzeugen.
 
