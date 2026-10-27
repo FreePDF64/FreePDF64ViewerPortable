@@ -26,6 +26,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - 🗂️ **Arbeitsbereiche speichern und wieder öffnen:** Stelle häufig benötigte PDF-Gruppen zusammen, speichere sie unter einem eigenen Namen und rufe sie später wieder auf. Mehrere Arbeitsbereiche lassen sich verwalten, umbenennen und löschen. So wird aus einer einmaligen PDF-Sitzung ein wiederverwendbarer Dokumentenbestand.
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
 - 📑 **Mehrere Dokumente in einer einzigen Anwendung:** Registerkarten, Seitenvorschau und Inhaltsverzeichnis erleichtern den Überblick. Der Viewer kann weitere PDFs an die bereits laufende Instanz übergeben, statt für jede Datei ein eigenes Fenster zu öffnen.
+- 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können direkt in der Miniaturansicht mit gedrückter linker Maustaste verschoben werden.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
 **Der Unterschied zur typischen Browser-PDF-Anzeige:** Hier stehen nicht nur einzelne geöffnete Dokumente im Mittelpunkt, sondern die **dokumentübergreifende Suche** und **dauerhaft organisierbare PDF-Arbeitsbereiche**. Welche Funktionen ein Browser oder anderer Reader bietet, hängt von dessen Version und Erweiterungen ab.
@@ -47,7 +48,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - **Mehrere PDFs in einem Fenster:** Jedes Dokument erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
-- **Flexible PDF-Anzeige:** Seitenvorschau, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi.
+- **Flexible PDF-Anzeige:** Vergrößerbare Seitenminiaturen, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi. Seiten lassen sich in der Miniaturansicht mit gedrückter linker Maustaste verschieben.
 - **PDF-Werkzeuge:** Unter anderem Seiten drehen, nach oben/unten verschieben, löschen, extrahieren, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
 - **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
 - **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
@@ -62,7 +63,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - **Asynchrone Anlagenerkennung:** Eingebettete PDF-Anlagen werden mit QPDF geprüft, ohne den Start durch eine lange synchrone Prüfung zu blockieren.
 - **Schnelle erste Seitenanzeige:** Die erste sichtbare PDF-Seite wird beim Aufbau bevorzugt behandelt.
 - **Rendercache:** Bereits berechnete Seitenbilder können wiederverwendet werden, um unnötiges Neurendern zu reduzieren.
-- **Bedarfsgesteuerte Miniaturansichten:** Seitenvorschauen werden nach Bedarf aufgebaut.
+- **Bedarfsgesteuerte Miniaturansichten:** Seitenvorschauen werden nach Bedarf aufgebaut. Die Miniaturen lassen sich vergrößern; Seiten können per Ziehen mit gedrückter linker Maustaste direkt in der Vorschau verschoben werden.
 - **Direkte Seitendrehung:** Drehungen erfolgen über PDFium im Speicher, ohne dafür zunächst eine temporäre PDF-Datei anzulegen; betroffene Anzeige- und Größencaches werden aktualisiert.
 
 Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten nicht, dass das Rendern selbst vollständig im Hintergrund stattfindet: Das Rendering erfolgt weiterhin im VCL-Hauptthread; ein eigenständiger Hintergrund-Render-Worker ist nicht Bestandteil dieser Version. Konkrete Geschwindigkeitsgewinne hängen vom PDF-Dokument und vom verwendeten System ab.
@@ -139,6 +140,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - 🗂️ **Save and reopen workspaces:** Group frequently used PDFs, save the group under a custom name, and reopen it later. You can manage, rename, and delete multiple workspaces. Turn a one-time PDF session into a reusable collection of documents.
 - ⚡ **Fast startup and a responsive interface:** PDFs are loaded on demand or asynchronously so the main window becomes usable quickly. Searching embedded PDF attachments has also been moved to asynchronous processing. This is especially useful with large documents.
 - 📑 **Multiple documents in one application:** Tabs, page thumbnails, and the table of contents make it easier to navigate. The viewer can send additional PDFs to an already running instance instead of opening a separate window for each file.
+- 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
 
 **How it differs from a typical browser PDF viewer:** The focus is not just on individual open documents, but on **cross-document search** and **reusable PDF workspaces**. The features available in a browser or another reader depend on its version and extensions.
@@ -160,7 +162,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - **Multiple PDFs in one window:** Each document gets its own tab. Multiple PDF files selected in Windows File Explorer can also be opened in the viewer that is already running.
 - **Single application instance:** Starting the program again activates the existing viewer instead of opening a second window.
 - **Easy tab management:** Close tabs using the small **×** or **Ctrl+W**; find open tabs using the **magnifying glass** or **Ctrl+Shift+A**. Close the search with the same shortcut or **Esc**.
-- **Flexible PDF viewing:** Page thumbnails, table of contents, zoom, page navigation, and various page and viewing modes.
+- **Flexible PDF viewing:** Resizable page thumbnails, table of contents, zoom, page navigation, and various page and viewing modes. Move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
 - **PDF tools:** Rotate, move pages up or down, delete or extract pages, view document properties, and manage PDF attachments.
 - **Annotate PDFs:** Add freehand drawings, lines, rectangles, and ellipses as annotations.
 - **Visual redaction:** Cover text areas with black rectangles (this does not securely remove the underlying text).
@@ -175,7 +177,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - **Asynchronous attachment detection:** Embedded PDF attachments are checked using QPDF without blocking startup with a long synchronous check.
 - **Faster first-page display:** The first visible PDF page is prioritized during initialization.
 - **Rendering cache:** Previously rendered page images can be reused to reduce unnecessary rendering.
-- **On-demand thumbnails:** Page thumbnails are generated as needed.
+- **On-demand thumbnails:** Page thumbnails are generated as needed. Thumbnails can be enlarged, and pages can be moved directly in the thumbnail pane by dragging them with the left mouse button held down.
 - **Direct page rotation:** Rotation is performed in memory through PDFium without first creating a temporary PDF file; affected display and size caches are updated.
 
 These measures primarily improve startup time and usability. They do not mean that rendering itself takes place entirely in the background: rendering still runs in the VCL main thread, and this version does not include a dedicated background rendering worker. Actual speed improvements depend on the PDF document and the system being used.
