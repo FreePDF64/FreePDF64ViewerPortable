@@ -127,7 +127,7 @@ Copyright © 2026 FreePDF64
 
 **More than a PDF viewer: Search all open PDFs at once, save document groups as workspaces, and open large files quickly.**
 
-A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, and integrated PDF tools.
+A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, edit forms and integrated PDF tools.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
