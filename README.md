@@ -30,7 +30,20 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
-**Warum nicht einfach den Browser oder einen gewöhnlichen PDF-Reader verwenden?** Für das gelegentliche Lesen einer einzelnen PDF reicht die Browseranzeige oft aus. Wer dagegen regelmäßig mit mehreren Dokumenten arbeitet, profitiert hier von einer aufeinander abgestimmten Kombination: **Zweifenstervergleich mit optionaler Scroll- und Zoomsynchronisierung, Suche über alle geöffneten PDFs, speicherbare Arbeitsbereiche, Registerkarten und integrierte Seitenwerkzeuge**. Das alles steht in einer portablen Windows-Anwendung zur Verfügung, ohne die Dokumentarbeit auf mehrere Browserfenster verteilen zu müssen. Andere PDF-Reader können einzelne oder mehrere dieser Funktionen ebenfalls bieten; der Vorteil liegt in der Kombination und im Arbeitsablauf.
+## Warum FreePDF64-Viewer Portable statt Browser oder gewöhnlichem PDF-Reader?
+
+> **Eine Anwendung. Mehrere PDFs. Ein durchgängiger Arbeitsablauf.**
+>
+> Für das gelegentliche Lesen einer einzelnen PDF reicht die Browseranzeige oft aus. Wer regelmäßig mit mehreren Dokumenten arbeitet, profitiert dagegen von Funktionen, die hier unmittelbar zusammenspielen:
+>
+> - **Zwei PDFs direkt vergleichen** – nebeneinander, mit optional synchronisiertem Scrollen (**S**) und Zoomen (**Z**).
+> - **Alle geöffneten PDFs gemeinsam durchsuchen** – Fundstellen dokumentübergreifend finden und direkt anspringen.
+> - **Arbeitsbereiche speichern und wieder öffnen** – häufig benötigte Dokumentgruppen jederzeit erneut aufrufen.
+> - **Registerkarten und PDF-Werkzeuge nutzen** – Seiten verwalten und Dokumente bearbeiten, ohne ständig zwischen Anwendungen zu wechseln.
+>
+> **Der entscheidende Vorteil:** Diese Möglichkeiten sind in einer **kostenlosen, portablen Windows-Anwendung** vereint. Statt mehrere Browserfenster und getrennte Werkzeuge zu koordinieren, bleibt die Dokumentarbeit an einem Ort.
+
+*Fairer Vergleich: Andere PDF-Reader können einzelne oder auch mehrere dieser Funktionen ebenfalls bieten. FreePDF64-Viewer Portable setzt auf ihre praktische Kombination im täglichen Arbeitsablauf.*
 
 ## Zwei PDFs nebeneinander vergleichen – Zweifensteransicht
 
@@ -172,7 +185,20 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
 
-**Why use it instead of a browser or a basic PDF reader?** A browser is often sufficient for reading a single PDF. When working with several documents regularly, FreePDF64-Viewer Portable brings together **side-by-side comparison with optional synchronized scrolling and zoom, full-text search across all open PDFs, reusable workspaces, tabs, and built-in page tools** in one portable Windows application. There is no need to spread the workflow across multiple browser windows. Other readers may offer some or all of these capabilities too; the advantage here is their combination in one workflow.
+## Why choose FreePDF64-Viewer Portable over a browser or a basic PDF reader?
+
+> **One application. Multiple PDFs. One streamlined workflow.**
+>
+> A browser is often enough for reading a single PDF. But when working with several documents regularly, these integrated features make a real difference:
+>
+> - **Compare two PDFs side by side** – with optional synchronized scrolling (**S**) and zoom (**Z**).
+> - **Search every open PDF at once** – find matches across documents and jump straight to them.
+> - **Save and reopen workspaces** – return to frequently used document groups whenever needed.
+> - **Use tabs and built-in PDF tools** – manage pages and work on documents without constantly switching applications.
+>
+> **The key advantage:** All these capabilities come together in a **free, portable Windows application**. Instead of juggling browser windows and separate tools, keep your document workflow in one place.
+
+*Fair comparison: Other PDF readers may offer some or even several of these features too. FreePDF64-Viewer Portable focuses on combining them into a practical everyday workflow.*
 
 ## Compare two PDFs side by side – split view
 
