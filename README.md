@@ -12,7 +12,7 @@
 
 # Deutsch
 
-**Mehr als eine PDF-Anzeige: Alle geöffneten PDFs gemeinsam durchsuchen, Dokumentgruppen als Arbeitsbereiche speichern, Formulare bearbeiten und große Dateien schnell öffnen.**
+**Mehr als ein PDF-Reader: Zwei PDFs nebeneinander vergleichen, alle geöffneten Dokumente gemeinsam durchsuchen und PDF-Sammlungen als Arbeitsbereiche speichern.**
 
 Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows mit Registerkarten, dokumentübergreifender Suche und integrierten PDF-Werkzeugen.
 
@@ -20,8 +20,9 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 
 ## Das macht den Viewer besonders
 
-**Viele PDFs, eine Suche, ein Arbeitsbereich.** FreePDF64-Viewer Portable richtet sich an alle, die regelmäßig mit mehreren PDF-Dokumenten arbeiten und mehr benötigen als das bloße Anzeigen einzelner Dateien im Browser.
+**Viele PDFs, zwei Ansichten, eine Suche, wiederverwendbare Arbeitsbereiche.** FreePDF64-Viewer Portable richtet sich an alle, die regelmäßig mit mehreren PDF-Dokumenten arbeiten und mehr benötigen als das bloße Anzeigen einzelner Dateien im Browser.
 
+- ↔️ **Zweifensteransicht zum PDF-Vergleich:** Zwei PDFs gleichzeitig nebeneinander anzeigen. Mit **S** das Scrollen vom linken zum rechten PDF synchronisieren und mit **Z** Zoomänderungen vom linken zum rechten PDF übertragen. Beide Schalter lassen sich unabhängig aktivieren oder deaktivieren.
 - 🔎 **Alle geöffneten PDFs gleichzeitig durchsuchen:** Die globale Volltextsuche durchsucht die Dokumente aller geöffneten Registerkarten. Treffer werden dokumentübergreifend aufgelistet; per Doppelklick springst du direkt zur Fundstelle – auch wenn das betreffende PDF zuvor noch nicht angezeigt wurde. Aufruf über **„Alle PDFs durchsuchen“** oder **Strg+Umschalt+F**.
 - 🗂️ **Arbeitsbereiche speichern und wieder öffnen:** Stelle häufig benötigte PDF-Gruppen zusammen, speichere sie unter einem eigenen Namen und rufe sie später wieder auf. Mehrere Arbeitsbereiche lassen sich verwalten, umbenennen und löschen. So wird aus einer einmaligen PDF-Sitzung ein wiederverwendbarer Dokumentenbestand.
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
@@ -29,7 +30,18 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
-**Der Unterschied zur typischen Browser-PDF-Anzeige:** Hier stehen nicht nur einzelne geöffnete Dokumente im Mittelpunkt, sondern die **dokumentübergreifende Suche** und **dauerhaft organisierbare PDF-Arbeitsbereiche**. Welche Funktionen ein Browser oder anderer Reader bietet, hängt von dessen Version und Erweiterungen ab.
+**Warum nicht einfach den Browser oder einen gewöhnlichen PDF-Reader verwenden?** Für das gelegentliche Lesen einer einzelnen PDF reicht die Browseranzeige oft aus. Wer dagegen regelmäßig mit mehreren Dokumenten arbeitet, profitiert hier von einer aufeinander abgestimmten Kombination: **Zweifenstervergleich mit optionaler Scroll- und Zoomsynchronisierung, Suche über alle geöffneten PDFs, speicherbare Arbeitsbereiche, Registerkarten und integrierte Seitenwerkzeuge**. Das alles steht in einer portablen Windows-Anwendung zur Verfügung, ohne die Dokumentarbeit auf mehrere Browserfenster verteilen zu müssen. Andere PDF-Reader können einzelne oder mehrere dieser Funktionen ebenfalls bieten; der Vorteil liegt in der Kombination und im Arbeitsablauf.
+
+## Zwei PDFs nebeneinander vergleichen – Zweifensteransicht
+
+Die **Zweifensteransicht** eignet sich besonders für den Vergleich zweier Dokumentversionen, Verträge, Anleitungen oder umfangreicher Unterlagen. Beide PDFs sind gleichzeitig sichtbar, sodass du Inhalte direkt gegenüberstellen kannst, statt ständig zwischen Registerkarten zu wechseln.
+
+- **Zwei Dokumente parallel betrachten:** Linkes und rechtes PDF in einer gemeinsamen Ansicht anzeigen.
+- **S – Synchrones Scrollen:** Beim Scrollen im **linken PDF** wird die rechte Ansicht mitgeführt. Über **S** lässt sich diese Kopplung ein- und ausschalten.
+- **Z – Synchroner Zoom:** Änderungen der Zoomstufe im **linken PDF** werden auf die rechte Ansicht übertragen. Über **Z** lässt sich diese Kopplung ein- und ausschalten.
+- **Unabhängige Steuerung:** Nur Scrollen, nur Zoom, beides oder keine Synchronisierung – je nach Vergleichsaufgabe. Aktivierte Schalter bleiben gedrückt und erscheinen fett.
+
+**Praktischer Vorteil:** Zwei Fassungen lassen sich direkt vergleichen, während du die Ansichten bei Bedarf gemeinsam bewegst oder vergrößerst. Die Synchronisierung läuft **vom linken zum rechten PDF**, nicht umgekehrt; eine automatische inhaltliche Ausrichtung unterschiedlicher Seiten ist damit nicht gemeint.
 
 ## Arbeitsbereiche komfortabel verwalten
 
@@ -59,6 +71,7 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 
 ## Weitere Funktionen im Überblick
 
+- **Zweifensteransicht:** Zwei PDFs parallel anzeigen; **S** synchronisiert das Scrollen und **Z** den Zoom jeweils vom linken zum rechten Dokument. Beide Funktionen sind unabhängig schaltbar.
 - **Mehrere PDFs in einem Fenster:** Jedes Dokument erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
@@ -97,6 +110,7 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 
 | Funktion | Bedienung |
 | --- | --- |
+| Zweifensteransicht | Zwei PDFs nebeneinander anzeigen; **S** = synchrones Scrollen, **Z** = synchroner Zoom (links → rechts) |
 | PDF-Datei öffnen | **Strg+O** oder **Datei → PDF öffnen …** |
 | Aktiven PDF-Tab schließen | **Strg+W** oder **×** am Tab |
 | Geöffnete Tabs suchen / Suche schließen | **Strg+Umschalt+A**, **Lupe** oder **Esc** zum Schließen |
@@ -140,7 +154,7 @@ Copyright © 2026 FreePDF64
 
 # English
 
-**More than a PDF viewer: Search all open PDFs at once, save document groups as workspaces, and open large files quickly.**
+**More than a PDF reader: Compare two PDFs side by side, search all open documents at once, and save PDF collections as workspaces.**
 
 A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, edit forms and integrated PDF tools.
 
@@ -148,8 +162,9 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 
 ## What makes this viewer special
 
-**Many PDFs, one search, one workspace.** FreePDF64-Viewer Portable is designed for people who regularly work with multiple PDF documents and need more than simply viewing individual files in a browser.
+**Many PDFs, two views, one search, reusable workspaces.** FreePDF64-Viewer Portable is designed for people who regularly work with multiple PDF documents and need more than simply viewing individual files in a browser.
 
+- ↔️ **Side-by-side PDF comparison:** Display two PDFs next to each other. Use **S** to synchronize scrolling from the left PDF to the right PDF and **Z** to apply zoom changes from the left PDF to the right PDF. Both toggles can be enabled or disabled independently.
 - 🔎 **Search all open PDFs at once:** The global full-text search scans the documents in all open tabs. Results are listed across documents; double-click a result to jump directly to the matching location—even if that PDF has not previously been displayed. Open it via **Search all PDFs** or **Ctrl+Shift+F**.
 - 🗂️ **Save and reopen workspaces:** Group frequently used PDFs, save the group under a custom name, and reopen it later. You can manage, rename, and delete multiple workspaces. Turn a one-time PDF session into a reusable collection of documents.
 - ⚡ **Fast startup and a responsive interface:** PDFs are loaded on demand or asynchronously so the main window becomes usable quickly. Searching embedded PDF attachments has also been moved to asynchronous processing. This is especially useful with large documents.
@@ -157,7 +172,18 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
 
-**How it differs from a typical browser PDF viewer:** The focus is not just on individual open documents, but on **cross-document search** and **reusable PDF workspaces**. The features available in a browser or another reader depend on its version and extensions.
+**Why use it instead of a browser or a basic PDF reader?** A browser is often sufficient for reading a single PDF. When working with several documents regularly, FreePDF64-Viewer Portable brings together **side-by-side comparison with optional synchronized scrolling and zoom, full-text search across all open PDFs, reusable workspaces, tabs, and built-in page tools** in one portable Windows application. There is no need to spread the workflow across multiple browser windows. Other readers may offer some or all of these capabilities too; the advantage here is their combination in one workflow.
+
+## Compare two PDFs side by side – split view
+
+The **split view** is particularly useful for comparing document versions, contracts, manuals, or lengthy reference materials. Both PDFs remain visible at the same time, so you can compare content directly instead of constantly switching tabs.
+
+- **View two documents in parallel:** Display the left and right PDFs in a shared view.
+- **S – Synchronized scrolling:** Scrolling the **left PDF** also scrolls the right view. Toggle this behavior on or off using **S**.
+- **Z – Synchronized zoom:** Zoom-level changes in the **left PDF** are applied to the right view. Toggle this behavior on or off using **Z**.
+- **Independent controls:** Enable scrolling only, zoom only, both, or neither. Active buttons stay pressed and are displayed in bold.
+
+**Practical benefit:** Compare two versions directly while moving or zooming both views together when needed. Synchronization works **from the left PDF to the right PDF**, not in both directions; it does not automatically align different document content.
 
 ## Manage workspaces with ease
 
@@ -187,6 +213,7 @@ These actions are available from the **thumbnail pane's context menu**.
 
 ## More features at a glance
 
+- **Split view:** Display two PDFs side by side; **S** synchronizes scrolling and **Z** synchronizes zoom from the left document to the right. Both options work independently.
 - **Multiple PDFs in one window:** Each document gets its own tab. Multiple PDF files selected in Windows File Explorer can also be opened in the viewer that is already running.
 - **Single application instance:** Starting the program again activates the existing viewer instead of opening a second window.
 - **Easy tab management:** Close tabs using the small **×** or **Ctrl+W**; find open tabs using the **magnifying glass** or **Ctrl+Shift+A**. Close the search with the same shortcut or **Esc**.
@@ -225,6 +252,7 @@ These measures primarily improve startup time and usability. They do not mean th
 
 | Function | How to use it |
 | --- | --- |
+| Split view | View two PDFs side by side; **S** = synchronized scrolling, **Z** = synchronized zoom (left → right) |
 | Open a PDF file | **Ctrl+O** or **File → Open PDF…** |
 | Close the active PDF tab | **Ctrl+W** or the tab’s **×** |
 | Find open tabs / close search | **Ctrl+Shift+A**, the **magnifying glass**, or **Esc** to close |
