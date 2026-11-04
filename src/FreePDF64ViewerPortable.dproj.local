@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<ProjectSortOrder AutoSort="0" SortType="0">
+    <File Path="uFreePDF64PDFiumCore.pas"/>
+    <File Path="uFreePDF64PDFiumView.pas"/>
+    <File Path="uPDFAttachmentTemp.pas"/>
+    <File Path="uPDFBrowserForm.pas"/>
+    <File Path="uPDFBrowserForm.dfm"/>
+    <File Path="uPDFPortableAttachments.pas"/>
+    <File Path="uPDFTabsForm.pas"/>
+    <File Path="uPDFErrorLogger.pas"/>
+  </ProjectSortOrder>
+</BorlandProject>
