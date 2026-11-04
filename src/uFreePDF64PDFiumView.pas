@@ -7209,7 +7209,7 @@ begin
       // Feld darf weder per Mausklick noch per Dialog veraendert werden.
       if FCore.FormWidgetReadOnly(Img.Tag, WidgetIndex) then
       begin
-        MessageDlg(Tr('Dieses PDF-Formularfeld ist schreibgeschuetzt.'),
+        MessageDlg(Tr('Dieses PDF-Formularfeld ist schreibgeschützt.'),
           mtInformation, [mbOK], 0);
         Exit;
       end;
