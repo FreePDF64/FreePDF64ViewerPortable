@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable
+# FreePDF64-Viewer Portable 3.0.0
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -14,9 +14,21 @@
 
 **Mehr als ein PDF-Reader: Zwei PDFs nebeneinander vergleichen, alle geöffneten Dokumente gemeinsam durchsuchen und PDF-Sammlungen als Arbeitsbereiche speichern.**
 
-Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows mit Registerkarten, dokumentübergreifender Suche und integrierten PDF-Werkzeugen.
+Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows mit Registerkarten, dokumentübergreifender Suche, interaktiven PDF-Formularen und integrierten PDF-Werkzeugen.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
+
+## Neu in Version 3.0.0: JavaScript-V8 und statische XFA-Formulare
+
+Version **3.0.0** erweitert die Formularunterstützung des Viewers:
+
+- **PDFium mit V8-JavaScript:** Unterstützte JavaScript-Aktionen in interaktiven PDF-Formularen können ausgeführt werden.
+- **Automatische Formularberechnungen:** Abhängige Werte werden nach Eingaben und Änderungen an unterstützten Checkboxen und Optionsfeldern aktualisiert – auch über mehrere PDF-Seiten hinweg.
+- **AcroForm-Bearbeitung:** Textfelder, Checkboxen, Optionsfelder und weitere unterstützte Formularfelder ausfüllen und die Änderungen speichern.
+- **Statische XFA-Formulare:** Unterstützte statische XFA-Formulare bearbeiten und speichern. Beim Speichern werden die bearbeiteten Formularwerte mit den XFA-XML-Datensätzen synchronisiert.
+- **Verbesserte Tastaturbedienung:** Formularfelder mit **TAB** und **Umschalt+TAB** durchlaufen; die Bearbeitung und Übernahme der Werte bleibt erhalten.
+
+> **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
 
 ## Das macht den Viewer besonders
 
@@ -28,6 +40,7 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
 - 📑 **Mehrere Dokumente in einer einzigen Anwendung:** Registerkarten, Seitenvorschau und Inhaltsverzeichnis erleichtern den Überblick. Der Viewer kann weitere PDFs an die bereits laufende Instanz übergeben, statt für jede Datei ein eigenes Fenster zu öffnen.
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
+- 🧾 **Interaktive Formulare:** AcroForm- und unterstützte statische XFA-Formulare bearbeiten und speichern; unterstützte JavaScript-V8-Berechnungen werden aktualisiert.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
 ## Warum FreePDF64-Viewer Portable statt Browser oder gewöhnlichem PDF-Reader?
@@ -90,6 +103,7 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
 - **Flexible PDF-Anzeige:** Vergrößerbare Seitenminiaturen, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi. Seiten lassen sich in der Miniaturansicht mit gedrückter linker Maustaste verschieben.
 - **PDF-Werkzeuge:** Unter anderem Seiten drehen, nach oben/unten verschieben, löschen, extrahieren, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
+- **Formulare ausfüllen:** AcroForm- und unterstützte statische XFA-Felder bearbeiten und speichern; JavaScript-V8-Aktionen und automatische Berechnungen werden unterstützt.
 - **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
 - **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
 - **PDF neu laden:** Das aktuelle Dokument über **Datei → PDF neu laden (Änderungen verwerfen)** erneut öffnen; vor dem Verwerfen ungespeicherter Änderungen wird nachgefragt.
@@ -146,7 +160,7 @@ Wird die EXE nach einer PDF-Dateiverknüpfung verschoben, muss die Zuordnung unt
 
 ## Verwendete Komponenten und Lizenzen
 
-Der Viewer nutzt **PDFium** (BSD-3-Clause License, Copyright © The PDFium Authors) sowie für bestimmte Funktionen **QPDF** und **Xpdf**. Für diese Komponenten gelten die jeweiligen Lizenz- und Copyrightbedingungen. Beachte bei der Weitergabe die zugehörigen Lizenztexte.
+Der Viewer nutzt **PDFium mit V8-JavaScript-Unterstützung** (BSD-3-Clause License, Copyright © The PDFium Authors) sowie für bestimmte Funktionen **QPDF** und **Xpdf**. Für diese Komponenten gelten die jeweiligen Lizenz- und Copyrightbedingungen. Beachte bei der Weitergabe die zugehörigen Lizenztexte.
 
 ## Kontakt
 
@@ -169,9 +183,21 @@ Copyright © 2026 FreePDF64
 
 **More than a PDF reader: Compare two PDFs side by side, search all open documents at once, and save PDF collections as workspaces.**
 
-A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, edit forms and integrated PDF tools.
+A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, interactive PDF forms, and built-in PDF tools.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
+
+## New in version 3.0.0: V8 JavaScript and static XFA forms
+
+Version **3.0.0** expands the viewer's PDF form capabilities:
+
+- **PDFium with V8 JavaScript:** Run supported JavaScript actions in interactive PDF forms.
+- **Automatic form calculations:** Update dependent values after text input and changes to supported checkboxes and radio buttons, including calculations across PDF pages.
+- **AcroForm editing:** Fill in text fields, checkboxes, radio buttons, and other supported form fields, then save the changes.
+- **Static XFA forms:** Edit and save supported static XFA forms. When saving, edited form values are synchronized with the XFA XML datasets.
+- **Improved keyboard navigation:** Move between form fields with **Tab** and **Shift+Tab** while retaining entered values.
+
+> **Compatibility note:** Not all PDF JavaScript features or XFA forms are supported. In particular, support for **static XFA forms** does not imply full support for dynamic XFA layouts. Behavior depends on the structure of each document.
 
 ## What makes this viewer special
 
@@ -183,6 +209,7 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 - ⚡ **Fast startup and a responsive interface:** PDFs are loaded on demand or asynchronously so the main window becomes usable quickly. Searching embedded PDF attachments has also been moved to asynchronous processing. This is especially useful with large documents.
 - 📑 **Multiple documents in one application:** Tabs, page thumbnails, and the table of contents make it easier to navigate. The viewer can send additional PDFs to an already running instance instead of opening a separate window for each file.
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
+- 🧾 **Interactive PDF forms:** Edit and save AcroForm and supported static XFA forms, with supported V8 JavaScript calculations.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
 
 ## Why choose FreePDF64-Viewer Portable over a browser or a basic PDF reader?
@@ -245,6 +272,7 @@ These actions are available from the **thumbnail pane's context menu**.
 - **Easy tab management:** Close tabs using the small **×** or **Ctrl+W**; find open tabs using the **magnifying glass** or **Ctrl+Shift+A**. Close the search with the same shortcut or **Esc**.
 - **Flexible PDF viewing:** Resizable page thumbnails, table of contents, zoom, page navigation, and various page and viewing modes. Move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
 - **PDF tools:** Rotate, move pages up or down, delete or extract pages, view document properties, and manage PDF attachments.
+- **Fill in forms:** Edit and save AcroForm and supported static XFA fields, with support for V8 JavaScript actions and automatic calculations.
 - **Annotate PDFs:** Add freehand drawings, lines, rectangles, and ellipses as annotations.
 - **Visual redaction:** Cover text areas with black rectangles (this does not securely remove the underlying text).
 - **Reload a PDF:** Reopen the current document using **File → Reload PDF (Discard Changes)**; the viewer asks before discarding unsaved changes.
@@ -301,7 +329,7 @@ If the EXE is moved after a PDF file association has been configured, the associ
 
 ## Components and licenses
 
-The viewer uses **PDFium** (BSD-3-Clause License, Copyright © The PDFium Authors), as well as **QPDF** and **Xpdf** for certain functions. These components are subject to their respective license and copyright terms. Please observe the associated license texts when redistributing the software.
+The viewer uses **PDFium with V8 JavaScript support** (BSD-3-Clause License, Copyright © The PDFium Authors), as well as **QPDF** and **Xpdf** for certain functions. These components are subject to their respective license and copyright terms. Please observe the associated license texts when redistributing the software.
 
 ## Contact
 
