@@ -6,7 +6,7 @@ uses
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
-  Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, System.Generics.Collections, Math,
+  Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, System.IniFiles, System.Generics.Collections, Math,
   System.NetEncoding, System.Character, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore;
 
 const
@@ -373,6 +373,9 @@ type
   public
     procedure ShowDocumentProperties;
     procedure TogglePageThumbnails;
+    procedure SetPageThumbnailsVisible(AVisible: Boolean);
+    class procedure SetGlobalThumbnailSplitMode(AEnabled: Boolean); static;
+    class function GlobalThumbnailsVisible: Boolean; static;
     procedure ShowRequiredFieldsReport;
     procedure FocusAdjacentFormWidget(ADirection: Integer);
     function HasActiveFormWidget: Boolean;
@@ -436,6 +439,36 @@ type
   end;
 
 implementation
+
+var
+  GThumbnailViews: TList<TFreePDF64PDFiumView>;
+  GThumbnailsLoaded: Boolean = False;
+  GThumbnailsVisible: Boolean = False;
+  GThumbnailSplitMode: Boolean = False;
+
+procedure LoadGlobalThumbnails;
+var Ini: TIniFile;
+begin
+  if GThumbnailsLoaded then Exit;
+  GThumbnailsLoaded := True;
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    GThumbnailsVisible := Ini.ReadBool('Viewer', 'ThumbnailsVisible', False);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure SaveGlobalThumbnails;
+var Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    Ini.WriteBool('Viewer', 'ThumbnailsVisible', GThumbnailsVisible);
+  finally
+    Ini.Free;
+  end;
+end;
 
 function ToolbarHint(const ADeutsch, AEnglish: string): string;
 begin
@@ -1685,10 +1718,16 @@ begin
   // The main form's startup refresh can run before this viewer exists.
   RefreshLanguage;
   UpdateTextUndoButtons;
+  LoadGlobalThumbnails;
+  if GThumbnailViews = nil then
+    GThumbnailViews := TList<TFreePDF64PDFiumView>.Create;
+  GThumbnailViews.Add(Self);
+  SetPageThumbnailsVisible(GThumbnailsVisible and not GThumbnailSplitMode);
 end;
 
 destructor TFreePDF64PDFiumView.Destroy;
 begin
+  if GThumbnailViews <> nil then GThumbnailViews.Remove(Self);
   if FTextEditor <> nil then
   begin
     FTextEditor.OnKeyDown := nil;
@@ -3066,6 +3105,7 @@ begin
 end;
 
 procedure TFreePDF64PDFiumView.ToggleOutline(Sender: TObject);
+var V: TFreePDF64PDFiumView;
 begin
   FOutlinePanel.Visible := not FOutlinePanel.Visible;
   FOutlineSplitter.Visible := FOutlinePanel.Visible;
@@ -3087,6 +3127,17 @@ begin
       ThumbAreaResize(nil);
       ScrollThumbnailToCurrentPage;
     end;
+  end;
+  // Only user-initiated sidebar clicks update the global preference.
+  // Programmatic calls (Sender=nil) must not overwrite the saved value.
+  if (Sender <> nil) and not GThumbnailSplitMode then
+  begin
+    LoadGlobalThumbnails;
+    GThumbnailsVisible := FOutlinePanel.Visible and FThumbScroll.Visible;
+    SaveGlobalThumbnails;
+    if GThumbnailViews <> nil then
+      for V in GThumbnailViews do
+        if V <> Self then V.SetPageThumbnailsVisible(GThumbnailsVisible);
   end;
 end;
 
@@ -3114,8 +3165,18 @@ begin
 end;
 
 procedure TFreePDF64PDFiumView.OutlineTabClick(Sender: TObject);
+var V: TFreePDF64PDFiumView;
 begin
   ShowOutlineTab(TButton(Sender).Tag = 1);
+  if not GThumbnailSplitMode then
+  begin
+    LoadGlobalThumbnails;
+    GThumbnailsVisible := FOutlinePanel.Visible and FThumbScroll.Visible;
+    SaveGlobalThumbnails;
+    if GThumbnailViews <> nil then
+      for V in GThumbnailViews do
+        if V <> Self then V.SetPageThumbnailsVisible(GThumbnailsVisible);
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ThumbClick(Sender: TObject);
@@ -7996,17 +8057,47 @@ begin
   end;
 end;
 
-procedure TFreePDF64PDFiumView.TogglePageThumbnails;
+procedure TFreePDF64PDFiumView.SetPageThumbnailsVisible(AVisible: Boolean);
 begin
-  // Bei sichtbarer Seitenleiste auf Miniaturen umschalten;
-  // andernfalls die Miniaturleiste oeffnen.
-  if FOutlinePanel.Visible and FThumbScroll.Visible then
-    ToggleOutline(nil)
-  else
+  if AVisible then
   begin
     ShowOutlineTab(True);
     if not FOutlinePanel.Visible then ToggleOutline(nil);
+  end
+  else if FOutlinePanel.Visible then
+    ToggleOutline(nil);
+end;
+
+class function TFreePDF64PDFiumView.GlobalThumbnailsVisible: Boolean;
+begin
+  LoadGlobalThumbnails;
+  Result := GThumbnailsVisible;
+end;
+
+class procedure TFreePDF64PDFiumView.SetGlobalThumbnailSplitMode(AEnabled: Boolean);
+var V: TFreePDF64PDFiumView;
+begin
+  LoadGlobalThumbnails;
+  GThumbnailSplitMode := AEnabled;
+  if GThumbnailViews <> nil then
+    for V in GThumbnailViews do
+      V.SetPageThumbnailsVisible(not AEnabled and GThumbnailsVisible);
+end;
+
+procedure TFreePDF64PDFiumView.TogglePageThumbnails;
+var V: TFreePDF64PDFiumView;
+begin
+  if GThumbnailSplitMode then
+  begin
+    SetPageThumbnailsVisible(not (FOutlinePanel.Visible and FThumbScroll.Visible));
+    Exit;
   end;
+  LoadGlobalThumbnails;
+  GThumbnailsVisible := not (FOutlinePanel.Visible and FThumbScroll.Visible);
+  SaveGlobalThumbnails;
+  if GThumbnailViews <> nil then
+    for V in GThumbnailViews do
+      V.SetPageThumbnailsVisible(GThumbnailsVisible);
 end;
 
 end.

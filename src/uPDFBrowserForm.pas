@@ -398,7 +398,7 @@ begin
     if FWorkspaceLayoutPending then
     begin
       FPDFiumView.RestoreWorkspaceLayout(FWorkspaceViewMode, FWorkspaceTwoPage,
-        FWorkspaceContinuous, FWorkspaceSidebar);
+        FWorkspaceContinuous, TFreePDF64PDFiumView.GlobalThumbnailsVisible);
       FWorkspaceLayoutPending := False;
     end;
     if Trim(FSearchTerm) <> '' then
@@ -485,7 +485,8 @@ begin
   FWorkspaceLayoutPending := True;
   if FNavigationSucceeded and (FPDFiumView <> nil) then
   begin
-    FPDFiumView.RestoreWorkspaceLayout(AViewMode, ATwoPage, AContinuous, ASidebar);
+    FPDFiumView.RestoreWorkspaceLayout(AViewMode, ATwoPage, AContinuous,
+      TFreePDF64PDFiumView.GlobalThumbnailsVisible);
     FWorkspaceLayoutPending := False;
   end;
 end;

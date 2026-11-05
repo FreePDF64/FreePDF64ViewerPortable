@@ -7,7 +7,7 @@ uses
   System.SysUtils, System.Classes, System.Types, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
   Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, System.IniFiles, System.Win.Registry, Math,
-  uPDFBrowserForm, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
+  uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
 
 type
   // Teilungsbutton mit orangefarbenem Rahmen; keine protected Color-Eigenschaft.
@@ -1245,7 +1245,7 @@ begin
           Ini.ReadInteger('PDFs', 'ViewMode' + IntToStr(I), 1),
           Ini.ReadBool('PDFs', 'TwoPage' + IntToStr(I), False),
           Ini.ReadBool('PDFs', 'Continuous' + IntToStr(I), True),
-          Ini.ReadBool('PDFs', 'Sidebar' + IntToStr(I), False));
+          TFreePDF64PDFiumView.GlobalThumbnailsVisible);
         PDF.StandalonePDFMode := False;
         AddPDF(PDF);
         AddedToTabs := True;
@@ -2001,6 +2001,7 @@ begin
         + 'Drag the divider to adjust the pane widths. Click inside a PDF or press Tab to change the active pane; '
         + 'a blue border identifies it. Each pane has three small buttons at the top left: '
         + 'close split view, search within that pane''s PDF, and show or hide its page thumbnails. '
+        + 'In normal view, the thumbnail state (on or off) is saved permanently in FreePDFViewer.ini and applies to all currently open and subsequently opened PDFs, including after restarting the viewer. Split view always starts without thumbnails; each pane can show or hide its thumbnails independently. Returning to normal view restores the saved setting. '
         + 'The thumbnail button disappears when its sidebar is open and reappears when the sidebar is closed. '
         + 'F3 finds the next match in the active pane; Shift+F3 finds the previous match. '
         + 'Choose Split view again or use a split button to return to the single-pane view. '
@@ -2168,6 +2169,7 @@ begin
         + 'drei kleine Schaltflächen: Teilung beenden, Text im jeweiligen PDF suchen und dessen '
         + 'Seitenminiaturen ein- oder ausblenden. Bei geöffneter Seitenleiste verschwindet der '
         + 'Miniaturbutton und erscheint nach dem Schließen wieder. '
+        + 'In der normalen Ansicht wird der Zustand der Miniaturansicht (eingeschaltet oder ausgeschaltet) dauerhaft in FreePDFViewer.ini gespeichert und gilt für alle bereits geöffneten sowie später geöffneten PDF-Dateien, auch nach einem Neustart. Die Zweifensteransicht startet immer ohne Miniaturansichten; diese lassen sich für beide Teilfenster unabhängig voneinander ein- und ausschalten. Nach dem Beenden der Zweifensteransicht wird die gespeicherte Einstellung der normalen Ansicht wiederhergestellt. '
         + 'F3 sucht im aktiven Teilfenster weiter, Umschalt+F3 rückwärts. '
         + 'Über „Ansicht teilen“ oder einen Teilungsbutton zur Einfensteransicht zurückkehren. '
         + 'Der Teilungsbutton ist bei zwei ausgewählten Registerkarten oder aktiver Teilung verfügbar. '
@@ -5364,6 +5366,7 @@ begin
   finally
     FAddingPDF := False;
   end;
+  TFreePDF64PDFiumView.SetGlobalThumbnailSplitMode(False);
   if FSplitViewMenuItem <> nil then
     FSplitViewMenuItem.Checked := False;
   UpdateSplitMenuState;
@@ -5383,6 +5386,7 @@ begin
   L := PDFInTab(ALeft);
   R := PDFInTab(ARight);
   if (L = nil) or (R = nil) then Exit;
+  TFreePDF64PDFiumView.SetGlobalThumbnailSplitMode(True);
   FSplitLeftScaled := L.Scaled;
   FSplitRightScaled := R.Scaled;
   L.Scaled := False;
@@ -5572,6 +5576,10 @@ begin
   FSplitFocusTimer.Enabled := True;
   FSplitViewMenuItem.Checked := True;
   UpdateSplitMenuState;
+  // Nach Reparenting, Sprachwechsel und finalem Layout die beiden
+  // Miniaturansichten erneut schliessen. Ein spaeteres Layout darf
+  // insbesondere rechts keinen zuvor gespeicherten Zustand aktivieren.
+  TFreePDF64PDFiumView.SetGlobalThumbnailSplitMode(True);
   FTabs.Invalidate;
 end;
 
