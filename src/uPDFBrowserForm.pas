@@ -398,7 +398,7 @@ begin
     if FWorkspaceLayoutPending then
     begin
       FPDFiumView.RestoreWorkspaceLayout(FWorkspaceViewMode, FWorkspaceTwoPage,
-        FWorkspaceContinuous, TFreePDF64PDFiumView.GlobalThumbnailsVisible);
+        FWorkspaceContinuous, FWorkspaceSidebar);
       FWorkspaceLayoutPending := False;
     end;
     if Trim(FSearchTerm) <> '' then
@@ -407,6 +407,9 @@ begin
       FPDFiumView.SearchText(FSearchTerm);
 
     end;
+    // After the asynchronous PDF initialization, restore the thumbnail
+    // preference for every newly opened PDF (including FreePDF64 launches).
+    FPDFiumView.ApplySavedThumbnailsAfterLoad;
     FNavigationDone := True;
     FNavigationSucceeded := True;
     FPendingFirstDisplay := True;
@@ -485,8 +488,7 @@ begin
   FWorkspaceLayoutPending := True;
   if FNavigationSucceeded and (FPDFiumView <> nil) then
   begin
-    FPDFiumView.RestoreWorkspaceLayout(AViewMode, ATwoPage, AContinuous,
-      TFreePDF64PDFiumView.GlobalThumbnailsVisible);
+    FPDFiumView.RestoreWorkspaceLayout(AViewMode, ATwoPage, AContinuous, ASidebar);
     FWorkspaceLayoutPending := False;
   end;
 end;

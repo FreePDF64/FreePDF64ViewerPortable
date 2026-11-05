@@ -374,6 +374,7 @@ type
     procedure ShowDocumentProperties;
     procedure TogglePageThumbnails;
     procedure SetPageThumbnailsVisible(AVisible: Boolean);
+    procedure ApplySavedThumbnailsAfterLoad;
     class procedure SetGlobalThumbnailSplitMode(AEnabled: Boolean); static;
     class function GlobalThumbnailsVisible: Boolean; static;
     procedure ShowRequiredFieldsReport;
@@ -8055,6 +8056,23 @@ begin
   finally
     Dlg.Free;
   end;
+end;
+
+procedure TFreePDF64PDFiumView.ApplySavedThumbnailsAfterLoad;
+begin
+  // The PDF is loaded asynchronously, especially when started by FreePDF64.
+  // Reapply the shared preference only in normal mode; never override
+  // independently controlled thumbnail panels in split view.
+  LoadGlobalThumbnails;
+  if GThumbnailSplitMode then
+  begin
+    // Loading/restoring a PDF may reopen its sidebar after split mode
+    // has already hidden it. Never import the global thumbnail preference
+    // into either split pane during the asynchronous first load.
+    SetPageThumbnailsVisible(False);
+  end
+  else
+    SetPageThumbnailsVisible(GThumbnailsVisible);
 end;
 
 procedure TFreePDF64PDFiumView.SetPageThumbnailsVisible(AVisible: Boolean);
