@@ -2078,6 +2078,15 @@ begin
         + 'button in the merge dialog for help. Save the result as a new PDF. '
         + 'Original PDFs are not modified; unsaved changes in open tabs are not included.');
       AddSection('Interactive forms', '');
+      AddSection('JavaScript (V8) and automatic calculations',
+        'Supported AcroForm JavaScript actions can validate field entries and update calculated values, '
+        + 'including totals affected by checkboxes and radio buttons. Calculated results on other pages '
+        + 'are refreshed when displayed without having to save and reopen the PDF. '
+        + 'JavaScript compatibility depends on the form and the PDFium/V8 implementation.');
+      AddSection('Static XFA forms',
+        'Supported static XFA forms can be edited using their interactive fields. When saving, '
+        + 'the corresponding XFA datasets are synchronized with the AcroForm field values where '
+        + 'the form structure allows it. Dynamic XFA and every possible XFA form are not guaranteed to work.');
       AddSection('Interactive PDF forms (AcroForm)',
         'Fill in text fields and multiline notes directly in the PDF. Supported forms include checkboxes, radio buttons, drop-down lists and PDF list boxes. '
         + 'Use Tab to move between editable fields. Hidden, invisible and non-viewable fields are skipped.');
@@ -2260,6 +2269,16 @@ begin
         + 'Die Originaldateien bleiben unverändert; ungespeicherte Änderungen '
         + 'geöffneter PDFs werden nicht übernommen.');
       AddSection('Interaktive Formulare', '');
+      AddSection('JavaScript (V8) und automatische Berechnungen',
+        'Unterstützte AcroForm-JavaScript-Aktionen können Eingaben prüfen und berechnete Werte aktualisieren, '
+        + 'auch bei Änderungen von Kontrollkästchen und Optionsfeldern. Berechnungsergebnisse auf anderen '
+        + 'Seiten werden beim Anzeigen aktualisiert, ohne dass die PDF zuvor gespeichert und erneut '
+        + 'geöffnet werden muss. Die JavaScript-Kompatibilität hängt vom Formular und von PDFium/V8 ab.');
+      AddSection('Statische XFA-Formulare',
+        'Unterstützte statische XFA-Formulare lassen sich über ihre interaktiven Felder bearbeiten. '
+        + 'Beim Speichern werden die zugehörigen XFA-Datensätze mit den AcroForm-Feldwerten synchronisiert, '
+        + 'soweit die Formularstruktur dies zulässt. Dynamische XFA-Formulare und beliebige XFA-Strukturen '
+        + 'werden nicht uneingeschränkt unterstützt.');
       AddSection('Interaktive PDF-Formulare (AcroForm)',
         'Textfelder und mehrzeilige Notizfelder direkt in der PDF ausfüllen. Unterstützt werden außerdem Kontrollkästchen, Optionsfelder, Dropdown-Listen und echte PDF-Listenfelder. '
         + 'Mit Tab wechseln Sie zwischen bearbeitbaren Feldern. Versteckte, unsichtbare und nicht anzeigbare Felder werden übersprungen.');

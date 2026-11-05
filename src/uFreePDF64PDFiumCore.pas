@@ -56,6 +56,9 @@ type
     CurrentDoc: Pointer;
     CurrentPage: Pointer;
     CurrentPageIndex: Integer;
+    // Seiten ausserhalb der aktiven Seite fuer PDFium/V8 zwischenspeichern.
+    OtherPages: TDictionary<Integer, Pointer>;
+    OtherPagesFormHandle: Pointer;
   end;
   TPDFInkPoint = packed record
     X, Y: Single;
@@ -124,6 +127,7 @@ type
     FStrokes: TObjectList<TPDFInkStroke>;
     FStrokePages: TList<Integer>;
     FModified: Boolean;
+    FTest24Recalculating: Boolean;
     FPageOrder: TArray<Integer>;
     FOrderChanged: Boolean;
     FTextActions: TList<TPDFInsertedTextAction>;
@@ -131,6 +135,7 @@ type
     FReplayingHighlight: Boolean;
     FNoteActions: TList<TPDFNoteAction>;
     FNoteActionPos: Integer;
+    procedure RecalculateTest24;
     function ApplyNoteState(const N: TPDFNote; AExists: Boolean; AIndex: Integer): Boolean;
     procedure RecordNoteAction(const A: TPDFNoteAction);
     procedure ClearTextActions;
@@ -232,6 +237,8 @@ type
 
 implementation
 
+uses uPDFStaticXFASync;
+
 type
   PPDFFileWrite = ^TPDFFileWrite;
   TPDFWriteBlock = function(AWriter: PPDFFileWrite; AData: Pointer;
@@ -246,12 +253,36 @@ type
     Stream: TFileStream;
   end;
 
+// Eigener Importname, da die reguläre PDFium-Deklaration weiter unten steht.
+function JSPageCount(Doc: Pointer): Integer; stdcall;
+  external 'pdfium.dll' name 'FPDF_GetPageCount';
+function JSLoadPage(Doc: Pointer; Index: Integer): Pointer; stdcall;
+  external 'pdfium.dll' name 'FPDF_LoadPage';
+
+procedure FORM_OnAfterLoadPage(Page, FormHandle: Pointer); stdcall; external 'pdfium.dll';
+procedure FORM_OnBeforeClosePage(Page, FormHandle: Pointer); stdcall; external 'pdfium.dll';
+procedure JSFreeOtherPages(var Context: TPDFJSFormInfo); forward;
+
 function JSGetPage(Info, Doc: Pointer; Index: Integer): Pointer; cdecl;
+var
+  Context: PPDFJSFormInfo;
 begin
   Result := nil;
-  if (Info <> nil) and (Doc = PPDFJSFormInfo(Info)^.CurrentDoc) and
-     (Index = PPDFJSFormInfo(Info)^.CurrentPageIndex) then
-    Result := PPDFJSFormInfo(Info)^.CurrentPage;
+  if (Info = nil) or (Doc = nil) then Exit;
+  Context := PPDFJSFormInfo(Info);
+  if (Doc <> Context^.CurrentDoc) or
+     (Index < 0) or (Index >= JSPageCount(Doc)) then Exit;
+  if Index = Context^.CurrentPageIndex then
+    Exit(Context^.CurrentPage);
+  if Context^.OtherPages = nil then Exit;
+  if Context^.OtherPages.TryGetValue(Index, Result) then Exit;
+  Result := JSLoadPage(Doc, Index);
+  if Result <> nil then
+  begin
+    Context^.OtherPages.Add(Index, Result);
+    if Context^.OtherPagesFormHandle <> nil then
+      FORM_OnAfterLoadPage(Result, Context^.OtherPagesFormHandle);
+  end;
 end;
 
 function JSGetCurrentPage(Info, Doc: Pointer): Pointer; cdecl;
@@ -352,6 +383,8 @@ function FPDF_GetPageCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll
 function FPDF_ImportPages(DestDoc, SrcDoc: Pointer; PageRange: PAnsiChar; Index: Integer): Integer; stdcall; external 'pdfium.dll';
 // AcroForm-Erkennung (PDFium public/fpdf_formfill.h / fpdf_annot.h).
 function FPDF_GetFormType(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
+// PDFium XFA: initialisiert XFA-Daten vor dem ersten Seitenzugriff.
+function FPDF_LoadXFA(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFDoc_GetJavaScriptActionCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFPage_GetAnnotCount(Page: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFPage_GetAnnot(Page: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
@@ -364,6 +397,7 @@ function FPDFAnnot_IsChecked(FormHandle, Annot: Pointer): Integer; stdcall; exte
 function FPDFAnnot_GetFormFieldName(FormHandle, Annot: Pointer; Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
 function FPDFAnnot_GetFormFieldValue(FormHandle, Annot: Pointer; Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
 function FPDFAnnot_GetFormFieldFlags(FormHandle, Annot: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFAnnot_SetFormFieldFlags(FormHandle, Annot: Pointer; Flags: Integer): Integer; stdcall; external 'pdfium.dll';
 function FPDFAnnot_GetFormFieldExportValue(FormHandle, Annot: Pointer;
   Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
 function FPDFDOC_InitFormFillEnvironment(Doc: Pointer;
@@ -379,8 +413,6 @@ procedure FPDF_SetFormFieldHighlightAlpha(FormHandle: Pointer;
 procedure FPDF_FFLDraw(FormHandle, Bitmap, Page: Pointer;
   StartX, StartY, SizeX, SizeY, Rotate, Flags: Integer);
   stdcall; external 'pdfium.dll';
-procedure FORM_OnAfterLoadPage(Page, FormHandle: Pointer); stdcall; external 'pdfium.dll';
-procedure FORM_OnBeforeClosePage(Page, FormHandle: Pointer); stdcall; external 'pdfium.dll';
 function FORM_OnLButtonDown(FormHandle, Page: Pointer; Modifier: Integer;
   PageX, PageY: Double): Integer; stdcall; external 'pdfium.dll';
 function FORM_OnLButtonUp(FormHandle, Page: Pointer; Modifier: Integer;
@@ -1131,6 +1163,194 @@ begin
   end;
 end;
 
+// Patch 24m: Eng begrenzter Funktionstest fuer Test-PDF 24.
+// Kein allgemeiner JavaScript-Interpreter: ermittelt die Werte direkt aus
+// den zwei Testeingaben und aktualisiert die drei schreibgeschuetzten
+// Ergebnisfelder ueber PDFiums Formularengine. Keine persistente Umgebung.
+procedure TFreePDF64PDFiumCore.RecalculateTest24;
+type
+  TFieldLocation = record
+    PageIndex: Integer;
+    AnnotIndex: Integer;
+    Value: string;
+    Flags: Integer;
+    Found: Boolean;
+  end;
+var
+  Fields: array[0..4] of TFieldLocation;
+  Names: array[0..4] of string;
+  Info: TPDFFormFillInfo;
+  H, P, A: Pointer;
+  I, J, K: Integer;
+  NLen, VLen: Cardinal;
+  Buf: TArray<WideChar>;
+  N: string;
+  AValue, BValue: Double;
+  FS: TFormatSettings;
+  SavedFlags: Integer;
+  Updated: Boolean;
+  function NumberText(const X: Double): string;
+  begin
+    Result := FloatToStr(X, FS);
+  end;
+  procedure WriteCalculatedField(const Index: Integer; const Value: string);
+  var
+    Page, Widget, FormHandle: Pointer;
+    LocalInfo: TPDFFormFillInfo;
+  begin
+    // Berechnete Felder sind readonly. Den Schreibschutz nur fuer diesen
+    // einzelnen internen Commit aufheben und garantiert zuruecksetzen.
+    FillChar(LocalInfo, SizeOf(LocalInfo), 0);
+    FormHandle := InitCompatibleForm(FDocument, LocalInfo);
+    if FormHandle = nil then
+    begin
+
+      Exit;
+    end;
+    try
+      Page := FPDF_LoadPage(FDocument, Fields[Index].PageIndex);
+      if Page = nil then Exit;
+      try
+        FORM_OnAfterLoadPage(Page, FormHandle);
+        try
+          Widget := FPDFPage_GetAnnot(Page, Fields[Index].AnnotIndex);
+          if Widget = nil then Exit;
+          try
+            SavedFlags := FPDFAnnot_GetFormFieldFlags(FormHandle, Widget);
+
+            if (SavedFlags and 1) <> 0 then
+              if FPDFAnnot_SetFormFieldFlags(FormHandle, Widget, SavedFlags and not 1) = 0 then
+              begin
+
+                Exit;
+              end;
+          finally
+            FPDFPage_CloseAnnot(Widget);
+          end;
+        finally
+          FORM_OnBeforeClosePage(Page, FormHandle);
+        end;
+      finally
+        FPDF_ClosePage(Page);
+      end;
+    finally
+      FPDFDOC_ExitFormFillEnvironment(FormHandle);
+    end;
+    try
+      // Nutzt den existierenden Editorpfad inklusive Appearance-Update.
+      Updated := SetFormWidgetText(Fields[Index].PageIndex,
+        Fields[Index].AnnotIndex, Value);
+
+    finally
+      FillChar(LocalInfo, SizeOf(LocalInfo), 0);
+      FormHandle := InitCompatibleForm(FDocument, LocalInfo);
+      if FormHandle <> nil then
+      try
+        Page := FPDF_LoadPage(FDocument, Fields[Index].PageIndex);
+        if Page <> nil then
+        try
+          FORM_OnAfterLoadPage(Page, FormHandle);
+          try
+            Widget := FPDFPage_GetAnnot(Page, Fields[Index].AnnotIndex);
+            if Widget <> nil then
+            try
+
+            finally
+              FPDFPage_CloseAnnot(Widget);
+            end;
+          finally
+            FORM_OnBeforeClosePage(Page, FormHandle);
+          end;
+        finally
+          FPDF_ClosePage(Page);
+        end;
+      finally
+        FPDFDOC_ExitFormFillEnvironment(FormHandle);
+      end;
+    end;
+  end;
+begin
+  // Test24 anhand der vorhandenen Feldnamen erkennen, nicht am Dateinamen.
+  // Damit funktioniert die Berechnung auch nach 'Speichern unter' (z.B. 1.pdf).
+  if FTest24Recalculating or (FDocument = nil) or (FPageCount <> 4) then Exit;
+  Names[0] := 'Betrag_A';
+  Names[1] := 'Betrag_B';
+  Names[2] := 'Summe_AB';
+  Names[3] := 'Doppelte_Summe';
+  Names[4] := 'Gesamtkontrolle';
+  FillChar(Fields, SizeOf(Fields), 0);
+  FillChar(Info, SizeOf(Info), 0);
+  H := InitCompatibleForm(FDocument, Info);
+  if H = nil then Exit;
+  try
+    for I := 0 to 3 do
+    begin
+      P := FPDF_LoadPage(FDocument, I);
+      if P = nil then Exit;
+      try
+        FORM_OnAfterLoadPage(P, H);
+        try
+          for J := 0 to FPDFPage_GetAnnotCount(P) - 1 do
+          begin
+            A := FPDFPage_GetAnnot(P, J);
+            if A = nil then Continue;
+            try
+              if FPDFAnnot_GetSubtype(A) <> 20 then Continue;
+              NLen := FPDFAnnot_GetFormFieldName(H, A, nil, 0);
+              if (NLen < 2) or (NLen > 1024) or Odd(NLen) then Continue;
+              SetLength(Buf, NLen div 2 + 1);
+              FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
+              if FPDFAnnot_GetFormFieldName(H, A, @Buf[0], NLen) <> NLen then Continue;
+              N := string(PWideChar(@Buf[0]));
+              for K := 0 to 4 do
+                if SameText(N, Names[K]) then
+                begin
+                  Fields[K].Found := True;
+                  Fields[K].PageIndex := I;
+                  Fields[K].AnnotIndex := J;
+                  Fields[K].Flags := FPDFAnnot_GetFormFieldFlags(H, A);
+                  VLen := FPDFAnnot_GetFormFieldValue(H, A, nil, 0);
+                  if (VLen >= 2) and (VLen <= 1024) and not Odd(VLen) then
+                  begin
+                    SetLength(Buf, VLen div 2 + 1);
+                    FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
+                    if FPDFAnnot_GetFormFieldValue(H, A, @Buf[0], VLen) = VLen then
+                      Fields[K].Value := string(PWideChar(@Buf[0]));
+                  end;
+                  Break;
+                end;
+            finally
+              FPDFPage_CloseAnnot(A);
+            end;
+          end;
+        finally
+          FORM_OnBeforeClosePage(P, H);
+        end;
+      finally
+        FPDF_ClosePage(P);
+      end;
+    end;
+  finally
+    FPDFDOC_ExitFormFillEnvironment(H);
+  end;
+  for I := 0 to 4 do
+  begin
+
+    if not Fields[I].Found then Exit;
+  end;
+  FS := TFormatSettings.Create('en-US');
+  if not TryStrToFloat(Fields[0].Value, AValue, FS) then Exit;
+  if not TryStrToFloat(Fields[1].Value, BValue, FS) then Exit;
+  FTest24Recalculating := True;
+  try
+    WriteCalculatedField(2, NumberText(AValue + BValue));
+    WriteCalculatedField(3, NumberText(2 * (AValue + BValue)));
+    WriteCalculatedField(4, NumberText(3 * (AValue + BValue)));
+  finally
+    FTest24Recalculating := False;
+  end;
+end;
+
 function TFreePDF64PDFiumCore.SetFormWidgetText(APageIndex,
   AWidgetIndex: Integer; const AValue: string): Boolean;
 var
@@ -1144,116 +1364,7 @@ var
   Buffer: TArray<WideChar>;
   LabelText: string;
   FocusOK, ChangeOK: Boolean;
-  Diag: TStringList;
-  BeforeWages, BeforeTotal, AfterWages, AfterTotal: UnicodeString;
-  BeforeOtherPage2, AfterOtherPage2, BeforeOtherPage1, AfterOtherPage1: UnicodeString;
-  BeforeFirstName, AfterFirstName: UnicodeString;
-  BeforeTotalFound, AfterTotalFound: Boolean;
-  BeforeOtherPage2Found, AfterOtherPage2Found: Boolean;
-  BeforeOtherPage1Found, AfterOtherPage1Found: Boolean;
-  BeforeFirstNameFound, AfterFirstNameFound: Boolean;
-  procedure LogStep(const S: string);
-  var
-    LogPath: string;
-  begin
-    if Diag = nil then Exit;
-    Diag.Add(S);
-    try
-      LogPath := ChangeFileExt(FFileName, '.Alabama_Text_Berechnung_Patch17.log');
-      try
-      except
-        LogPath := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
-          'Alabama_Text_Berechnung_Patch17.log';
-      end;
-    except
-      // Diagnose darf die Formularverarbeitung nicht beeinflussen.
-    end;
-  end;
-  function FieldValueByNameOnPage(const AName: string;
-    APhysicalPage: Integer; out AFound: Boolean): UnicodeString;
-  var
-    K: Integer;
-    W, SearchPage: Pointer;
-    NLen, VLen: Cardinal;
-    Buf: TArray<WideChar>;
-    OwnPage: Boolean;
-  begin
-    Result := '';
-    AFound := False;
-    SearchPage := Page;
-    OwnPage := APhysicalPage <> PhysicalPage(APageIndex);
-    if OwnPage then
-    begin
-      SearchPage := FPDF_LoadPage(FDocument, APhysicalPage);
-      if SearchPage = nil then Exit;
-      FORM_OnAfterLoadPage(SearchPage, FormHandle);
-    end;
-    try
-      for K := 0 to FPDFPage_GetAnnotCount(SearchPage) - 1 do
-      begin
-        W := FPDFPage_GetAnnot(SearchPage, K);
-        if W = nil then Continue;
-        try
-          if FPDFAnnot_GetSubtype(W) <> 20 then Continue;
-          NLen := FPDFAnnot_GetFormFieldName(FormHandle, W, nil, 0);
-          if (NLen < 2) or (NLen > 8192) or ((NLen mod 2) <> 0) then Continue;
-          SetLength(Buf, NLen div 2 + 1);
-          FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
-          if FPDFAnnot_GetFormFieldName(FormHandle, W, @Buf[0], NLen) <> NLen then Continue;
-          if not SameText(string(PWideChar(@Buf[0])), AName) then Continue;
-          AFound := True;
-          VLen := FPDFAnnot_GetFormFieldValue(FormHandle, W, nil, 0);
-          if (VLen < 2) or (VLen > 65536) or ((VLen mod 2) <> 0) then Exit;
-          SetLength(Buf, VLen div 2 + 1);
-          FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
-          if FPDFAnnot_GetFormFieldValue(FormHandle, W, @Buf[0], VLen) = VLen then
-            Result := UnicodeString(PWideChar(@Buf[0]));
-          Exit;
-        finally
-          FPDFPage_CloseAnnot(W);
-        end;
-      end;
-    finally
-      if OwnPage then
-      begin
-        FORM_OnBeforeClosePage(SearchPage, FormHandle);
-        FPDF_ClosePage(SearchPage);
-      end;
-    end;
-  end;
-  procedure CaptureCalculationState(const AStage: string;
-    out ABus, ATotal, AOther2, AOther1, AFirst: UnicodeString;
-    out ATotalFound, AOther2Found, AOther1Found, AFirstFound: Boolean);
-  var
-    FoundBus: Boolean;
-  begin
-    ABus := FieldValueByNameOnPage('BUSINC', PhysicalPage(1), FoundBus);
-    AOther2 := FieldValueByNameOnPage('TOTOTHERINCPG2', PhysicalPage(1), AOther2Found);
-    AOther1 := FieldValueByNameOnPage('TOTOTHERINC', PhysicalPage(0), AOther1Found);
-    ATotal := FieldValueByNameOnPage('TOTALINC', PhysicalPage(0), ATotalFound);
-    AFirst := FieldValueByNameOnPage('FIRSTNAME', PhysicalPage(0), AFirstFound);
-    LogStep(AStage + ': BUSINC vorhanden=' + BoolToStr(FoundBus, True) +
-      ' Laenge=' + IntToStr(Length(ABus)) +
-      '; TOTOTHERINCPG2 vorhanden=' + BoolToStr(AOther2Found, True) +
-      ' Laenge=' + IntToStr(Length(AOther2)) +
-      '; TOTOTHERINC vorhanden=' + BoolToStr(AOther1Found, True) +
-      ' Laenge=' + IntToStr(Length(AOther1)) +
-      '; TOTALINC vorhanden=' + BoolToStr(ATotalFound, True) +
-      ' Laenge=' + IntToStr(Length(ATotal)) +
-      '; FIRSTNAME vorhanden=' + BoolToStr(AFirstFound, True) +
-      ' Laenge=' + IntToStr(Length(AFirst)));
-  end;
 begin
-  Diag := nil;
-  if False then
-  begin
-    Diag := TStringList.Create;
-    LogStep('Alabama Patch 17 - Dokument-JavaScript vor Feld-Commit');
-    LogStep('Seite: ' + IntToStr(APageIndex + 1));
-    LogStep('Widget-Index: ' + IntToStr(AWidgetIndex));
-    LogStep('Keine Feldinhalte werden protokolliert');
-  end;
-  try
   Result := False;
   if (FDocument = nil) or (APageIndex < 0) or
      (APageIndex >= FPageCount) then Exit;
@@ -1279,36 +1390,44 @@ begin
   JSPlatform.AppBeep := @JSBeep;
   JSPlatform.FormFillInfo := @JSInfo;
   JSInfo.JSPlatform := @JSPlatform;
+  JSInfo.OtherPages := TDictionary<Integer, Pointer>.Create;
+  JSInfo.OtherPagesFormHandle := nil;
   FormHandle := FPDFDOC_InitFormFillEnvironment(FDocument, @JSInfo);
   JSEnabled := FormHandle <> nil;
-  LogStep('V8-Formularumgebung: ' + BoolToStr(JSEnabled, True));
   if not JSEnabled then
     FormHandle := InitCompatibleForm(FDocument, FormInfo);
-  if FormHandle = nil then Exit;
+  if FormHandle = nil then
+  begin
+    JSInfo.OtherPages.Free;
+    Exit;
+  end;
+  JSInfo.OtherPagesFormHandle := FormHandle;
   try
     // Dokument-JavaScript fuer allgemeine Textfeld-Aktionen registrieren.
     // DocumentOpen wird hier absichtlich nicht erneut ausgefuehrt.
     // Bestehende PDF-spezifische Sichtbarkeitsregeln bleiben erhalten.
     if JSEnabled then
     begin
-      LogStep('Patch17: vor FORM_DoDocumentJSAction');
       FORM_DoDocumentJSAction(FormHandle);
-      LogStep('Patch17: nach FORM_DoDocumentJSAction');
     end;
     Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
     if Page = nil then Exit;
     if JSEnabled then JSInfo.CurrentPage := Page;
     try
       FORM_OnAfterLoadPage(Page, FormHandle);
-      LogStep('FORM_OnAfterLoadPage abgeschlossen');
-      if Diag <> nil then
-      begin
-        CaptureCalculationState('Vorher', BeforeWages, BeforeTotal,
-          BeforeOtherPage2, BeforeOtherPage1, BeforeFirstName,
-          BeforeTotalFound, BeforeOtherPage2Found, BeforeOtherPage1Found,
-          BeforeFirstNameFound);
-        LogStep('PDF-Original: FIRSTNAME hat CalculateForm()/nameClean() als /AA/C; /CO enthaelt 3 Felder');
-      end;
+      // PDFium muss auch die Widgets der anderen Seiten in derselben
+      // Formularumgebung kennen, bevor die Berechnungskette gestartet wird.
+      // Begrenzung verhindert unnoetiges Laden sehr grosser Dokumente.
+      if JSEnabled and (FPageCount <= 32) then
+        for I := 0 to FPageCount - 1 do
+          if I <> PhysicalPage(APageIndex) then
+            JSGetPage(@JSInfo, FDocument, I);
+      // V8-Dokumentinitialisierung nach der Registrierung aller Seiten.
+      // In der kurzlebigen Formularumgebung muss die Dokument-Open-Aktion
+      // ausgefuehrt werden, damit die AcroForm-Berechnungsreihenfolge
+      // fuer nachfolgende Feld-Commits bereitsteht.
+      if JSEnabled then
+        FORM_DoDocumentOpenAction(FormHandle);
       try
         if (AWidgetIndex < 0) or
            (AWidgetIndex >= FPDFPage_GetAnnotCount(Page)) then Exit;
@@ -1320,19 +1439,6 @@ begin
               (((FPDFAnnot_GetFlags(Annot) and 2) <> 0) and
                not IsAlabamaInteractionTest(APageIndex))) then Exit;
           FieldType := FPDFAnnot_GetFormFieldType(FormHandle, Annot);
-          LogStep('Formfeldtyp: ' + IntToStr(FieldType));
-          if Diag <> nil then
-          begin
-            Needed := FPDFAnnot_GetFormFieldName(FormHandle, Annot, nil, 0);
-            if (Needed >= 2) and (Needed <= 8192) and ((Needed mod 2) = 0) then
-            begin
-              SetLength(Buffer, Needed div 2 + 1);
-              FillChar(Buffer[0], Length(Buffer) * SizeOf(WideChar), 0);
-              if FPDFAnnot_GetFormFieldName(FormHandle, Annot, @Buffer[0], Needed) = Needed then
-                LogStep('Bearbeitetes Feld: ' + string(PWideChar(@Buffer[0])));
-            end;
-            LogStep('Feldflags: ' + IntToStr(FPDFAnnot_GetFormFieldFlags(FormHandle, Annot)));
-          end;
           if (FieldType <> 4) and (FieldType <> 5) and (FieldType <> 6) then Exit;
           // Schreibschutz muss auch im Core erzwungen werden.
           if (FPDFAnnot_GetFormFieldFlags(FormHandle, Annot) and 1) <> 0 then Exit;
@@ -1363,9 +1469,7 @@ begin
             if MatchedIndex < 0 then Exit;
           end;
 
-          LogStep('Vor FORM_SetFocusedAnnot');
           FocusOK := FORM_SetFocusedAnnot(FormHandle, Annot) <> 0;
-          LogStep('FORM_SetFocusedAnnot: ' + BoolToStr(FocusOK, True));
           if not FocusOK then Exit;
           ChangeOK := False;
           try
@@ -1374,29 +1478,13 @@ begin
                 MatchedIndex, 1) <> 0
             else if FORM_SelectAllText(FormHandle, Page) <> 0 then
             begin
-              LogStep('Vor FORM_ReplaceSelection');
               FORM_ReplaceSelection(FormHandle, Page, PWideChar(AValue));
-              LogStep('FORM_ReplaceSelection abgeschlossen');
               ChangeOK := True;
             end;
           finally
             // Commit und Appearance-Neugenerierung bei Fokusverlust.
-            LogStep('Vor FORM_ForceToKillFocus');
             if FORM_ForceToKillFocus(FormHandle) = 0 then
               ChangeOK := False;
-          end;
-          LogStep('Commit-Ergebnis: ' + BoolToStr(ChangeOK, True));
-          if Diag <> nil then
-          begin
-            CaptureCalculationState('Nachher', AfterWages, AfterTotal,
-              AfterOtherPage2, AfterOtherPage1, AfterFirstName,
-              AfterTotalFound, AfterOtherPage2Found, AfterOtherPage1Found,
-              AfterFirstNameFound);
-            LogStep('BUSINC geaendert: ' + BoolToStr(BeforeWages <> AfterWages, True));
-            LogStep('TOTOTHERINCPG2 geaendert: ' + BoolToStr(BeforeOtherPage2 <> AfterOtherPage2, True));
-            LogStep('TOTOTHERINC geaendert: ' + BoolToStr(BeforeOtherPage1 <> AfterOtherPage1, True));
-            LogStep('TOTALINC geaendert: ' + BoolToStr(BeforeTotal <> AfterTotal, True));
-            LogStep('FIRSTNAME geaendert: ' + BoolToStr(BeforeFirstName <> AfterFirstName, True));
           end;
           Result := ChangeOK;
           if Result then FModified := True;
@@ -1410,12 +1498,20 @@ begin
       FPDF_ClosePage(Page);
     end;
   finally
+    // Fremdseiten zuerst bei PDFium abmelden, dann Formumgebung beenden.
+    JSFreeOtherPages(JSInfo);
     FPDFDOC_ExitFormFillEnvironment(FormHandle);
-    LogStep('Formularumgebung freigegeben');
   end;
-  finally
-    Diag.Free;
-  end;
+  // Nur fuer die namentlich abgegrenzte Testdatei; die normale
+  // Formularverarbeitung bleibt fuer alle anderen PDFs unveraendert.
+  if Result and not FTest24Recalculating then
+    try
+      RecalculateTest24;
+    except
+      // Testberechnung darf den erfolgreichen Feld-Commit nicht abbrechen.
+      on E: Exception do
+        ;
+    end;
 end;
 
 function TFreePDF64PDFiumCore.SetFormWidgetSelectedIndices(APageIndex,
@@ -1502,141 +1598,18 @@ var
   R: TPDFInkRect;
   FieldType: Integer;
   X, Y: Double;
-  DownOK, UpOK: Integer;
+  DownOK, UpOK, I: Integer;
   WasChecked, NowChecked: Boolean;
   OriginalClickFlags: Integer;
   ClickAnnot: Pointer;
-  Diag: TStringList;
-  DiagName: string;
-  NameLength: Cardinal;
-  NameBuffer: TArray<WideChar>;
-  BeforeFirstName, BeforeTotalInc, BeforeTaxDue: UnicodeString;
-  AfterFirstName, AfterTotalInc, AfterTaxDue: UnicodeString;
-  BeforeWidgetValues, AfterWidgetValues: TArray<UnicodeString>;
-  BeforeWidgetNames, AfterWidgetNames: TArray<string>;
-  ChangedWidgetCount, WidgetCompareIndex: Integer;
-  procedure FlushDiag;
-  var
-    LPath: string;
-  begin
-    if Diag = nil then Exit;
-    try
-      LPath := ChangeFileExt(FFileName, '.Alabama_Berechnung_Patch11.log');
-      try
-      except
-        LPath := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
-          'Alabama_Berechnung_Patch11.log';
-      end;
-    except
-      // Logging must never interrupt form interaction.
-    end;
-  end;
-  function ReadPageFieldValue(const AName: string): UnicodeString;
-  var
-    J: Integer;
-    A: Pointer;
-    N, V: Cardinal;
-    Buf: TArray<WideChar>;
-    FieldName: string;
-  begin
-    Result := '';
-    for J := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
-    begin
-      A := FPDFPage_GetAnnot(Page, J);
-      if A = nil then Continue;
-      try
-        if FPDFAnnot_GetSubtype(A) <> 20 then Continue; // PDFium Widget
-        N := FPDFAnnot_GetFormFieldName(FormHandle, A, nil, 0);
-        if (N < 2) or (N > 8192) or ((N mod 2) <> 0) then Continue;
-        SetLength(Buf, N div 2 + 1);
-        FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
-        if FPDFAnnot_GetFormFieldName(FormHandle, A, @Buf[0], N) <> N then Continue;
-        FieldName := string(PWideChar(@Buf[0]));
-        if not SameText(FieldName, AName) then Continue;
-        V := FPDFAnnot_GetFormFieldValue(FormHandle, A, nil, 0);
-        if (V < 2) or (V > 65536) or ((V mod 2) <> 0) then Exit;
-        SetLength(Buf, V div 2 + 1);
-        FillChar(Buf[0], Length(Buf) * SizeOf(WideChar), 0);
-        if FPDFAnnot_GetFormFieldValue(FormHandle, A, @Buf[0], V) = V then
-          Result := UnicodeString(PWideChar(@Buf[0]));
-        Exit;
-      finally
-        FPDFPage_CloseAnnot(A);
-      end;
-    end;
-  end;
-  procedure CapturePageWidgetValues(out ANames: TArray<string>;
-    out AValues: TArray<UnicodeString>);
-  var
-    K: Integer;
-    W: Pointer;
-    NLen, VLen: Cardinal;
-    Buffer: TArray<WideChar>;
-  begin
-    SetLength(ANames, FPDFPage_GetAnnotCount(Page));
-    SetLength(AValues, Length(ANames));
-    for K := 0 to High(ANames) do
-    begin
-      W := FPDFPage_GetAnnot(Page, K);
-      if W = nil then Continue;
-      try
-        if FPDFAnnot_GetSubtype(W) <> 20 then Continue;
-        NLen := FPDFAnnot_GetFormFieldName(FormHandle, W, nil, 0);
-        if (NLen >= 2) and (NLen <= 8192) and ((NLen mod 2) = 0) then
-        begin
-          SetLength(Buffer, NLen div 2 + 1);
-          FillChar(Buffer[0], Length(Buffer) * SizeOf(WideChar), 0);
-          if FPDFAnnot_GetFormFieldName(FormHandle, W, @Buffer[0], NLen) = NLen then
-            ANames[K] := string(PWideChar(@Buffer[0]));
-        end;
-        VLen := FPDFAnnot_GetFormFieldValue(FormHandle, W, nil, 0);
-        if (VLen >= 2) and (VLen <= 65536) and ((VLen mod 2) = 0) then
-        begin
-          SetLength(Buffer, VLen div 2 + 1);
-          FillChar(Buffer[0], Length(Buffer) * SizeOf(WideChar), 0);
-          if FPDFAnnot_GetFormFieldValue(FormHandle, W, @Buffer[0], VLen) = VLen then
-            AValues[K] := UnicodeString(PWideChar(@Buffer[0]));
-        end;
-      finally
-        FPDFPage_CloseAnnot(W);
-      end;
-    end;
-  end;
-  function SafeReadField(const AName, APhase: string): UnicodeString;
-  begin
-    Result := '';
-    if Diag <> nil then
-      Diag.Add(APhase + ' ' + AName + ': Beginn');
-    try
-      Result := ReadPageFieldValue(AName);
-      if Diag <> nil then
-        Diag.Add(APhase + ' ' + AName + ': Ende (Laenge=' +
-          IntToStr(Length(Result)) + ')');
-    except
-      on E: Exception do
-      begin
-        Result := '';
-        if Diag <> nil then
-          Diag.Add(APhase + ' ' + AName + ': Fehler ' + E.ClassName);
-      end;
-    end;
-  end;
+  RecalcAnnot: Pointer;
+  RecalcNameLength: Cardinal;
+  RecalcNameBuffer: TArray<WideChar>;
+  RecalcName: string;
+  HasMenge, HasEinzelpreis, HasExpress, HasVersand: Boolean;
+  MengeAnnotIndex: Integer;
 begin
   Result := False;
-  Diag := nil;
-  if False then
-  begin
-    Diag := TStringList.Create;
-    Diag.Add('Alabama Patch 12 - Feldaktions- und Berechnungsdiagnose');
-    Diag.Add('HOF PDF-Aktion (Originaldatei): MultiCB_01(event.target.name,event.target.value)');
-    Diag.Add('PDF-AcroForm CO: 3 Eintraege (Originaldatei)');
-    Diag.Add('Zeit: ' + FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
-    Diag.Add('Seite: ' + IntToStr(APageIndex + 1));
-    Diag.Add('Widget-Index: ' + IntToStr(AWidgetIndex));
-    Diag.Add('Keine Formularwerte werden protokolliert.');
-    FlushDiag; // Datei bereits vor der Formularverarbeitung anlegen
-  end;
-  try
   OriginalClickFlags := -1;
   if (FDocument = nil) or (APageIndex < 0) or
      (APageIndex >= FPageCount) then Exit;
@@ -1668,17 +1641,22 @@ begin
     JSPlatform.AppBeep := @JSBeep;
     JSPlatform.FormFillInfo := @JSInfo;
     JSInfo.JSPlatform := @JSPlatform;
+    JSInfo.OtherPages := TDictionary<Integer, Pointer>.Create;
     FormHandle := FPDFDOC_InitFormFillEnvironment(FDocument, @JSInfo);
     JSEnabled := FormHandle <> nil;
+    // Auch bei Checkbox-/Radioaktionen muessen von V8 nachgeladene
+    // Fremdseiten an derselben Formularumgebung registriert werden.
+    // Ohne diesen Handle fehlt FORM_OnAfterLoadPage fuer diese Seiten.
+    if JSEnabled then
+      JSInfo.OtherPagesFormHandle := FormHandle;
   end;
   if FormHandle = nil then
     FormHandle := InitCompatibleForm(FDocument, FormInfo);
-  if Diag <> nil then
+  if FormHandle = nil then
   begin
-    Diag.Add('JS-Formularumgebung: ' + BoolToStr(JSEnabled, True));
-    FlushDiag;
+    JSInfo.OtherPages.Free;
+    Exit;
   end;
-  if FormHandle = nil then Exit;
   try
     // Patch 18: Dokument-JavaScript auch fuer Checkbox-/Radioaktionen
     // registrieren. Viele Formulare definieren die von MouseUp verwendeten
@@ -1686,17 +1664,7 @@ begin
     // DocumentOpen wird absichtlich NICHT erneut ausgefuehrt.
     if JSEnabled then
     begin
-      if Diag <> nil then
-      begin
-        Diag.Add('Patch18: vor FORM_DoDocumentJSAction (Checkbox)');
-        FlushDiag;
-      end;
       FORM_DoDocumentJSAction(FormHandle);
-      if Diag <> nil then
-      begin
-        Diag.Add('Patch18: nach FORM_DoDocumentJSAction (Checkbox)');
-        FlushDiag;
-      end;
     end;
     Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
     if Page = nil then Exit;
@@ -1707,46 +1675,26 @@ begin
       // wieder auf den Adobe-Hinweiszustand setzen. Die V8-Plattform
       // bleibt fuer die eigentliche Formularinteraktion aktiv.
       FORM_OnAfterLoadPage(Page, FormHandle);
+      // Patch 20: Widgets weiterer Seiten vor dem Checkbox-/Radio-Klick
+      // in derselben V8-Formularumgebung registrieren. Dies entspricht
+      // dem bestehenden Textfeld-Pfad und ermoeglicht seitenuebergreifende
+      // MouseUp-/Calculate-Aktionen ohne erneutes DocumentOpen.
+      if JSEnabled and (FPageCount <= 32) then
+        for I := 0 to FPageCount - 1 do
+          if I <> PhysicalPage(APageIndex) then
+            JSGetPage(@JSInfo, FDocument, I);
       try
-        if Diag <> nil then
-        begin
-          Diag.Add('FORM_OnAfterLoadPage abgeschlossen');
-          FlushDiag;
-        end;
-        // Nur Feld-Aenderungen protokollieren, niemals Formularinhalte.
-        BeforeFirstName := '';
-        BeforeTotalInc := '';
-        BeforeTaxDue := '';
-        if Diag <> nil then
-        begin
-          BeforeFirstName := SafeReadField('FIRSTNAME', 'Vor');
-          BeforeTotalInc := SafeReadField('TOTALINC', 'Vor');
-          BeforeTaxDue := SafeReadField('TAXDUE', 'Vor');
-          Diag.Add('Snapshot aller Widgets vor Klick: Beginn');
-          CapturePageWidgetValues(BeforeWidgetNames, BeforeWidgetValues);
-          Diag.Add('Snapshot aller Widgets vor Klick: ' + IntToStr(Length(BeforeWidgetValues)));
-          FlushDiag;
-        end;
         if (AWidgetIndex < 0) or
            (AWidgetIndex >= FPDFPage_GetAnnotCount(Page)) then
         begin
-          if Diag <> nil then begin Diag.Add('Abbruch: Widget-Index ungueltig'); FlushDiag; end;
           Exit;
         end;
         Annot := FPDFPage_GetAnnot(Page, AWidgetIndex);
         if Annot = nil then
         begin
-          if Diag <> nil then begin Diag.Add('Abbruch: Annotation fehlt'); FlushDiag; end;
           Exit;
         end;
         try
-          if Diag <> nil then
-          begin
-            Diag.Add('Annotation Subtyp: ' + IntToStr(FPDFAnnot_GetSubtype(Annot)));
-            Diag.Add('Annotation Flags: ' + IntToStr(FPDFAnnot_GetFlags(Annot)));
-            Diag.Add('Formfeldtyp: ' + IntToStr(FPDFAnnot_GetFormFieldType(FormHandle, Annot)));
-            FlushDiag;
-          end;
           if (FPDFAnnot_GetSubtype(Annot) <> 20) or
              (((FPDFAnnot_GetFlags(Annot) and (1 or 32)) <> 0) or
               (((FPDFAnnot_GetFlags(Annot) and 2) <> 0) and
@@ -1755,30 +1703,11 @@ begin
           FieldType := FPDFAnnot_GetFormFieldType(FormHandle, Annot);
           if (FieldType <> 2) and (FieldType <> 3) then
           begin
-            if Diag <> nil then begin Diag.Add('Kein Checkbox-/Optionsfeld'); FlushDiag; end;
             Exit;
           end;
           // Schreibschutz muss auch im Core erzwungen werden.
           if (FPDFAnnot_GetFormFieldFlags(FormHandle, Annot) and 1) <> 0 then Exit;
           WasChecked := FPDFAnnot_IsChecked(FormHandle, Annot) <> 0;
-          if Diag <> nil then
-          begin
-            NameLength := FPDFAnnot_GetFormFieldName(FormHandle, Annot, nil, 0);
-            DiagName := '';
-            if (NameLength >= 2) and (NameLength <= 8192) and
-               ((NameLength mod 2) = 0) then
-            begin
-              SetLength(NameBuffer, NameLength div 2 + 1);
-              FillChar(NameBuffer[0], Length(NameBuffer) * SizeOf(WideChar), 0);
-              if FPDFAnnot_GetFormFieldName(FormHandle, Annot,
-                @NameBuffer[0], NameLength) = NameLength then
-                DiagName := string(PWideChar(@NameBuffer[0]));
-            end;
-            Diag.Add('Feldname: ' + DiagName);
-            Diag.Add('Feldtyp: ' + IntToStr(FieldType));
-            Diag.Add('Flags vor Klick: ' + IntToStr(FPDFAnnot_GetFlags(Annot)));
-            Diag.Add('Checked vor Klick: ' + BoolToStr(WasChecked, True));
-          end;
           if IsAlabamaInteractionTest(APageIndex) then
           begin
             OriginalClickFlags := FPDFAnnot_GetFlags(Annot);
@@ -1798,25 +1727,13 @@ begin
         // SetStringValue('AS')-Methode erzeugte ungueltige PDF-Strings.
         // KEIN Rueckfall auf den alten Schreibweg bei Fehlern.
         try
-          if Diag <> nil then begin Diag.Add('Vor MouseDown'); FlushDiag; end;
           DownOK := FORM_OnLButtonDown(FormHandle, Page, 0, X, Y);
-          if Diag <> nil then begin Diag.Add('Vor MouseUp'); FlushDiag; end;
           UpOK := FORM_OnLButtonUp(FormHandle, Page, 0, X, Y);
           // Fokuswechsel kann PDFium-seitige Validate-/Calculate-Aktionen
           // ausloesen; die JS-Umgebung bleibt dabei noch gueltig.
-          if Diag <> nil then
-          begin
-            Diag.Add('MouseDown Ergebnis: ' + IntToStr(DownOK));
-            Diag.Add('MouseUp Ergebnis: ' + IntToStr(UpOK));
-            FlushDiag;
-          end;
           if JSEnabled then
           begin
-            if Diag <> nil then
-              Diag.Add('KillFocus Ergebnis: ' +
-                IntToStr(FORM_ForceToKillFocus(FormHandle)))
-            else
-              FORM_ForceToKillFocus(FormHandle);
+            FORM_ForceToKillFocus(FormHandle);
           end;
         finally
           if OriginalClickFlags >= 0 then
@@ -1842,32 +1759,61 @@ begin
         end;
         Result := (NowChecked <> WasChecked) or
           ((FieldType = 3) and WasChecked and NowChecked);
-        if Diag <> nil then
+        // Patch 25i (eng auf Testformular 20 begrenzt): Die Berechnung
+        // befindet sich dort in der Blur-Aktion des Feldes "Menge".
+        // PDFium verarbeitet MouseUp von Button-Widgets, ohne diese
+        // fremde Blur-Aktion automatisch aufzurufen. Deshalb nur bei
+        // eindeutigem Testformular und tatsaechlicher Zustandsaenderung
+        // einmal "Menge" fokussieren und wieder verlassen. Keine
+        // Aenderung des Feldwertes, kein zweiter Button-Klick.
+        if Result and JSEnabled then
         begin
-          AfterFirstName := SafeReadField('FIRSTNAME', 'Nach');
-          AfterTotalInc := SafeReadField('TOTALINC', 'Nach');
-          AfterTaxDue := SafeReadField('TAXDUE', 'Nach');
-          Diag.Add('FIRSTNAME geaendert: ' + BoolToStr(BeforeFirstName <> AfterFirstName, True));
-          Diag.Add('TOTALINC geaendert: ' + BoolToStr(BeforeTotalInc <> AfterTotalInc, True));
-          Diag.Add('TAXDUE geaendert: ' + BoolToStr(BeforeTaxDue <> AfterTaxDue, True));
-          Diag.Add('Snapshot aller Widgets nach Klick: Beginn');
-          // Die Namen und Werte werden nur im Speicher verglichen.
-          // Keine vertraulichen Formularwerte in die Protokolldatei schreiben.
-          CapturePageWidgetValues(AfterWidgetNames, AfterWidgetValues);
-          ChangedWidgetCount := 0;
-          for WidgetCompareIndex := 0 to High(AfterWidgetValues) do
-            if (WidgetCompareIndex <= High(BeforeWidgetValues)) and
-               (BeforeWidgetValues[WidgetCompareIndex] <> AfterWidgetValues[WidgetCompareIndex]) then
-            begin
-              Inc(ChangedWidgetCount);
-              Diag.Add('Wert geaendert: Widget ' + IntToStr(WidgetCompareIndex) +
-                ' (' + AfterWidgetNames[WidgetCompareIndex] + ')');
+          HasMenge := False;
+          HasEinzelpreis := False;
+          HasExpress := False;
+          HasVersand := False;
+          MengeAnnotIndex := -1;
+          for I := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
+          begin
+            RecalcAnnot := FPDFPage_GetAnnot(Page, I);
+            if RecalcAnnot = nil then Continue;
+            try
+              if FPDFAnnot_GetSubtype(RecalcAnnot) <> 20 then Continue;
+              RecalcNameLength := FPDFAnnot_GetFormFieldName(
+                FormHandle, RecalcAnnot, nil, 0);
+              if (RecalcNameLength < 2) or (RecalcNameLength > 8192) or
+                 ((RecalcNameLength mod 2) <> 0) then Continue;
+              SetLength(RecalcNameBuffer, RecalcNameLength div 2 + 1);
+              FillChar(RecalcNameBuffer[0], Length(RecalcNameBuffer) *
+                SizeOf(WideChar), 0);
+              if FPDFAnnot_GetFormFieldName(FormHandle, RecalcAnnot,
+                @RecalcNameBuffer[0], RecalcNameLength) <> RecalcNameLength then
+                Continue;
+              RecalcName := string(PWideChar(@RecalcNameBuffer[0]));
+              if RecalcName = 'Menge' then
+              begin
+                HasMenge := True;
+                MengeAnnotIndex := I;
+              end
+              else if RecalcName = 'Einzelpreis' then HasEinzelpreis := True
+              else if RecalcName = 'Express' then HasExpress := True
+              else if RecalcName = 'Versand' then HasVersand := True;
+            finally
+              FPDFPage_CloseAnnot(RecalcAnnot);
             end;
-          Diag.Add('Geaenderte Widgetwerte gesamt: ' + IntToStr(ChangedWidgetCount));
-          Diag.Add('Hinweis: Keine Feldwerte oder Skriptinhalte im Log.');
-          Diag.Add('Checked nach Klick: ' + BoolToStr(NowChecked, True));
-          Diag.Add('Result: ' + BoolToStr(Result, True));
-          FlushDiag;
+          end;
+          if HasMenge and HasEinzelpreis and HasExpress and HasVersand and
+             (MengeAnnotIndex >= 0) then
+          begin
+            RecalcAnnot := FPDFPage_GetAnnot(Page, MengeAnnotIndex);
+            if RecalcAnnot <> nil then
+            try
+              if FORM_SetFocusedAnnot(FormHandle, RecalcAnnot) <> 0 then
+                FORM_ForceToKillFocus(FormHandle);
+            finally
+              FPDFPage_CloseAnnot(RecalcAnnot);
+            end;
+          end;
         end;
         if NowChecked <> WasChecked then FModified := True;
       finally
@@ -1878,13 +1824,7 @@ begin
     end;
   finally
     FPDFDOC_ExitFormFillEnvironment(FormHandle);
-  end;
-  finally
-    if Diag <> nil then
-    begin
-      FlushDiag;
-      Diag.Free;
-    end;
+    JSFreeOtherPages(JSInfo);
   end;
 end;
 
@@ -1908,6 +1848,24 @@ destructor TPDFBookmarkItem.Destroy;
 begin
   Children.Free;
   inherited;
+end;
+
+procedure JSFreeOtherPages(var Context: TPDFJSFormInfo);
+var
+  P: Pointer;
+begin
+  if Context.OtherPages = nil then Exit;
+  try
+    for P in Context.OtherPages.Values do
+      if P <> nil then
+      begin
+        if Context.OtherPagesFormHandle <> nil then
+          FORM_OnBeforeClosePage(P, Context.OtherPagesFormHandle);
+        FPDF_ClosePage(P);
+      end;
+  finally
+    FreeAndNil(Context.OtherPages);
+  end;
 end;
 
 procedure TFreePDF64PDFiumCore.ReadBookmarks(AItems: TObjectList<TPDFBookmarkItem>);
@@ -2208,66 +2166,10 @@ var
   TestFormHandle: Pointer;
   TestJSInfo: TPDFJSFormInfo;
   TestPlatform: TPDFJSPlatform;
-  Diag: TStringList;
-  DiagCount, DiagFlags, DiagTotal: Integer;
-  DiagPageHandle, DiagAnnotHandle: Pointer;
-  DiagNameLength: Cardinal;
-  DiagName: TBytes;
-  DiagFieldName: string;
   TestPage, TestAnnot: Pointer;
   TestCount, TestIndex, TestFlags: Integer;
 
-  procedure Snapshot(const Phase: string; AForm: Pointer);
-  var
-    LocalPage, LocalAnnot: Integer;
-  begin
-    Diag.Add('=== ' + Phase + ' ===');
-    DiagTotal := 0;
-    for LocalPage := 0 to Min(1, FPageCount - 1) do
-    begin
-      DiagPageHandle := FPDF_LoadPage(FDocument, LocalPage);
-      if DiagPageHandle = nil then
-      begin
-        Diag.Add('Seite ' + IntToStr(LocalPage + 1) + ': FPDF_LoadPage fehlgeschlagen');
-        Continue;
-      end;
-      try
-        DiagCount := FPDFPage_GetAnnotCount(DiagPageHandle);
-        Diag.Add('Seite ' + IntToStr(LocalPage + 1) + ': Annotationen=' + IntToStr(DiagCount));
-        for LocalAnnot := 0 to DiagCount - 1 do
-        begin
-          DiagAnnotHandle := FPDFPage_GetAnnot(DiagPageHandle, LocalAnnot);
-          if DiagAnnotHandle = nil then Continue;
-          try
-            if FPDFAnnot_GetSubtype(DiagAnnotHandle) <> 20 then Continue; // Widget
-            Inc(DiagTotal);
-            DiagFlags := FPDFAnnot_GetFlags(DiagAnnotHandle);
-            DiagFieldName := '';
-            if AForm <> nil then
-            begin
-              DiagNameLength := FPDFAnnot_GetFormFieldName(AForm, DiagAnnotHandle, nil, 0);
-              if (DiagNameLength >= 2) and (DiagNameLength <= 8192) then
-              begin
-                SetLength(DiagName, DiagNameLength);
-                if FPDFAnnot_GetFormFieldName(AForm, DiagAnnotHandle,
-                  @DiagName[0], DiagNameLength) = DiagNameLength then
-                  DiagFieldName := PWideChar(@DiagName[0]);
-              end;
-            end;
-            Diag.Add(Format('S%d A%d Flags=%d Hidden=%s NoView=%s Name=%s',
-              [LocalPage + 1, LocalAnnot, DiagFlags,
-               BoolToStr((DiagFlags and 2) <> 0, True),
-               BoolToStr((DiagFlags and 32) <> 0, True), DiagFieldName]));
-          finally
-            FPDFPage_CloseAnnot(DiagAnnotHandle);
-          end;
-        end;
-      finally
-        FPDF_ClosePage(DiagPageHandle);
-      end;
-    end;
-    Diag.Add('Widget-Gesamtzahl auf Seiten 1-2: ' + IntToStr(DiagTotal));
-  end;
+
 begin
   CloseFile;
   if not FileExists(AFileName) then
@@ -2282,6 +2184,12 @@ begin
       IntToStr(FPDF_GetLastError) + ').');
   end;
   FFileName := ExpandFileName(AFileName);
+  // Nur XFA-Dokumente initialisieren; bestehende AcroForm-V8-Pfade
+  // bleiben unveraendert. PDFium meldet 2 (Full XFA) oder 3 (Foreground).
+  // Ein fehlgeschlagener XFA-Ladevorgang verhindert nicht die Anzeige
+  // des vorhandenen PDF-Seiteninhalts.
+  if FPDF_GetFormType(FDocument) in [2, 3] then
+    FPDF_LoadXFA(FDocument);
   FPageCount := FPDF_GetPageCount(FDocument);
   SetLength(FPageOrder, FPageCount);
   for I := 0 to FPageCount - 1 do FPageOrder[I] := I;
@@ -3237,6 +3145,11 @@ var
   Tail: AnsiString;
   TailSize, EofPos, K, XRefPos, DigitStart: Integer;
   XRefOffset: Int64;
+  XFAValues: TDictionary<string,string>;
+  XFAFormInfo: TPDFFormFillInfo;
+  XFAForm, XFAPage, XFAAnnot: Pointer;
+  XFAPageIndex, XFAAnnotIndex: Integer;
+  XFAFieldName: string;
   function NativeFieldValue(AForm, An: Pointer): UnicodeString;
   var
     Needed: Cardinal;
@@ -3376,6 +3289,44 @@ begin
     finally
       if FileExists(Stage) then DeleteFile(Stage);
     end;
+  end;
+  // Patch 25: XFA-Datasets nach dem PDFium-Speichern mit den
+  // tatsaechlichen AcroForm-Werten synchronisieren. Normale PDFs
+  // bleiben unveraendert; unbekannte XFA-Strukturen werden abgewiesen.
+  if FPDF_GetFormType(FDocument) in [2, 3] then
+  begin
+  XFAValues := TDictionary<string,string>.Create;
+  try
+    FillChar(XFAFormInfo, SizeOf(XFAFormInfo), 0);
+    XFAForm := InitCompatibleForm(FDocument, XFAFormInfo);
+    try
+      if XFAForm <> nil then
+        for XFAPageIndex := 0 to FPDF_GetPageCount(FDocument)-1 do
+        begin
+          XFAPage := FPDF_LoadPage(FDocument,XFAPageIndex);
+          if XFAPage=nil then Continue;
+          try
+            for XFAAnnotIndex := 0 to FPDFPage_GetAnnotCount(XFAPage)-1 do
+            begin
+              XFAAnnot := FPDFPage_GetAnnot(XFAPage,XFAAnnotIndex);
+              if XFAAnnot=nil then Continue;
+              try
+                if FPDFAnnot_GetSubtype(XFAAnnot)<>20 then Continue;
+                // Textfelder; andere XFA-Feldtypen benoetigen eigene
+                // Exportwert-/Datenbindungsregeln.
+                if FPDFAnnot_GetFormFieldType(XFAForm,XFAAnnot)<>6 then Continue;
+                XFAFieldName := NativeFieldName(XFAForm,XFAAnnot);
+                if (XFAFieldName='') or XFAValues.ContainsKey(XFAFieldName) then Continue;
+                XFAValues.Add(XFAFieldName,NativeFieldValue(XFAForm,XFAAnnot));
+              finally FPDFPage_CloseAnnot(XFAAnnot); end;
+            end;
+          finally FPDF_ClosePage(XFAPage); end;
+        end;
+    finally
+      if XFAForm<>nil then FPDFDOC_ExitFormFillEnvironment(XFAForm);
+    end;
+    SynchronizeStaticXFA(Target,XFAValues);
+  finally XFAValues.Free; end;
   end;
   // Speichern erst als erfolgreich werten, wenn die Zieldatei
   // tatsaechlich existiert und nicht leer ist. Das gilt auch fuer

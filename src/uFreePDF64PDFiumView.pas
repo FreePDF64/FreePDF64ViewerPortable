@@ -244,6 +244,7 @@ type
     procedure InlineFormEditorKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure WMFreeInlineEditor(var Msg: TMessage); message WM_APP + 172;
+    procedure WMDeferredFormTab(var Msg: TMessage); message WM_APP + 173;
     procedure FinishPreparedOpen;
     function CanModifyComments(AShowWarning: Boolean = True): Boolean;
     function AuthorizeCommentOwner: Boolean;
@@ -3735,7 +3736,7 @@ end;
 procedure TFreePDF64PDFiumView.FinishInlineFormEdit(ACommit: Boolean);
 var
   NewValue: string;
-  Page, Index: Integer;
+  Page, Index, I: Integer;
   OldEditor: TCustomEdit;
 begin
   if (FInlineFormEditor = nil) or FInlineFormClosing then Exit;
@@ -3755,8 +3756,13 @@ begin
     begin
       if FCore.SetFormWidgetText(Page, Index, NewValue) then
       begin
-        if (Page >= 0) and (Page < Length(FLoadedPages)) then
-          FLoadedPages[Page] := False;
+        // Formularberechnungen koennen Werte auf anderen PDF-Seiten
+        // aendern. Deshalb nach jedem erfolgreichen Feld-Commit alle
+        // Seitenbitmaps als veraltet markieren, nicht nur die Eingabeseite.
+        // Die vorhandenen Bitmaps bleiben bis zum Neurendern sichtbar,
+        // damit beim Seitenwechsel kein graues Aufblitzen entsteht.
+        for I := 0 to High(FLoadedPages) do
+          FLoadedPages[I] := False;
         RenderVisiblePages;
         UpdateSaveState;
       end
@@ -3791,9 +3797,23 @@ begin
   begin
     Key := 0;
     FinishInlineFormEdit(True);
-    if ssShift in Shift then FocusAdjacentFormWidget(-1)
-    else FocusAdjacentFormWidget(1);
+    // Do not navigate/re-enter PDFium from inside the editor KeyDown.
+    // The old editor is disposed of by the posted WM_APP+172 message.
+    if ssShift in Shift then
+      PostMessage(Handle, WM_APP + 173, 0, 0)
+    else
+      PostMessage(Handle, WM_APP + 173, 1, 0);
   end;
+end;
+
+procedure TFreePDF64PDFiumView.WMDeferredFormTab(var Msg: TMessage);
+begin
+  // Navigate only after the editor's keyboard/focus event has returned.
+  // In particular, an XFA widget may invalidate its native focus state
+  // during the preceding commit.
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  if Msg.WParam = 0 then FocusAdjacentFormWidget(-1)
+  else FocusAdjacentFormWidget(1);
 end;
 
 procedure TFreePDF64PDFiumView.UpdateInlineFormEditorFont;
@@ -3803,21 +3823,26 @@ var
   MaxTextHeight: Integer;
 begin
   if FInlineFormEditor = nil then Exit;
-  // Die bisherige Skalierung mit 0.65 und die zusaetzliche
-  // 5-Pixel-Reserve machten die Eingabeschrift deutlich zu klein.
-  // Die PDF-Feldgroesse und die Position des Editors bleiben unveraendert.
+  // FZoom enthaelt bereits die Monitor-DPI (bei 100%: CurrentPPI / 72).
+  // VCL skaliert Font.Size ebenfalls mit der DPI: deshalb nur den
+  // dimensionslosen PDF-Zoom anwenden, sonst wird doppelt skaliert.
+  // Feldgeometrie und vorhandene Hoehenbegrenzung bleiben unveraendert.
   if (FCore <> nil) and FCore.FormWidgetFontSize(FInlineFormPage,
     FInlineFormIndex, PDFSize) and (PDFSize > 0) then
-    FontSize := EnsureRange(Round(PDFSize * FZoom * 1.35), 1, 144)
+    // Fuer groessere PDF-Standardschriften nicht pauschal bei 10 pt
+    // abschneiden; die vorhandene Hoehenpruefung begrenzt weiterhin
+    // die Darstellung auf die tatsaechliche Edit-Feldhoehe.
+    FontSize := EnsureRange(Round(PDFSize * FZoom * 72.0 / Max(1, CurrentPPI)), 1,
+      16)
   else
-    FontSize := EnsureRange(Round(10 * FZoom * 1.35), 1, 144);
+    FontSize := EnsureRange(Round(9 * FZoom * 72.0 / Max(1, CurrentPPI)), 1, 10);
 
   TInlineFormEditAccess(FInlineFormEditor).Font.Size := FontSize;
   if FInlineFormEditor is TInlineFormEdit then
   begin
     // Nur reduzieren, wenn die reale Windows-Schrifthoehe nicht in
     // das bestehende Edit-Feld passt. Keine Feldvergroesserung.
-    MaxTextHeight := Max(1, FInlineFormEditor.ClientHeight - 1);
+    MaxTextHeight := Max(1, MulDiv(FInlineFormEditor.ClientHeight - 1, 135, 100));
     while (FontSize > 1) and
       (Abs(TInlineFormEditAccess(FInlineFormEditor).Font.Height) > MaxTextHeight) do
     begin
@@ -3899,7 +3924,7 @@ begin
   // PDF-eigene Umrandung nicht mit dem Windows-Edit ueberzeichnen.
   // Editor innerhalb der Widget-Grenzen platzieren (auch bei Zoom).
   FInlineFormEditor.Text := Value;
-  TInlineFormEditAccess(FInlineFormEditor).Font.Name := 'Courier New';
+  TInlineFormEditAccess(FInlineFormEditor).Font.Name := 'Arial';
   TInlineFormEditAccess(FInlineFormEditor).Color := clWhite;
   TInlineFormEditAccess(FInlineFormEditor).BorderStyle := bsNone;
   if FInlineFormEditor is TInlineFormEdit then
@@ -3932,7 +3957,10 @@ begin
   if FCore.FormWidgetReadOnly(Page, FActiveFormWidgetIndex) then Exit;
   if FCore.ToggleFormWidgetChoice(Page, FActiveFormWidgetIndex) then
   begin
-    if (Page >= 0) and (Page < Length(FLoadedPages)) then
+    // JavaScript-Berechnungen koennen Formularwerte auf anderen Seiten
+    // aendern. Alle zwischengespeicherten Seitenbilder invalidieren.
+    // Die Bitmaps bleiben bis zum Neurendern sichtbar (kein Aufblitzen).
+    for Page := 0 to High(FLoadedPages) do
       FLoadedPages[Page] := False;
     RenderVisiblePages;
     UpdateSaveState;
@@ -3966,6 +3994,8 @@ begin
       FScroll.SetFocus;
     FStatus.Caption := Format(Tr('Formularfeld %d auf Seite %d'),
       [NextIndex + 1, NextPage + 1]);
+    // Die laengere Statusmeldung benoetigt eine neue, DPI-skalierte Breite.
+    LayoutToolbar(nil);
   end
   else
     PDFModernMessageDlg(Tr('Keine weiteren Formularfelder gefunden.'),
@@ -5125,7 +5155,7 @@ begin
   MeasureBitmap := TBitmap.Create;
   try
     MeasureBitmap.Canvas.Font.Assign(FStatus.Font);
-    StatusW := Max(Px(38), MeasureBitmap.Canvas.TextWidth(FStatus.Caption) + Px(4));
+    StatusW := Max(Px(38), MeasureBitmap.Canvas.TextWidth(FStatus.Caption) + Px(10));
   finally
     MeasureBitmap.Free;
   end;
@@ -7221,8 +7251,10 @@ begin
       // Auswahl-Widgets zuerst behandeln; Textfelder behalten den Editor.
       if FCore.ToggleFormWidgetChoice(Img.Tag, WidgetIndex) then
       begin
-        if (Img.Tag >= 0) and (Img.Tag < Length(FLoadedPages)) then
-          FLoadedPages[Img.Tag] := False;
+        // Wie beim Textfeld-Commit auch die Ergebnisse auf anderen
+        // Seiten neu rendern; vorhandene Bitmaps bleiben sichtbar.
+        for I := 0 to High(FLoadedPages) do
+          FLoadedPages[I] := False;
         RenderVisiblePages;
         Exit;
       end;
