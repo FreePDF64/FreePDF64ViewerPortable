@@ -7051,6 +7051,8 @@ var
   ResultLabel: TLabel;
   OKButton, CancelButton: TButton;
   OptionWidth, I, FieldType, FieldFlags, SelectedCount: Integer;
+  DialogDPI, Margin, Gap, ButtonWidth, ButtonHeight, SearchHeight: Integer;
+  ListHeight, FooterHeight, FooterTop, RowHeight, ContentWidth: Integer;
   SelectedIndices: TArray<Integer>;
   IsListBox, IsMultiSelect: Boolean;
   PX, PY: Double;
@@ -7274,75 +7276,91 @@ begin
               Format(' (%d)', [Options.Count]);
             OptionDlg.Position := poScreenCenter;
             OptionDlg.BorderStyle := bsDialog;
-            // Lange Optionsbezeichnungen nicht am rechten Rand
-            // abschneiden. Breite anhand der Schrift messen, begrenzen.
-            OptionWidth := 360;
+            // Patch 25m: Alle Dialogabmessungen einheitlich anhand der
+            // aktuellen Monitor-DPI berechnen. Keine gemischten 96-DPI-
+            // Pixelwerte mehr (4K/250 %: Buttons und Status ueberlappten).
+            OptionDlg.Scaled := False;
+            OptionDlg.Font.Assign(Self.Font);
+            DialogDPI := Max(96, CurrentPPI);
+            Margin := MulDiv(12, DialogDPI, 96);
+            Gap := MulDiv(8, DialogDPI, 96);
+            ButtonWidth := MulDiv(104, DialogDPI, 96);
+            ButtonHeight := MulDiv(30, DialogDPI, 96);
+            SearchHeight := MulDiv(28, DialogDPI, 96);
+            FooterHeight := Max(ButtonHeight, MulDiv(24, DialogDPI, 96));
+            RowHeight := Max(MulDiv(23, DialogDPI, 96),
+              Abs(OptionDlg.Canvas.TextHeight('Ag')) + MulDiv(9, DialogDPI, 96));
+            OptionWidth := MulDiv(440, DialogDPI, 96);
             for I := 0 to Options.Count - 1 do
               OptionWidth := Max(OptionWidth,
-                OptionDlg.Canvas.TextWidth(Options[I]) + 56);
-            OptionWidth := Min(640, OptionWidth);
+                OptionDlg.Canvas.TextWidth(Options[I]) + 4 * Margin);
+            OptionWidth := Min(MulDiv(720, DialogDPI, 96), OptionWidth);
+            ContentWidth := OptionWidth - 2 * Margin;
+            ListHeight := RowHeight * Max(4, Min(12, Options.Count)) +
+              MulDiv(6, DialogDPI, 96);
             OptionDlg.ClientWidth := OptionWidth;
-            // Die Hoehe der Auswahlliste an die Anzahl der PDF-Optionen
-            // anpassen (mindestens 4, hoechstens 12 sichtbare Zeilen).
-            // Dadurch entsteht bei kurzen Listen kein grosser Leerbereich.
-            OptionDlg.ClientHeight := 110 +
-              19 * Max(4, Min(12, Options.Count));
+            if IsMultiSelect then
+              OptionDlg.ClientHeight := 2 * Margin + ListHeight + Gap + FooterHeight
+            else
+              OptionDlg.ClientHeight := 2 * Margin + SearchHeight + Gap +
+                ListHeight + Gap + FooterHeight;
+            FooterTop := OptionDlg.ClientHeight - Margin - FooterHeight;
+
             OptionList := TListBox.Create(OptionDlg);
             OptionList.Parent := OptionDlg;
+            OptionList.Font.Assign(OptionDlg.Font);
+            OptionList.ItemHeight := RowHeight;
             SearchEdit := TPDFOptionSearch.Create(OptionDlg);
             SearchEdit.Parent := OptionDlg;
-            SearchEdit.SetBounds(12, 12, OptionWidth - 24, 24);
+            SearchEdit.Font.Assign(OptionDlg.Font);
+            SearchEdit.SetBounds(Margin, Margin, ContentWidth, SearchHeight);
             SearchEdit.TextHint := Tr('Eintrag suchen ...');
-            OptionList.SetBounds(12, 44, OptionWidth - 24,
-              OptionDlg.ClientHeight - 94);
+            OptionList.SetBounds(Margin, Margin + SearchHeight + Gap,
+              ContentWidth, ListHeight);
             OptionList.Items.Assign(Options);
             if IsMultiSelect then OptionList.MultiSelect := True;
             ResultLabel := TLabel.Create(OptionDlg);
             ResultLabel.Parent := OptionDlg;
-            ResultLabel.SetBounds(12, OptionDlg.ClientHeight - 46,
-              OptionWidth - 204, 20);
+            ResultLabel.Font.Assign(OptionDlg.Font);
+            ResultLabel.AutoSize := False;
+            ResultLabel.Layout := tlCenter;
+            ResultLabel.SetBounds(Margin, FooterTop,
+              ContentWidth - 2 * ButtonWidth - 3 * Gap, FooterHeight);
             if IsMultiSelect then
             begin
-              // Eine gefilterte Liste würde die PDFium-Optionsindizes
-              // verschieben. Bei Mehrfachauswahl deshalb keine Filterung.
+              // Filtern wuerde die PDFium-Optionsindizes verschieben.
               SearchEdit.Visible := False;
-              OptionList.SetBounds(12, 12, OptionWidth - 24,
-                OptionDlg.ClientHeight - 62);
+              OptionList.SetBounds(Margin, Margin, ContentWidth, ListHeight);
+              ResultLabel.Caption := Format('%d %s',
+                [Options.Count, Tr('Eintraege')]);
             end
             else
               SearchEdit.Setup(OptionList, Options, ResultLabel);
             if not IsMultiSelect then
               OptionList.OnDblClick := FormOptionDoubleClick;
-            // Tastaturbedienung: Fokus sofort auf die Liste setzen.
-            // Pfeiltasten navigieren, Enter bestaetigt ueber den
-            // Default-Button, Esc schliesst ohne Aenderung.
             if IsMultiSelect then OptionDlg.ActiveControl := OptionList
             else OptionDlg.ActiveControl := SearchEdit;
-            // Aktuellen Formularwert beim Oeffnen markieren.
-            // So sieht der Benutzer sofort die bisherige Auswahl.
             FormValue := '';
             if FCore.EditFormWidgetText(Img.Tag, WidgetIndex, FormValue) then
               OptionList.ItemIndex := OptionList.Items.IndexOf(FormValue);
             if OptionList.ItemIndex >= 0 then
               OptionList.TopIndex := OptionList.ItemIndex
             else if OptionList.Count > 0 then
-              // Bei noch nicht gesetztem Feld eine gueltige Vorauswahl
-              // anbieten, ohne den PDF-Wert bereits zu veraendern.
               OptionList.ItemIndex := 0;
             OKButton := TButton.Create(OptionDlg);
             OKButton.Parent := OptionDlg;
             OKButton.Caption := 'OK';
             OKButton.ModalResult := mrOk;
             OKButton.Default := True;
-            OKButton.SetBounds(OptionWidth - 184,
-              OptionDlg.ClientHeight - 38, 80, 26);
+            OKButton.SetBounds(OptionWidth - Margin - 2 * ButtonWidth - Gap,
+              FooterTop, ButtonWidth, ButtonHeight);
             CancelButton := TButton.Create(OptionDlg);
             CancelButton.Parent := OptionDlg;
             CancelButton.Caption := Tr('Abbrechen');
             CancelButton.ModalResult := mrCancel;
             CancelButton.Cancel := True;
-            CancelButton.SetBounds(OptionWidth - 92,
-              OptionDlg.ClientHeight - 38, 80, 26);
+            CancelButton.SetBounds(OptionWidth - Margin - ButtonWidth,
+              FooterTop, ButtonWidth, ButtonHeight);
             if OptionDlg.ShowModal = mrOk then
             begin
               if IsMultiSelect then
