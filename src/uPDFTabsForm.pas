@@ -3154,6 +3154,8 @@ begin
   FHelpMainMenu.Items.Add(FSplitViewMenuItem);
   FVisualCompareMenuItem := TMenuItem.Create(FHelpMainMenu);
   FVisualCompareMenuItem.Caption := 'PDFs visuell vergleichen ...';
+  // Beim Erzeugen ist noch keine Zweifensteransicht aktiv.
+  FVisualCompareMenuItem.Enabled := False;
   FVisualCompareMenuItem.OnClick := VisualCompareClick;
   FHelpMainMenu.Items.Add(FVisualCompareMenuItem);
   FEditMenu := TMenuItem.Create(FHelpMainMenu);
@@ -6809,7 +6811,7 @@ begin
     Exit;
   end;
   // Same cache key as the existing recent-PDF thumbnail implementation.
-  Key := LowerCase(FileName) + ':' + IntToStr(FileAge(FileName));
+  Key := 'TabPreviewAspectV2:' + LowerCase(FileName) + ':' + IntToStr(FileAge(FileName));
   Hash := UInt64($CBF29CE484222325);
   for I := 1 to Length(Key) do
     Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
@@ -6827,6 +6829,8 @@ begin
         var
           Doc: TFreePDF64PDFiumCore;
           Bmp: TBitmap;
+          PageW, PageH: Single;
+          RenderW, RenderH: Integer;
         begin
           Doc := nil;
           Bmp := TBitmap.Create;
@@ -6837,7 +6841,17 @@ begin
               if Doc.PageCount > 0 then
               begin
                 Bmp.PixelFormat := pf24bit;
-                Doc.RenderPage(0, Bmp, 72, 96);
+                // PDF-Seitenverhaeltnis wie bei den Miniaturansichten erhalten.
+                if not Doc.PageSize(0, PageW, PageH) then Exit;
+                if (PageW <= 0) or (PageH <= 0) then Exit;
+                RenderW := 200;
+                RenderH := Max(1, Round(RenderW * PageH / PageW));
+                if RenderH > 200 then
+                begin
+                  RenderH := 200;
+                  RenderW := Max(1, Round(RenderH * PageW / PageH));
+                end;
+                Doc.RenderPage(0, Bmp, RenderW, RenderH);
                 ForceDirectories(ExtractFilePath(PreviewCache));
                 Bmp.SaveToFile(PreviewCache + '.' + IntToStr(GetCurrentThreadId) + '.tmp.bmp');
                 RenameFile(PreviewCache + '.' + IntToStr(GetCurrentThreadId) + '.tmp.bmp', PreviewCache);
