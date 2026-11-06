@@ -2679,6 +2679,10 @@ begin
     FViewSelect.ItemIndex := AViewMode;
     ViewModeChange(nil);
   end;
+  // Die globale Miniatur-Einstellung bereits vor dem Layout beachten.
+  // Sonst erscheint die Seitenleiste beim Laden eines Arbeitsbereichs kurz.
+  LoadGlobalThumbnails;
+  ASidebar := ASidebar and GThumbnailsVisible and not GThumbnailSplitMode;
   if FOutlinePanel.Visible <> ASidebar then ToggleOutline(nil);
 end;
 
@@ -8146,8 +8150,12 @@ procedure TFreePDF64PDFiumView.SetPageThumbnailsVisible(AVisible: Boolean);
 begin
   if AVisible then
   begin
-    ShowOutlineTab(True);
-    if not FOutlinePanel.Visible then ToggleOutline(nil);
+    // Bereits sichtbare Miniaturen nicht erneut aktivieren und layouten.
+    // Das vermeidet einen zweiten sichtbaren Aufbau beim PDF-Start.
+    if not FThumbScroll.Visible then
+      ShowOutlineTab(True);
+    if not FOutlinePanel.Visible then
+      ToggleOutline(nil);
   end
   else if FOutlinePanel.Visible then
     ToggleOutline(nil);
