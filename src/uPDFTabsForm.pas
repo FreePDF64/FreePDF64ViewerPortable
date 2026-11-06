@@ -5934,6 +5934,8 @@ procedure TPDFTabsForm.AddPDF(APDF: TPDFBrowserForm);
 var
   Tab: TTabSheet;
 begin
+  // Beim Oeffnen einer neuen PDF vorhandene Anlagenfenster schliessen.
+  HideAllAttachmentWindows;
   // Die komplette synchrone Einbettung einschliesslich der ersten
   // PDF-Initialisierung atomar zeichnen. Eine Sperre nur um APDF.Show
   // ist zu kurz: ActivePage und RequestPDFLoad loesen weitere
@@ -6009,6 +6011,9 @@ begin
 
   if Assigned(PDFTabAttachmentsInitializer) then
     PDFTabAttachmentsInitializer(APDF.PDFFileName, APDF);
+  // Auch ein waehrend der PDF-Initialisierung erzeugtes Anlagenfenster
+  // soll erst durch einen ausdruecklichen Klick sichtbar werden.
+  HideAllAttachmentWindows;
 
 
   if FMultiPDFLoadDepth = 0 then
