@@ -129,6 +129,8 @@ type
     FScrollRenderPending: Boolean;
     FLastScrollTick: UInt64;
     FResizePending: Boolean;
+    FLayoutViewportWidth: Integer;
+    FLayoutViewportHeight: Integer;
     FLastResizeTick: UInt64;
     FStrokePage: Integer;
     FBar: TPanel;
@@ -388,6 +390,7 @@ type
     procedure OpenPDF(const AFileName: string);
     procedure OpenPDFPrepared(APrepared: TFreePDF64PDFiumCore);
     procedure RefreshPDFDisplay;
+    procedure RefitOnTabActivation;
     procedure RefreshToolbarAfterSplit;
     procedure SetMergedToolbarWidth(AWidth: Integer);
     procedure SetMergedToolbarTrailingControls(const AControls: array of TControl;
@@ -2091,6 +2094,22 @@ begin
   FThumbImages.Clear;
   while FThumbScroll.ControlCount > 0 do
     FThumbScroll.Controls[0].Free;
+end;
+
+procedure TFreePDF64PDFiumView.RefitOnTabActivation;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) or FRendering or
+     (FScroll.ClientWidth <= 100) or (FScroll.ClientHeight <= 100) then Exit;
+
+  // Inaktive PDF-Tabs koennen beim Maximieren ihre alte Layoutgroesse
+  // behalten. Erst nach dem Align des aktivierten Tabs vergleichen.
+  // Kein Re-Layout bei unveraendertem Viewport.
+  if (FLayoutViewportWidth <> FScroll.ClientWidth) or
+     (FLayoutViewportHeight <> FScroll.ClientHeight) then
+  begin
+    FResizePending := False;
+    LayoutAllPages;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.RefreshPDFDisplay;
@@ -6244,6 +6263,16 @@ begin
   FScroll.DisableAlign;
   try
     FScroll.VertScrollBar.Position := 0;
+    // Beim Wiederaktivieren nach Maximieren koennen inaktive Tabs
+    // einen horizontalen Scrollursprung aus der alten Breite behalten.
+    if (FLayoutViewportWidth <> FScroll.ClientWidth) or
+       (FLayoutViewportHeight <> FScroll.ClientHeight) then
+      FScroll.HorzScrollBar.Position := 0;
+    // Horizontalen Scrollursprung vor SetBounds ebenfalls normalisieren.
+    // Sonst beziehen sich die neuen Left-Koordinaten auf einen alten
+    // Scrolloffset aus der zuvor aktivierten Registerkarte.
+    if FFitMode and (FViewMode = 1) and not FTwoPage then
+      FScroll.HorzScrollBar.Position := 0;
     // Vorhandene Seitencontrols behalten: insbesondere F11/4K loest
     // sonst fuer jede Seite Destroy/Create und Bitmap-Neuberechnung aus.
     while FPages.Count > FCore.PageCount do
@@ -6429,6 +6458,8 @@ begin
       FRendering := False;
     end;
   end;
+  FLayoutViewportWidth := FScroll.ClientWidth;
+  FLayoutViewportHeight := FScroll.ClientHeight;
   if not FInitialRenderDeferred then
     RenderVisiblePages;
   FLastScrollPosition := FScroll.VertScrollBar.Position;

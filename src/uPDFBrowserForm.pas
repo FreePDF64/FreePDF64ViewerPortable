@@ -149,6 +149,7 @@ type
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomPDF(AIncrease: Boolean);
     procedure RefreshPDFViewport;
+    procedure RefitPDFOnTabActivation;
     procedure RefreshLanguage;
     procedure ReloadCurrentPDF;
     procedure ShowDocumentProperties;
@@ -654,6 +655,16 @@ procedure TPDFBrowserForm.ShowDocumentProperties;
 begin
   if (FPDFiumView <> nil) and not FClosing then
     FPDFiumView.ShowDocumentProperties;
+end;
+
+procedure TPDFBrowserForm.RefitPDFOnTabActivation;
+begin
+  if (FPDFiumView = nil) or not FNavigationSucceeded then Exit;
+  // Zuerst die VCL-Ausrichtung des nach Maximieren wieder aktivierten
+  // PDF-Hosts abschliessen, erst dann dessen Viewport pruefen.
+  Realign;
+  FPDFiumView.Realign;
+  FPDFiumView.RefitOnTabActivation;
 end;
 
 procedure TPDFBrowserForm.RefreshPDFViewport;

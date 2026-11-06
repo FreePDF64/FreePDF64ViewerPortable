@@ -132,6 +132,9 @@ type
     FHintTabIndex: Integer;
     FTrackingTabsMouseLeave: Boolean;
     FTabHintWatchTimer: TTimer;
+    FWindowResizeTimer: TTimer;
+    FTabFitTimer: TTimer;
+    FTabFitPendingPage: TTabSheet;
     FHoverCloseTabIndex: Integer;
     FCloseRestoreTab: TTabSheet; // aktiven Tab beim Schliessen eines anderen erhalten
     FCloseTargetTab: TTabSheet; // X-Schliessen ohne Aktivieren einer ungeladenen PDF
@@ -317,6 +320,8 @@ type
 
     procedure WindowMoved(var Msg: TWMMove); message WM_MOVE;
     procedure WindowSized(var Msg: TWMSize); message WM_SIZE;
+    procedure WindowResizeSettled(Sender: TObject);
+    procedure TabFitTimerTick(Sender: TObject);
     procedure TabMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure LoadSelectedPDF;
@@ -3093,6 +3098,12 @@ begin
   ButtonHeight := Max(MulDiv(26, Dpi, 96), Canvas.TextHeight('Ag') + MulDiv(10, Dpi, 96));
   PDFTabsWindow := Self;
   FPendingPDFDisposals := TList.Create;
+  // WM_SIZE wird beim Maximieren/Wiederherstellen mehrfach ausgeloest.
+  // Erst nach der letzten Groessenaenderung den PDF-Viewport aktualisieren.
+  FWindowResizeTimer := TTimer.Create(Self);
+  FWindowResizeTimer.Enabled := False;
+  FWindowResizeTimer.Interval := 180;
+  FWindowResizeTimer.OnTimer := WindowResizeSettled;
   FPDFDisposalTimer := TTimer.Create(Self);
   FPDFDisposalTimer.Enabled := False;
   FPDFDisposalTimer.Interval := 100;
@@ -3660,6 +3671,10 @@ begin
   FCreatedPDFForegroundTimer.OnTimer := CreatedPDFForegroundTimerTick;
   FDeferredActivePDF := nil;
   FInitialWindowOffscreen := False;
+  FTabFitTimer := TTimer.Create(Self);
+  FTabFitTimer.Enabled := False;
+  FTabFitTimer.Interval := 75;
+  FTabFitTimer.OnTimer := TabFitTimerTick;
   FActivationTimer := TTimer.Create(Self);
   FActivationTimer.Enabled := False;
   FActivationTimer.Interval := 250;
@@ -6281,6 +6296,16 @@ begin
   FTabs.ActivePageIndex := NewIndex;
   FTabs.Invalidate;
   LoadSelectedPDF;
+  // Auch die Registerkartenpfeile muessen nach dem VCL-Seitenwechsel
+  // eine Anpassungspruefung fuer genau die neue Registerkarte ausloesen.
+  if (FTabFitTimer <> nil) and (FTabs.ActivePage <> nil) and
+     not (FTabFitTimer.Enabled and
+          (FTabFitPendingPage = FTabs.ActivePage)) then
+  begin
+    FTabFitTimer.Enabled := False;
+    FTabFitPendingPage := FTabs.ActivePage;
+    FTabFitTimer.Enabled := True;
+  end;
   // Nach dem VCL-Registerwechsel erneut im Nachrichtenzyklus pruefen.
   // Zu diesem Zeitpunkt ist auch das TabSheet sichtbar und bemessen.
   PostMessage(Handle, WM_APP + 193, 0, 0);
@@ -7006,6 +7031,25 @@ begin
   
 end;
 
+procedure TPDFTabsForm.TabFitTimerTick(Sender: TObject);
+var
+  PDF: TPDFBrowserForm;
+begin
+  FTabFitTimer.Enabled := False;
+  if (FTabs = nil) or (FTabs.ActivePage = nil) or
+     (FTabs.ActivePage <> FTabFitPendingPage) or
+     ((FSplitHost <> nil) and FSplitHost.Visible) or FAddingPDF then
+  begin
+    FTabFitPendingPage := nil;
+    Exit;
+  end;
+  FTabFitPendingPage := nil;
+  FTabs.ActivePage.Realign;
+  PDF := PDFInTab(FTabs.ActivePage);
+  if PDF <> nil then
+    PDF.RefitPDFOnTabActivation;
+end;
+
 procedure TPDFTabsForm.TabsChange(Sender: TObject);
 var
   TabIndex, ControlIndex: Integer;
@@ -7109,6 +7153,24 @@ begin
 
   UpdateWelcomeView;
 
+  // Erst nach der Aktivierung und dem VCL-Align die Ziel-PDF pruefen.
+  // Bei unveraendertem Zoom wird kein Seitenlayout neu aufgebaut.
+  // Wiederholte OnChange-Ereignisse derselben Registerkarte duerfen
+  // die ausstehende Anpassung nicht staendig neu verzögern.
+  if not (FTabFitTimer.Enabled and
+          (FTabFitPendingPage = FTabs.ActivePage)) then
+  begin
+    FTabFitTimer.Enabled := False;
+    FTabFitPendingPage := nil;
+    if (FTabs.ActivePage <> nil) and
+       ((FSplitHost = nil) or not FSplitHost.Visible) and
+       (PDFInTab(FTabs.ActivePage) <> nil) then
+    begin
+      FTabFitPendingPage := FTabs.ActivePage;
+      FTabFitTimer.Enabled := True;
+    end;
+  end;
+
   PostMessage(Handle, WM_APP + 193, 0, 0); // Tastaturwechsel.
 
 end;
@@ -7121,14 +7183,66 @@ begin
     RefreshAttachmentPositions;
 end;
 
+procedure TPDFTabsForm.WindowResizeSettled(Sender: TObject);
+var
+  I: Integer;
+  Tab: TTabSheet;
+  PDF: TPDFBrowserForm;
+begin
+  FWindowResizeTimer.Enabled := False;
+  if (WindowState = wsMinimized) or FFullScreen or (FTabs = nil) then Exit;
+
+  // Im Split-Modus liegen die PDF-Formulare in den beiden Host-Panels.
+  if (FSplitHost <> nil) and FSplitHost.Visible then
+  begin
+    if FSplitLeft <> nil then
+      for I := 0 to FSplitLeft.ControlCount - 1 do
+        if FSplitLeft.Controls[I] is TPDFBrowserForm then
+        begin
+          PDF := TPDFBrowserForm(FSplitLeft.Controls[I]);
+          PDF.RefreshPDFViewport;
+          Break;
+        end;
+    if FSplitRight <> nil then
+      for I := 0 to FSplitRight.ControlCount - 1 do
+        if FSplitRight.Controls[I] is TPDFBrowserForm then
+        begin
+          PDF := TPDFBrowserForm(FSplitRight.Controls[I]);
+          PDF.RefreshPDFViewport;
+          Break;
+        end;
+    Exit;
+  end;
+
+  Tab := FTabs.ActivePage;
+  if Tab = nil then Exit;
+  for I := 0 to Tab.ControlCount - 1 do
+    if Tab.Controls[I] is TPDFBrowserForm then
+    begin
+      TPDFBrowserForm(Tab.Controls[I]).RefreshPDFViewport;
+      Break;
+    end;
+end;
+
 procedure TPDFTabsForm.WindowSized(var Msg: TWMSize);
 begin
   inherited;
   RememberNormalBounds;
   if Msg.SizeType = SIZE_MINIMIZED then
-    HideAllAttachmentWindows
+  begin
+    FWindowResizeTimer.Enabled := False;
+    HideAllAttachmentWindows;
+  end
   else
+  begin
     RefreshAttachmentPositions;
+    if (FTabs <> nil) and (FTabs.ActivePage <> nil) and
+       (FWindowResizeTimer <> nil) then
+    begin
+      FWindowResizeTimer.Enabled := False;
+      FWindowResizeTimer.Enabled := True;
+    end;
+  end;
 end;
 
 procedure TPDFTabsForm.TabContextPopup(Sender: TObject);
