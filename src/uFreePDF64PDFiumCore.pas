@@ -232,6 +232,7 @@ type
     function SecurityRevision: Integer;
     function SecurityPermissions: UInt64;
     property FileName: string read FFileName;
+    function HasEmbeddedAttachments: Boolean;
     property PageCount: Integer read FPageCount;
   end;
 
@@ -380,6 +381,7 @@ function FPDF_GetSecurityHandlerRevision(Doc: Pointer): Integer; stdcall; extern
 function FPDF_GetDocPermissions(Doc: Pointer): NativeUInt; stdcall; external 'pdfium.dll';
 procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';
 function FPDF_GetPageCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFDoc_GetAttachmentCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDF_ImportPages(DestDoc, SrcDoc: Pointer; PageRange: PAnsiChar; Index: Integer): Integer; stdcall; external 'pdfium.dll';
 // AcroForm-Erkennung (PDFium public/fpdf_formfill.h / fpdf_annot.h).
 function FPDF_GetFormType(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
@@ -2119,6 +2121,11 @@ begin
   Result := (FDocument <> nil) and (APageIndex >= 0) and
     (APageIndex < FPageCount) and (PhysicalPage(APageIndex) < 2) and
     ((Pos('25f40abr', N) > 0) or (Pos('alabama_form40', N) > 0));
+end;
+
+function TFreePDF64PDFiumCore.HasEmbeddedAttachments: Boolean;
+begin
+  Result := (FDocument <> nil) and (FPDFDoc_GetAttachmentCount(FDocument) > 0);
 end;
 
 procedure TFreePDF64PDFiumCore.CloseFile;

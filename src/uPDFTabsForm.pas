@@ -2122,7 +2122,7 @@ begin
         + 'Use Save As to preserve the original document when needed. Some forms may depend on PDF features not supported by this viewer.');
       AddSection('Document information and tools', '');
       AddSection('Attachments and document properties',
-        'PDF attachments are files embedded in a PDF, such as invoices, spreadsheets or supplementary documents. This lets related files be shared and archived together. The paperclip icon is orange when the currently displayed PDF contains attachments; otherwise it is black. The tooltip always reads “Show PDF attachments” regardless of whether attachments are available. Click the paperclip to show or hide the attachment list and view or extract embedded files. Document properties provide information about the PDF and its security settings.');
+        'PDF attachments are files embedded in a PDF, such as invoices, spreadsheets or supplementary documents. This lets related files be shared and archived together. A small asterisk (*) on the paperclip indicates that the currently displayed PDF contains embedded attachments. Without an asterisk, no embedded attachments have been detected. The tooltip always reads “Show PDF attachments” regardless of whether attachments are available. Click the paperclip to show or hide the attachment list and view or extract embedded files. Document properties provide information about the PDF and its security settings.');
       AddSection('Display and Logging', '');
       AddSection('4K and high-DPI dialogs',
         'Global PDF search and saved workspace management use DPI-aware spacing, line heights and buttons. '
@@ -2318,7 +2318,7 @@ begin
       AddSection('Anlagen und Dokumenteigenschaften',
         'PDF-Anlagen sind Dateien, die direkt in ein PDF eingebettet sind, zum Beispiel Rechnungen, Tabellen oder ergänzende Dokumente. ' +
         'So lassen sich zusammengehörige Unterlagen gemeinsam weitergeben und archivieren. ' +
-        'Die Büroklammer wird orange dargestellt, wenn die aktuell angezeigte PDF Anlagen enthält; andernfalls bleibt sie schwarz. ' +
+        'Ein kleines Sternchen (*) an der Büroklammer zeigt an, dass die aktuell angezeigte PDF eingebettete Anlagen enthält. Ohne Sternchen wurden keine eingebetteten Anlagen erkannt. ' +
         'Der Hinweistext lautet unabhängig vom Vorhandensein von Anlagen immer „PDF-Anlagen anzeigen“. Mit einem Klick auf die Büroklammer können Sie die Anlagenliste ein- oder ausblenden, eingebettete Dateien anzeigen und bei Bedarf extrahieren. ' +
         'Die Dokumenteigenschaften informieren unter anderem über das PDF und seine Sicherheitseinstellungen.');
       AddSection('Darstellung und Protokollierung', '');

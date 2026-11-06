@@ -266,6 +266,22 @@ begin
     B.Canvas.LineTo(13, 4);
     B.Canvas.LineTo(16, 7);
     B.Canvas.LineTo(8, 15);
+    if AHasAttachments then
+    begin
+      // Freigestelltes Sternchen: nicht mit den Linien der Klammer ueberlagern.
+      B.Canvas.Brush.Style := bsSolid;
+      B.Canvas.Brush.Color := clWhite;
+      B.Canvas.Pen.Color := clWhite;
+      B.Canvas.Rectangle(12, 0, 22, 11);
+      B.Canvas.Pen.Color := clBlack;
+      B.Canvas.Pen.Width := 2;
+      B.Canvas.MoveTo(17, 1);
+      B.Canvas.LineTo(17, 9);
+      B.Canvas.MoveTo(13, 3);
+      B.Canvas.LineTo(21, 7);
+      B.Canvas.MoveTo(13, 7);
+      B.Canvas.LineTo(21, 3);
+    end;
     AButton.Glyph.Assign(B);
     AButton.NumGlyphs := 1;
     AButton.Margin := -1;
@@ -406,6 +422,7 @@ begin
     else
     begin
 
+      SetAttachmentIndicator(Job.Core.HasEmbeddedAttachments);
       FPDFiumView.OpenPDFPrepared(Job.Core);
 
     end;
@@ -891,7 +908,7 @@ begin
   FHasPDFEmbeddedAttachments := AHasAttachments;
   if not Assigned(FAttachmentsButton) then Exit;
   FAttachmentsButton.Caption := '';
-  SetAttachmentGlyph(FAttachmentsButton, False);
+  SetAttachmentGlyph(FAttachmentsButton, AHasAttachments);
   FAttachmentsButton.Hint := ToolbarHintBrowser(
     'PDF-Anlagen anzeigen',
     'Show PDF attachments');
@@ -1145,6 +1162,7 @@ begin
   // PDFium-Datei und Seitenanzahl werden ohne VCL-Zugriffe geladen.
   // Die Uebernahme und der Aufbau der sichtbaren Seiten erfolgen im UI-Thread.
 
+  SetAttachmentIndicator(False);
   FBackgroundLoad := TPDFBackgroundLoad.Create;
   FBackgroundLoad.FileName := PDFFileName;
   LoadJob := FBackgroundLoad;
