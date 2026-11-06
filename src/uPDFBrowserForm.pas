@@ -163,6 +163,29 @@ implementation
 
 uses uPDFPortableAttachments;
 
+procedure SaveRecentPageCount(const AFileName: string; APageCount: Integer);
+var
+  Ini: TIniFile;
+  Key, LowerName: string;
+  Hash: UInt64;
+  I: Integer;
+begin
+  if (APageCount <= 0) or not FileExists(AFileName) then Exit;
+  Hash := UInt64($CBF29CE484222325);
+  LowerName := LowerCase(AFileName);
+  for I := 1 to Length(LowerName) do
+    Hash := (Hash xor Ord(LowerName[I])) * UInt64($100000001B3);
+  Key := IntToHex(Hash, 16);
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    Ini.WriteInteger('RecentPDFPageCount', Key, APageCount);
+    Ini.WriteString('RecentPDFPageCount', Key + '_Stamp',
+      IntToStr(FileAge(AFileName)));
+  finally
+    Ini.Free;
+  end;
+end;
+
 function ToolbarHintBrowser(const ADeutsch, AEnglish: string): string;
 begin
   if SameText(PDFLanguage, 'en') then Result := AEnglish
@@ -410,6 +433,13 @@ begin
     // After the asynchronous PDF initialization, restore the thumbnail
     // preference for every newly opened PDF (including FreePDF64 launches).
     FPDFiumView.ApplySavedThumbnailsAfterLoad;
+    // Seitenzahl erst nach erfolgreichem PDFium-Laden zwischenspeichern.
+    // Die Startseite liest nur diesen Cache und oeffnet keine PDFs.
+    if (FPDFiumView <> nil) and (FPDFiumView.GlobalPageCount > 0) and
+       FileExists(PDFFileName) then
+    begin
+      SaveRecentPageCount(PDFFileName, FPDFiumView.GlobalPageCount);
+    end;
     FNavigationDone := True;
     FNavigationSucceeded := True;
     FPendingFirstDisplay := True;

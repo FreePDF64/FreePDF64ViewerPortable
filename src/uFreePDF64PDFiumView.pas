@@ -92,6 +92,7 @@ type
     FThumbResizeTimer: TTimer;
     FThumbResizePending: Boolean;
     FThumbResizeInProgress: Boolean;
+    FThumbDeleteRebuildPending: Boolean;
     FThumbNext: Integer;
     FThumbScrollTarget: Integer;
     FThumbClickNavigation: Boolean;
@@ -1686,6 +1687,7 @@ begin
   FThumbResizeTimer.OnTimer := ThumbResizeTimerTick;
   FThumbResizePending := False;
   FThumbResizeInProgress := False;
+  FThumbDeleteRebuildPending := False;
   ShowOutlineTab(True);
   FScroll := TPDFiumScrollBox.Create(Self);
   FScroll.Parent := Self;
@@ -1728,6 +1730,9 @@ end;
 
 destructor TFreePDF64PDFiumView.Destroy;
 begin
+  if FThumbDeleteRebuildPending and (FThumbScroll <> nil) and
+     FThumbScroll.HandleAllocated then
+    SendMessage(FThumbScroll.Handle, WM_SETREDRAW, 1, 0);
   if GThumbnailViews <> nil then GThumbnailViews.Remove(Self);
   if FTextEditor <> nil then
   begin
@@ -4370,6 +4375,7 @@ procedure TFreePDF64PDFiumView.DeleteSelectedThumbs(Sender: TObject);
 var
   Pages: TArray<Integer>;
   I, Target: Integer;
+  Img: TPDFiumImage;
 begin
   if FThumbSelected.Count = 0 then Exit;
   if FThumbSelected.Count >= FCore.PageCount then
@@ -4383,7 +4389,7 @@ begin
   Pages := FThumbSelected.ToArray;
   Target := FPage;
   for I := 0 to High(Pages) do
-    if Pages[I] <= Target then Dec(Target);
+    if Pages[I] < FPage then Dec(Target);
   FThumbTimer.Enabled := False;
   try
     // Keine vollstaendige PDF-Sicherung vor der Aktion mehr.
@@ -4403,15 +4409,59 @@ begin
     FMatchCount := 0;
     FTotalSearchMatches := 0;
     if Assigned(FOnSearchCountChanged) then FOnSearchCountChanged(Self);
+    // Nach dem Loeschen beziehen sich die bisherigen Bitmap-Indizes auf
+    // andere physische PDF-Seiten. Alle alten Seitenbilder verwerfen,
+    // sonst bleibt die geloeschte Seite sichtbar (gleiche Seitengroesse).
+    for I := 0 to High(FLoadedPages) do
+      FLoadedPages[I] := False;
+    for I := 0 to FPages.Count - 1 do
+    begin
+      Img := TPDFiumImage(FPages[I]);
+      Img.Picture.Assign(nil);
+    end;
     SetLength(FPageSizesValid, 0);
-  PaintPage;
+    FInitialRenderDeferred := False;
+    FZoomRenderPending := False;
+    FScrollRenderPending := False;
+    FResizePending := False;
+    PaintPage;
+    FRenderPending := True;
+    FRenderTimer.Enabled := True;
     PopulateOutline;
+    // Keine Zwischenanzeige von Seite 1 waehrend des asynchronen Neuaufbaus.
+    FThumbDeleteRebuildPending := True;
+    if FOutlinePanel.HandleAllocated then
+      SendMessage(FOutlinePanel.Handle, WM_SETREDRAW, 0, 0);
+    if FThumbScroll.HandleAllocated then
+      SendMessage(FThumbScroll.Handle, WM_SETREDRAW, 0, 0);
     BuildThumbnails;
+    // Die aktive Seite nach dem Neuaufbau anzeigen und den blauen Rahmen
+    // sowie die Scrollposition der Miniaturansicht synchronisieren.
+    ShowPage(FPage);
+    FThumbScrollTarget := FPage;
+    UpdateThumbnailSelection;
+    ScrollThumbnailToCurrentPage;
     UpdateSaveState;
   except
     on E: Exception do
+    begin
+      if FThumbDeleteRebuildPending then
+      begin
+        FThumbDeleteRebuildPending := False;
+        if FThumbScroll.HandleAllocated then
+        begin
+          SendMessage(FThumbScroll.Handle, WM_SETREDRAW, 1, 0);
+          FThumbScroll.Invalidate;
+        end;
+        if FOutlinePanel.HandleAllocated then
+        begin
+          SendMessage(FOutlinePanel.Handle, WM_SETREDRAW, 1, 0);
+          FOutlinePanel.Invalidate;
+        end;
+      end;
       PDFModernMessageDlg(Tr('Seiten konnten nicht entfernt werden: ') + E.Message,
         mtError, [mbOK], 0);
+    end;
   end;
 end;
 
@@ -4665,6 +4715,20 @@ begin
   UpdateThumbnailSelection;
   if (FThumbScrollTarget >= 0) and (FThumbScrollTarget < FThumbNext) then
     ScrollThumbnailToCurrentPage;
+  if FThumbDeleteRebuildPending and (FThumbScrollTarget < 0) then
+  begin
+    FThumbDeleteRebuildPending := False;
+    if FThumbScroll.HandleAllocated then
+    begin
+      SendMessage(FThumbScroll.Handle, WM_SETREDRAW, 1, 0);
+      FThumbScroll.Invalidate;
+    end;
+    if FOutlinePanel.HandleAllocated then
+    begin
+      SendMessage(FOutlinePanel.Handle, WM_SETREDRAW, 1, 0);
+      FOutlinePanel.Invalidate;
+    end;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.BuildThumbnails;
@@ -4674,12 +4738,14 @@ begin
   FThumbSelected.Clear;
   FThumbAnchor := -1;
   FThumbImages.Clear;
-  // Beim Neuaufbau keine alte Scrollposition auf neue Controls uebertragen.
-  FThumbScroll.VertScrollBar.Position := 0;
+  // Bei Loeschaktionen bleibt die Neuzeichnung bis zur Zielminiatur
+  // gesperrt. Keinen sichtbaren Zwischenzustand auf Seite 1 erzeugen.
+  if not FThumbDeleteRebuildPending then
+    FThumbScroll.VertScrollBar.Position := 0;
   while FThumbScroll.ControlCount > 0 do
     FThumbScroll.Controls[0].Free;
   FThumbNext := 0;
-  FThumbScrollTarget := -1;
+  FThumbScrollTarget := EnsureRange(FPage, 0, Max(0, FCore.PageCount - 1));
   // Erste Miniaturen sofort anzeigen; den Rest ohne UI-Blockade nachbauen.
   AppendThumbnailBatch(12);
   FThumbTimer.Interval := 40;
@@ -7952,6 +8018,7 @@ begin
     D.Title := Tr('Speichern unter');
     D.Filter := Tr('PDF-Dateien') + '|*.pdf';
     D.DefaultExt := 'pdf';
+    D.InitialDir := ExtractFilePath(FCore.FileName);
     D.FileName := ExtractFileName(FCore.FileName);
     if D.Execute then
     begin

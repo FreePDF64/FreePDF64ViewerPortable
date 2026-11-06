@@ -211,6 +211,7 @@ type
     procedure RememberRecentPDF(const AFileName: string);
     procedure RefreshRecentPDFList;
     procedure LoadRecentThumbnail(const AFileName: string; AImage: TImage);
+    function RecentPDFPageCount(const AFileName: string): Integer;
     procedure CleanupRecentThumbnails(const AClearAll: Boolean);
     procedure RecentPDFClick(Sender: TObject);
     procedure RecentPDFContext(Sender: TObject; MousePos: TPoint;
@@ -911,9 +912,8 @@ begin
   UpdateWelcomeView;
   if FStartupMinimizePending then
     PostMessage(Handle, WM_APP + 198, 0, 0);
-  // Erst nach der VCL-Anzeige wiederherstellen: Explorer und F1 verwenden
-  // unterschiedliche Startwege, aber beide durchlaufen OnShow.
-  PostMessage(Handle, WM_APP + 194, 0, 0);
+  // Fensterzustand wurde bereits im Konstruktor vor dem ersten Anzeigen
+  // aus der INI geladen. Keine erneute Normal-/Maximiert-Umschaltung.
 end;
 
 procedure TPDFTabsForm.ApplyShownWindowSettings(var Msg: TMessage);
@@ -3821,11 +3821,43 @@ begin
     Result := inherited DoMouseWheel(Shift, WheelDelta, MousePos);
 end;
 
+function TPDFTabsForm.RecentPDFPageCount(const AFileName: string): Integer;
+var
+  Ini: TIniFile;
+  Doc: TFreePDF64PDFiumCore;
+  Key, Fingerprint: string;
+  Hash: UInt64;
+  I: Integer;
+begin
+  Result := 0;
+  if not FileExists(AFileName) then Exit;
+  Hash := UInt64($CBF29CE484222325);
+  Key := LowerCase(AFileName);
+  for I := 1 to Length(Key) do
+    Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
+  Key := IntToHex(Hash, 16);
+  Fingerprint := IntToStr(FileAge(AFileName));
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    if Ini.ReadString('RecentPDFPageCount', Key + '_Stamp', '') = Fingerprint then
+    begin
+      Result := Ini.ReadInteger('RecentPDFPageCount', Key, 0);
+      if Result > 0 then Exit;
+    end;
+    // Keine PDFium-Dokumente waehrend des Starts fuer die Startseite
+    // erzeugen. Ein nicht zwischengespeicherter Wert bleibt unbekannt.
+    Result := 0;
+  finally
+    Ini.Free;
+  end;
+end;
+
 procedure TPDFTabsForm.RefreshRecentPDFList;
 var
   I, Y, H, Dpi: Integer;
   Row: TPanel;
-  Link, PathLabel: TLabel;
+  Link, PathLabel, CountLabel: TLabel;
+  PageTotal: Integer;
   Thumb: TImage;
   FileName: string;
 begin
@@ -3863,6 +3895,7 @@ begin
       Thumb.OnClick := RecentPDFClick;
       Thumb.OnContextPopup := RecentPDFContext;
       LoadRecentThumbnail(FileName, Thumb);
+      PageTotal := RecentPDFPageCount(FileName);
       if FileExists(FileName) then Thumb.Cursor := crHandPoint;
       Link := TLabel.Create(Self);
       Link.Parent := Row;
@@ -3888,7 +3921,8 @@ begin
         Link.Enabled := False;
         Link.Font.Color := clGrayText;
       end;
-      PathLabel := TLabel.Create(Self);
+      PathLabel := TLabel.Create(Row);
+      PathLabel.Name := 'RecentPathLabel';
       PathLabel.Parent := Row;
       PathLabel.SetBounds(MulDiv(88,Dpi,96), MulDiv(62,Dpi,96),
         Row.Width - MulDiv(96,Dpi,96), MulDiv(18,Dpi,96));
@@ -3903,6 +3937,28 @@ begin
       PathLabel.ShowHint := True;
       PathLabel.Tag := I;
       PathLabel.OnContextPopup := RecentPDFContext;
+      if PageTotal > 0 then
+      begin
+        CountLabel := TLabel.Create(Row);
+        CountLabel.Name := 'RecentCountLabel';
+        CountLabel.Parent := Row;
+        CountLabel.SetBounds(MulDiv(88,Dpi,96), MulDiv(85,Dpi,96),
+          Row.Width - MulDiv(96,Dpi,96), MulDiv(18,Dpi,96));
+        CountLabel.Anchors := [akLeft, akTop, akRight];
+        CountLabel.AutoSize := False;
+        CountLabel.Font.Name := 'Segoe UI';
+        CountLabel.Font.Size := 8;
+        CountLabel.Font.Color := clGrayText;
+        if SameText(PDFLanguage, 'en') then
+        begin
+          if PageTotal = 1 then CountLabel.Caption := '1 page'
+          else CountLabel.Caption := IntToStr(PageTotal) + ' pages';
+        end
+        else if PageTotal = 1 then CountLabel.Caption := '1 Seite'
+        else CountLabel.Caption := IntToStr(PageTotal) + ' Seiten';
+        CountLabel.Tag := I;
+        CountLabel.OnContextPopup := RecentPDFContext;
+      end;
       Inc(Y, H + MulDiv(3,Dpi,96));
     end;
   finally
@@ -4071,10 +4127,20 @@ begin
         if Child is TLabel then
         begin
           Child.Anchors := [akLeft, akTop];
-          Child.SetBounds(MulDiv(92,Dpi,96),
-            IfThen(TLabel(Child).Font.Size = 8, MulDiv(67,Dpi,96), MulDiv(30,Dpi,96)),
-            Max(MulDiv(30,Dpi,96), CardWidth - MulDiv(100,Dpi,96)),
-            IfThen(TLabel(Child).Font.Size = 8, MulDiv(18,Dpi,96), MulDiv(22,Dpi,96)));
+          // The path and page count use the same font size, but need
+          // separate rows. Do not infer their positions from Font.Size.
+          if Child.Name = 'RecentCountLabel' then
+            Child.SetBounds(MulDiv(92,Dpi,96), MulDiv(85,Dpi,96),
+              Max(MulDiv(30,Dpi,96), CardWidth - MulDiv(100,Dpi,96)),
+              MulDiv(18,Dpi,96))
+          else if Child.Name = 'RecentPathLabel' then
+            Child.SetBounds(MulDiv(92,Dpi,96), MulDiv(62,Dpi,96),
+              Max(MulDiv(30,Dpi,96), CardWidth - MulDiv(100,Dpi,96)),
+              MulDiv(18,Dpi,96))
+          else
+            Child.SetBounds(MulDiv(92,Dpi,96), MulDiv(25,Dpi,96),
+              Max(MulDiv(30,Dpi,96), CardWidth - MulDiv(100,Dpi,96)),
+              MulDiv(22,Dpi,96));
         end;
       end;
     end;
