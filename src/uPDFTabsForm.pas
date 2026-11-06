@@ -119,6 +119,16 @@ type
     FTabContextMenu: TPopupMenu;
     FReopenClosedItem: TMenuItem;
     FTabHintWindow: THintWindow;
+    FTabPreviewMenuItem: TMenuItem;
+    FTabPreviewEnabled: Boolean;
+    FTabPreviewTimer: TTimer;
+    FTabPreviewForm: TForm;
+    FTabPreviewImage: TImage;
+    FTabPreviewTitle: TLabel;
+    FTabPreviewPath: TLabel;
+    FTabPreviewIndex: Integer;
+    FTabPreviewStarted: Cardinal;
+    FTabPreviewRequested: string;
     FHintTabIndex: Integer;
     FTrackingTabsMouseLeave: Boolean;
     FTabHintWatchTimer: TTimer;
@@ -299,6 +309,9 @@ type
     procedure TabsMouseLeave(Sender: TObject);
     procedure TabHintWatchTimerTick(Sender: TObject);
     procedure HideTabHint;
+    procedure TabPreviewMenuClick(Sender: TObject);
+    procedure TabPreviewTimerTick(Sender: TObject);
+    procedure HideTabPreview;
     procedure DrawPDFTab(Control: TCustomTabControl; TabIndex: Integer;
       const Rect: TRect; Active: Boolean);
 
@@ -2868,7 +2881,16 @@ begin
 
   // Hauptmenuebezeichnungen explizit aus der deutschen Referenz setzen.
   if FFileMenu <> nil then FFileMenu.Caption := Tr('Datei');
-  if FEditMenu <> nil then FEditMenu.Caption := Tr('Bearbeiten');
+  if FEditMenu <> nil then
+    if SameText(PDFLanguage, 'en') then FEditMenu.Caption := 'Tools'
+    else FEditMenu.Caption := 'Werkzeuge';
+  if FTabPreviewMenuItem <> nil then
+  begin
+    if SameText(PDFLanguage, 'en') then
+      FTabPreviewMenuItem.Caption := 'Show Tab Previews'
+    else
+      FTabPreviewMenuItem.Caption := 'Registerkartenvorschau anzeigen';
+  end;
   if FWorkspaceMenu <> nil then FWorkspaceMenu.Caption := Tr('Arbeitsbereiche');
   if FOptionsMenu <> nil then FOptionsMenu.Caption := Tr('Optionen');
   if FSplitViewMenuItem <> nil then
@@ -3135,7 +3157,7 @@ begin
   FVisualCompareMenuItem.OnClick := VisualCompareClick;
   FHelpMainMenu.Items.Add(FVisualCompareMenuItem);
   FEditMenu := TMenuItem.Create(FHelpMainMenu);
-  FEditMenu.Caption := Tr('Bearbeiten');
+  FEditMenu.Caption := 'Werkzeuge';
   FEditMenu.OnClick := EditMenuClick;
   FHelpMainMenu.Items.Add(FEditMenu);
   FLocalSearchMenuItem := TMenuItem.Create(FHelpMainMenu);
@@ -3156,6 +3178,19 @@ begin
   FMergePDFMenuItem.OnClick := MergePDFClick;
   FMergePDFMenuItem.Enabled := False;
   FEditMenu.Add(FMergePDFMenuItem);
+  FEditMenu.Add(TMenuItem.Create(FHelpMainMenu));
+  FEditMenu.Items[FEditMenu.Count - 1].Caption := '-';
+  FTabPreviewMenuItem := TMenuItem.Create(FHelpMainMenu);
+  FTabPreviewMenuItem.Caption := 'Registerkartenvorschau anzeigen';
+  FTabPreviewMenuItem.OnClick := TabPreviewMenuClick;
+  FEditMenu.Add(FTabPreviewMenuItem);
+  with TIniFile.Create(TabsIniFileName) do
+  try
+    FTabPreviewEnabled := ReadBool('Viewer', 'TabPreviewEnabled', True);
+  finally
+    Free;
+  end;
+  FTabPreviewMenuItem.Checked := FTabPreviewEnabled;
   FLocalSearchMenuItem.Enabled := False;
   FGlobalSearchMenuItem.Enabled := False;
   FWorkspaceMenu := TMenuItem.Create(FHelpMainMenu);
@@ -3444,6 +3479,11 @@ begin
   FTabHintWatchTimer.Enabled := False;
   FTabHintWatchTimer.Interval := 50;
   FTabHintWatchTimer.OnTimer := TabHintWatchTimerTick;
+  FTabPreviewIndex := -1;
+  FTabPreviewTimer := TTimer.Create(Self);
+  FTabPreviewTimer.Interval := 75;
+  FTabPreviewTimer.Enabled := False;
+  FTabPreviewTimer.OnTimer := TabPreviewTimerTick;
   FHoverCloseTabIndex := -1;
   FTabs.OnMouseMove := TabsMouseMove;
   FTabs.OnMouseLeave := TabsMouseLeave;
@@ -5680,8 +5720,12 @@ begin
     if FFileMenu.Count > 1 then
       FFileMenu.Items[1].Enabled := FSplitHost = nil;
   EditMenuClick(nil);
+  // Der visuelle Vergleich ist nur bei aktiver Zweifensteransicht moeglich.
+  // Sein Menuezustand darf niemals von der Teilungsfunktion abweichen,
+  // wenn diese selbst nicht zur Verfuegung steht.
   if FVisualCompareMenuItem <> nil then
-    FVisualCompareMenuItem.Enabled := FSplitHost <> nil;
+    FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
+      FSplitViewMenuItem.Enabled;
 
   // Die Registerkartensuche ist in der Zweifensteransicht deaktiviert.
   // StartSplit und StopSplit rufen UpdateSplitMenuState auf, sodass der
@@ -5764,6 +5808,11 @@ begin
      (FSplitAnchorTab <> FSplitSelectedTab) and
      (FSplitAnchorTab.PageControl = FTabs) and
      (FSplitSelectedTab.PageControl = FTabs));
+  // Nach der abschliessenden Aktualisierung der Teilungsfreigabe
+  // auch den Vergleichsmenuepunkt synchron halten.
+  if FVisualCompareMenuItem <> nil then
+    FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
+      FSplitViewMenuItem.Enabled;
   // VCL kann beim Umschalten der Menuepunkte das native Menue neu aufbauen.
   // Danach die rechtsbuendige Position von "Hilfe" wiederherstellen.
   AlignHelpMenuRight;
@@ -6664,24 +6713,26 @@ begin
 
   HideTabHint;
   FHintTabIndex := TabIndex;
-  // Zwei Zeilen wie bei Browser-Tabs: Dateiname und Verzeichnispfad.
-  // Der vollstaendige Dateipfad ist bereits im Tab.Hint hinterlegt;
-  // es ist kein Dateizugriff (auch nicht auf Netzlaufwerke) noetig.
-  HintText := FTabs.Pages[TabIndex].Hint;
-  if HintText = '' then
-    Exit;
-  HintText := ExtractFileName(HintText) + sLineBreak +
-    ExtractFilePath(FTabs.Pages[TabIndex].Hint);
-
-  P := FTabs.ClientToScreen(Point(X, Y + MulDiv(20, CurrentPPI, 96)));
-  R := FTabHintWindow.CalcHintRect(700, HintText, nil);
-  OffsetRect(R, P.X, P.Y);
-  FTabHintWindow.ActivateHint(R, HintText);
-  if Assigned(FTabHintWatchTimer) then FTabHintWatchTimer.Enabled := True;
+  FTabPreviewIndex := TabIndex;
+  FTabPreviewStarted := GetTickCount;
+  if FTabPreviewEnabled then
+    FTabPreviewTimer.Enabled := True
+  else
+  begin
+    HintText := FTabs.Pages[TabIndex].Hint;
+    if HintText = '' then Exit;
+    HintText := ExtractFileName(HintText) + sLineBreak + ExtractFilePath(HintText);
+    P := FTabs.ClientToScreen(Point(X, Y + MulDiv(20, CurrentPPI, 96)));
+    R := FTabHintWindow.CalcHintRect(700, HintText, nil);
+    OffsetRect(R, P.X, P.Y);
+    FTabHintWindow.ActivateHint(R, HintText);
+    FTabHintWatchTimer.Enabled := True;
+  end;
 end;
 
 procedure TPDFTabsForm.HideTabHint;
 begin
+  HideTabPreview;
   // THintWindow.Hide allein reicht in der aktuellen Konstellation nicht
   // immer aus, um das Popup-Fenster sofort vom Desktop zu entfernen.
   if Assigned(FTabHintWatchTimer) then
@@ -6693,6 +6744,192 @@ begin
     if FTabHintWindow.HandleAllocated then
       Winapi.Windows.ShowWindow(FTabHintWindow.Handle, SW_HIDE);
   end;
+end;
+
+procedure TPDFTabsForm.HideTabPreview;
+begin
+  if FTabPreviewTimer <> nil then FTabPreviewTimer.Enabled := False;
+  FTabPreviewIndex := -1;
+  FTabPreviewRequested := '';
+  if FTabPreviewForm <> nil then
+  begin
+    // SetWindowPos(SWP_SHOWWINDOW) does not update VCL's Visible state.
+    // Hide the native HWND explicitly so the preview disappears reliably.
+    if FTabPreviewForm.HandleAllocated then
+      Winapi.Windows.ShowWindow(FTabPreviewForm.Handle, SW_HIDE);
+    FTabPreviewForm.Hide;
+  end;
+end;
+
+procedure TPDFTabsForm.TabPreviewMenuClick(Sender: TObject);
+var
+  Ini: TIniFile;
+begin
+  FTabPreviewEnabled := not FTabPreviewEnabled;
+  FTabPreviewMenuItem.Checked := FTabPreviewEnabled;
+  Ini := TIniFile.Create(TabsIniFileName);
+  try
+    Ini.WriteBool('Viewer', 'TabPreviewEnabled', FTabPreviewEnabled);
+  finally
+    Ini.Free;
+  end;
+  HideTabHint;
+end;
+
+procedure TPDFTabsForm.TabPreviewTimerTick(Sender: TObject);
+var
+  P: TPoint;
+  I: Integer;
+  FileName, CacheDir, CacheFile, Key: string;
+  Hash: UInt64;
+  PreviewFile: string;
+  PreviewCache: string;
+  R: TRect;
+  ScreenPos: TPoint;
+  WorkArea: TRect;
+begin
+  if not FTabPreviewEnabled or (FTabs = nil) or
+     (FTabPreviewIndex < 0) or (FTabPreviewIndex >= FTabs.PageCount) then
+  begin
+    HideTabPreview;
+    Exit;
+  end;
+  GetCursorPos(P);
+  P := FTabs.ScreenToClient(P);
+  if FTabs.IndexOfTabAt(P.X, P.Y) <> FTabPreviewIndex then
+  begin
+    HideTabPreview;
+    Exit;
+  end;
+  if GetTickCount - FTabPreviewStarted < 450 then Exit;
+  FileName := FTabs.Pages[FTabPreviewIndex].Hint;
+  if (FileName = '') or not FileExists(FileName) then
+  begin
+    HideTabPreview;
+    Exit;
+  end;
+  // Same cache key as the existing recent-PDF thumbnail implementation.
+  Key := LowerCase(FileName) + ':' + IntToStr(FileAge(FileName));
+  Hash := UInt64($CBF29CE484222325);
+  for I := 1 to Length(Key) do
+    Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
+  CacheDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'Thumbnails';
+  CacheFile := IncludeTrailingPathDelimiter(CacheDir) + IntToHex(Hash, 16) + '.bmp';
+  if not FileExists(CacheFile) then
+  begin
+    if FTabPreviewRequested <> FileName then
+    begin
+      FTabPreviewRequested := FileName;
+      PreviewFile := FileName;
+      PreviewCache := CacheFile;
+      TThread.CreateAnonymousThread(
+        procedure
+        var
+          Doc: TFreePDF64PDFiumCore;
+          Bmp: TBitmap;
+        begin
+          Doc := nil;
+          Bmp := TBitmap.Create;
+          try
+            try
+              Doc := TFreePDF64PDFiumCore.Create;
+              Doc.OpenFile(PreviewFile);
+              if Doc.PageCount > 0 then
+              begin
+                Bmp.PixelFormat := pf24bit;
+                Doc.RenderPage(0, Bmp, 72, 96);
+                ForceDirectories(ExtractFilePath(PreviewCache));
+                Bmp.SaveToFile(PreviewCache + '.' + IntToStr(GetCurrentThreadId) + '.tmp.bmp');
+                RenameFile(PreviewCache + '.' + IntToStr(GetCurrentThreadId) + '.tmp.bmp', PreviewCache);
+              end;
+            except
+              // Preview is optional and must never interrupt the viewer.
+            end;
+          finally
+            Doc.Free;
+            Bmp.Free;
+          end;
+        end).Start;
+    end;
+    Exit;
+  end;
+  if FTabPreviewForm = nil then
+  begin
+    FTabPreviewForm := TForm.CreateNew(Self);
+    // Prevent VCL from selecting a default position on the first Show.
+    FTabPreviewForm.Position := poDesigned;
+    FTabPreviewForm.BorderStyle := bsNone;
+    FTabPreviewForm.FormStyle := fsStayOnTop;
+    FTabPreviewForm.Width := MulDiv(152, CurrentPPI, 96);
+    FTabPreviewForm.Height := MulDiv(210, CurrentPPI, 96);
+    FTabPreviewForm.Color := clWhite;
+    FTabPreviewTitle := TLabel.Create(FTabPreviewForm);
+    FTabPreviewTitle.Parent := FTabPreviewForm;
+    FTabPreviewTitle.SetBounds(MulDiv(8, CurrentPPI, 96), MulDiv(6, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96), MulDiv(20, CurrentPPI, 96));
+    FTabPreviewTitle.AutoSize := False;
+    FTabPreviewTitle.EllipsisPosition := epEndEllipsis;
+    FTabPreviewImage := TImage.Create(FTabPreviewForm);
+    FTabPreviewImage.Parent := FTabPreviewForm;
+    FTabPreviewImage.SetBounds(MulDiv(8, CurrentPPI, 96), MulDiv(49, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96),
+      FTabPreviewForm.Height - MulDiv(57, CurrentPPI, 96));
+    FTabPreviewImage.Proportional := True;
+    FTabPreviewImage.Center := True;
+    FTabPreviewImage.Stretch := True;
+    FTabPreviewPath := TLabel.Create(FTabPreviewForm);
+    FTabPreviewPath.Parent := FTabPreviewForm;
+    FTabPreviewPath.AutoSize := False;
+    FTabPreviewPath.EllipsisPosition := epPathEllipsis;
+    FTabPreviewPath.ShowHint := True;
+    FTabPreviewPath.SetBounds(MulDiv(8, CurrentPPI, 96),
+      MulDiv(27, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96), MulDiv(18, CurrentPPI, 96));
+  end;
+  if not Winapi.Windows.IsWindowVisible(FTabPreviewForm.Handle) then
+  begin
+    try
+      FTabPreviewImage.Picture.LoadFromFile(CacheFile);
+    except
+      Exit;
+    end;
+    // Browser-like compact preview; adapt its shape to the first PDF page.
+    if FTabPreviewImage.Picture.Width > FTabPreviewImage.Picture.Height then
+    begin
+      FTabPreviewForm.Width := MulDiv(200, CurrentPPI, 96);
+      FTabPreviewForm.Height := MulDiv(166, CurrentPPI, 96);
+    end
+    else
+    begin
+      FTabPreviewForm.Width := MulDiv(152, CurrentPPI, 96);
+      FTabPreviewForm.Height := MulDiv(210, CurrentPPI, 96);
+    end;
+    FTabPreviewTitle.SetBounds(MulDiv(8, CurrentPPI, 96), MulDiv(6, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96), MulDiv(20, CurrentPPI, 96));
+    FTabPreviewImage.SetBounds(MulDiv(8, CurrentPPI, 96), MulDiv(49, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96),
+      FTabPreviewForm.Height - MulDiv(57, CurrentPPI, 96));
+    FTabPreviewPath.SetBounds(MulDiv(8, CurrentPPI, 96),
+      MulDiv(27, CurrentPPI, 96),
+      FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96), MulDiv(18, CurrentPPI, 96));
+    FTabPreviewPath.Caption := ExtractFilePath(FileName);
+    FTabPreviewPath.Hint := ExtractFilePath(FileName);
+    FTabPreviewTitle.Caption := ExtractFileName(FileName);
+    R := FTabs.TabRect(FTabPreviewIndex);
+    ScreenPos := FTabs.ClientToScreen(Point(R.Left, R.Bottom));
+    // Position on the monitor containing the hovered tab; clamp on all sides.
+    WorkArea := Screen.MonitorFromPoint(ScreenPos).WorkareaRect;
+    // Set the final screen coordinates on the actual HWND, including the
+    // first display. Do not call Visible := True beforehand: that triggers
+    // VCL's initial placement and may move the popup to the monitor corner.
+    SetWindowPos(FTabPreviewForm.Handle, HWND_TOPMOST,
+      Max(WorkArea.Left, Min(ScreenPos.X, WorkArea.Right - FTabPreviewForm.Width)),
+      Max(WorkArea.Top, Min(ScreenPos.Y, WorkArea.Bottom - FTabPreviewForm.Height)),
+      FTabPreviewForm.Width, FTabPreviewForm.Height,
+      SWP_NOACTIVATE or SWP_SHOWWINDOW);
+  end;
+  FTabPreviewTimer.Enabled := False;
+  FTabHintWatchTimer.Enabled := True;
 end;
 
 procedure TPDFTabsForm.TabHintWatchTimerTick(Sender: TObject);
