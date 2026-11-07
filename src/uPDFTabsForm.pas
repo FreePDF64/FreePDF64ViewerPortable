@@ -3162,17 +3162,23 @@ begin
   FSplitViewMenuItem.Caption := 'Ansicht teilen';
   FSplitViewMenuItem.Enabled := False;
   FSplitViewMenuItem.OnClick := SplitMenuClick;
-  FHelpMainMenu.Items.Add(FSplitViewMenuItem);
+  // Der Menuepunkt wird weiter unten in Werkzeuge eingefuegt.
   FVisualCompareMenuItem := TMenuItem.Create(FHelpMainMenu);
   FVisualCompareMenuItem.Caption := 'PDFs visuell vergleichen ...';
   // Beim Erzeugen ist noch keine Zweifensteransicht aktiv.
   FVisualCompareMenuItem.Enabled := False;
+  FVisualCompareMenuItem.Visible := False;
   FVisualCompareMenuItem.OnClick := VisualCompareClick;
   FHelpMainMenu.Items.Add(FVisualCompareMenuItem);
   FEditMenu := TMenuItem.Create(FHelpMainMenu);
   FEditMenu.Caption := 'Werkzeuge';
   FEditMenu.OnClick := EditMenuClick;
   FHelpMainMenu.Items.Add(FEditMenu);
+  // Geteilte Ansicht als eigener Abschnitt in Werkzeuge.
+  FEditMenu.Add(FSplitViewMenuItem);
+  HelpItem := TMenuItem.Create(FHelpMainMenu);
+  HelpItem.Caption := '-';
+  FEditMenu.Add(HelpItem);
   FLocalSearchMenuItem := TMenuItem.Create(FHelpMainMenu);
   FLocalSearchMenuItem.Caption := Tr('Text suchen');
   FLocalSearchMenuItem.ShortCut := ShortCut(Ord('F'), [ssCtrl]);
@@ -3208,7 +3214,8 @@ begin
   FGlobalSearchMenuItem.Enabled := False;
   FWorkspaceMenu := TMenuItem.Create(FHelpMainMenu);
   FWorkspaceMenu.Caption := Tr('Arbeitsbereiche');
-  FHelpMainMenu.Items.Add(FWorkspaceMenu);
+  // Direkt rechts neben Datei, unabhaengig vom Erzeugungszeitpunkt.
+  FHelpMainMenu.Items.Insert(FHelpMainMenu.Items.IndexOf(FFileMenu) + 1, FWorkspaceMenu);
   HelpItem := TMenuItem.Create(FHelpMainMenu);
   HelpItem.Caption := Tr('Arbeitsbereich speichern ...');
   HelpItem.OnClick := SaveWorkspaceClick;
@@ -5723,7 +5730,7 @@ begin
     FHelpRootMenuItem.Visible := FSplitHost = nil;
   FSplitViewMenuItem.Visible := True;
   if FVisualCompareMenuItem <> nil then
-    FVisualCompareMenuItem.Visible := True;
+    FVisualCompareMenuItem.Visible := FSplitHost <> nil;
   if FHomeMenu <> nil then FHomeMenu.Enabled := FSplitHost = nil;
   if FFileMenu <> nil then FFileMenu.Enabled := FSplitHost = nil;
   if FEditMenu <> nil then FEditMenu.Enabled := FSplitHost = nil;
@@ -5741,8 +5748,11 @@ begin
   // Sein Menuezustand darf niemals von der Teilungsfunktion abweichen,
   // wenn diese selbst nicht zur Verfuegung steht.
   if FVisualCompareMenuItem <> nil then
-    FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
-      FSplitViewMenuItem.Enabled;
+    begin
+      FVisualCompareMenuItem.Visible := FSplitHost <> nil;
+      FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
+        FSplitViewMenuItem.Enabled;
+    end;
 
   // Die Registerkartensuche ist in der Zweifensteransicht deaktiviert.
   // StartSplit und StopSplit rufen UpdateSplitMenuState auf, sodass der
@@ -5828,8 +5838,11 @@ begin
   // Nach der abschliessenden Aktualisierung der Teilungsfreigabe
   // auch den Vergleichsmenuepunkt synchron halten.
   if FVisualCompareMenuItem <> nil then
-    FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
-      FSplitViewMenuItem.Enabled;
+    begin
+      FVisualCompareMenuItem.Visible := FSplitHost <> nil;
+      FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
+        FSplitViewMenuItem.Enabled;
+    end;
   // VCL kann beim Umschalten der Menuepunkte das native Menue neu aufbauen.
   // Danach die rechtsbuendige Position von "Hilfe" wiederherstellen.
   AlignHelpMenuRight;
@@ -6288,10 +6301,7 @@ var
 begin
   if (FTabs = nil) or (FTabs.PageCount = 0) then Exit;
 
-  // Die Pfeiltasten muessen nicht nur den aktiven Tab wechseln, sondern
-  // auch das Laden/Aktualisieren der zugehoerigen PDF explizit anfordern.
-  // Das ist besonders bei vielen per Lazy Loading geoeffneten PDFs wichtig,
-  // wenn der Fokus noch auf einer der Pfeiltasten liegt.
+  // Der Wechsel loest TabsChange aus; dort erfolgt die PDF-Aktivierung.
   if Sender = FTabNextButton then
     NewIndex := Max(0, FTabs.ActivePageIndex - 1)
   else
@@ -6300,17 +6310,10 @@ begin
   if NewIndex = FTabs.ActivePageIndex then Exit;
   FTabs.ActivePageIndex := NewIndex;
   FTabs.Invalidate;
-  LoadSelectedPDF;
-  // Auch die Registerkartenpfeile muessen nach dem VCL-Seitenwechsel
-  // eine Anpassungspruefung fuer genau die neue Registerkarte ausloesen.
-  if (FTabFitTimer <> nil) and (FTabs.ActivePage <> nil) and
-     not (FTabFitTimer.Enabled and
-          (FTabFitPendingPage = FTabs.ActivePage)) then
-  begin
-    FTabFitTimer.Enabled := False;
-    FTabFitPendingPage := FTabs.ActivePage;
-    FTabFitTimer.Enabled := True;
-  end;
+  // TabsChange fordert die PDF-Ladung bereits an. Kein zweiter Aufruf
+  // waehrend der asynchronen Initialisierung durch die Pfeilnavigation.
+  // TabsChange plant die Anpassung bereits. Hier keinen zweiten
+  // Timer aus der Pfeilnavigation heraus starten.
   // Nach dem VCL-Registerwechsel erneut im Nachrichtenzyklus pruefen.
   // Zu diesem Zeitpunkt ist auch das TabSheet sichtbar und bemessen.
   PostMessage(Handle, WM_APP + 193, 0, 0);
@@ -7051,7 +7054,9 @@ begin
   FTabFitPendingPage := nil;
   FTabs.ActivePage.Realign;
   PDF := PDFInTab(FTabs.ActivePage);
-  if PDF <> nil then
+  // Bei schnell gewechselten, noch nicht geladenen PDFs darf die
+  // Seitenanpassung erst nach erfolgreicher Navigation stattfinden.
+  if (PDF <> nil) and PDF.PDFNavigationSucceeded then
     PDF.RefitPDFOnTabActivation;
 end;
 

@@ -659,12 +659,8 @@ end;
 
 procedure TPDFBrowserForm.RefitPDFOnTabActivation;
 begin
-  if (FPDFiumView = nil) or not FNavigationSucceeded then Exit;
-  // Zuerst die VCL-Ausrichtung des nach Maximieren wieder aktivierten
-  // PDF-Hosts abschliessen, erst dann dessen Viewport pruefen.
-  Realign;
-  FPDFiumView.Realign;
-  FPDFiumView.RefitOnTabActivation;
+  if (FPDFiumView <> nil) and FNavigationSucceeded then
+    FPDFiumView.RefitOnTabActivation;
 end;
 
 procedure TPDFBrowserForm.RefreshPDFViewport;
@@ -999,6 +995,13 @@ begin
   FWorkspaceRestorePending := False;
   FSearchTerm := '';
   BuildNavigationToolbar;
+  // Absicherung auch bei einer Form ohne geladenes DFM-Timerobjekt.
+  if TimerPDF = nil then
+  begin
+    TimerPDF := TTimer.Create(Self);
+    TimerPDF.Enabled := False;
+    TimerPDF.OnTimer := TimerPDFTimer;
+  end;
   TimerPDF.Interval := 35;
   TimerPDF.Enabled := False;
   // PDFium erst nach dem Einhaengen des Browserformulars in den Tab
@@ -1079,6 +1082,13 @@ begin
   // Ein explizites OpenSavedPDF setzt FNavigationDone wieder zurueck.
   if FNavigationDone and not FNavigationSucceeded then Exit;
   FLoadRequested := True;
+  // Auch bei einer sehr fruehen Ladeanforderung keinen nil-Timer verwenden.
+  if TimerPDF = nil then
+  begin
+    TimerPDF := TTimer.Create(Self);
+    TimerPDF.Enabled := False;
+    TimerPDF.OnTimer := TimerPDFTimer;
+  end;
   TimerPDF.Interval := 35;
   // PDFium nicht synchron aus AddPDF/OnShow starten: zuerst muss die
   // VCL die Hauptfenster- und Werkzeugleisten-Paint-Nachrichten abarbeiten.
@@ -1696,11 +1706,9 @@ begin
 
     // Die Teilungsschaltflaeche bleibt als einziges sichtbares Symbol.
     AButton.Visible := True;
-    AButton.Width := Px(42);
+    AButton.Width := Px(56);
     AButton.Height := Max(Px(24), FSplitButtonOriginalHeight);
     ButtonLeft := Px(4);
-    if (ToolbarPanel <> nil) and (FToolbar.Parent = ToolbarPanel) then
-      Inc(ButtonLeft, Px(48)); // Platz des Miniaturansicht-Buttons
     ButtonTop := Max(0, (FToolbar.ClientHeight - AButton.Height) div 2);
     AButton.SetBounds(ButtonLeft, ButtonTop, AButton.Width, AButton.Height);
     AButton.BringToFront;

@@ -5382,7 +5382,7 @@ begin
   PlaceButton(FZoom100Button, 46);
   PlaceControl(FFitSeparator, Px(2), Px(22));
   PlaceButton(FFit, 38);
-  PlaceControl(FViewSelect, Px(108), EditH);
+  PlaceControl(FViewSelect, Px(130), EditH);
   // Das native Dropdown sitzt optisch etwas hoeher als die Buttons;
   // daher in der gemeinsamen Leiste leicht nach unten versetzen.
   FViewSelect.Top := FViewSelect.Top + Px(4);
