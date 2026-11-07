@@ -870,7 +870,7 @@ begin
   Canvas.Font.Assign(FSearchCountLabel.Font);
   FSearchCountLabel.SetBounds(XPos,
     (ToolbarHeight - ControlHeight) div 2,
-    Max(ScalePx(70), Canvas.TextWidth(FSearchCountLabel.Caption + '  ...') + ScalePx(8)),
+    Max(ScalePx(70), Max(Canvas.TextWidth(FSearchCountLabel.Caption + '  ...'), Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + ScalePx(8)),
     ControlHeight);
   Inc(XPos, FSearchCountLabel.Width + Gap);
   FAttachmentSeparator.Visible := False;
@@ -1800,8 +1800,8 @@ begin
     if not FPDFiumView.SearchRunning then
       ExtraWidth := Canvas.TextWidth('  ...');
     FSearchCountLabel.Width := Max(Px(70),
-      Canvas.TextWidth(FSearchCountLabel.Caption) +
-      ExtraWidth + Px(8));
+      Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
+          Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + Px(8));
   end;
 
   LeftRequired := 2 * Margin + 8 * Gap + Px(22);
@@ -1895,7 +1895,8 @@ begin
         if not FPDFiumView.SearchRunning then
           ExtraWidth := Canvas.TextWidth('  ...');
         FSearchCountLabel.Width := Max(Px(70),
-          Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth + Px(8));
+          Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
+              Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + Px(8));
         SetLength(SavedBounds, FToolbar.ControlCount);
         for I := 0 to FToolbar.ControlCount - 1 do
           SavedBounds[I] := FToolbar.Controls[I].BoundsRect;
