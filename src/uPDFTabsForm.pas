@@ -135,6 +135,7 @@ type
     FWindowResizeTimer: TTimer;
     FTabFitTimer: TTimer;
     FTabFitPendingPage: TTabSheet;
+    FTabFitRetryCount: Integer;
     FHoverCloseTabIndex: Integer;
     FCloseRestoreTab: TTabSheet; // aktiven Tab beim Schliessen eines anderen erhalten
     FCloseTargetTab: TTabSheet; // X-Schliessen ohne Aktivieren einer ungeladenen PDF
@@ -6312,8 +6313,16 @@ begin
   FTabs.Invalidate;
   // TabsChange fordert die PDF-Ladung bereits an. Kein zweiter Aufruf
   // waehrend der asynchronen Initialisierung durch die Pfeilnavigation.
-  // TabsChange plant die Anpassung bereits. Hier keinen zweiten
-  // Timer aus der Pfeilnavigation heraus starten.
+  // Bei nativer Pfeilnavigation wird OnChange nicht in jedem Fall
+  // erneut ausgeloest. Sicherstellen, dass die neue Seite geprueft wird.
+  if (FTabFitTimer <> nil) and
+     (FTabFitPendingPage <> FTabs.ActivePage) then
+  begin
+    FTabFitTimer.Enabled := False;
+    FTabFitPendingPage := FTabs.ActivePage;
+    FTabFitRetryCount := 0;
+    FTabFitTimer.Enabled := True;
+  end;
   // Nach dem VCL-Registerwechsel erneut im Nachrichtenzyklus pruefen.
   // Zu diesem Zeitpunkt ist auch das TabSheet sichtbar und bemessen.
   PostMessage(Handle, WM_APP + 193, 0, 0);
@@ -7049,15 +7058,30 @@ begin
      ((FSplitHost <> nil) and FSplitHost.Visible) or FAddingPDF then
   begin
     FTabFitPendingPage := nil;
+    FTabFitRetryCount := 0;
     Exit;
   end;
-  FTabFitPendingPage := nil;
+
   FTabs.ActivePage.Realign;
   PDF := PDFInTab(FTabs.ActivePage);
-  // Bei schnell gewechselten, noch nicht geladenen PDFs darf die
-  // Seitenanpassung erst nach erfolgreicher Navigation stattfinden.
-  if (PDF <> nil) and PDF.PDFNavigationSucceeded then
-    PDF.RefitPDFOnTabActivation;
+  if (PDF = nil) or not PDF.PDFNavigationSucceeded then
+  begin
+    // Ein neu aktivierter Tab kann nach 75 ms noch asynchron laden.
+    // Die Anpassung nicht verwerfen, sondern begrenzt nachholen.
+    Inc(FTabFitRetryCount);
+    if FTabFitRetryCount < 40 then
+      FTabFitTimer.Enabled := True
+    else
+    begin
+      FTabFitPendingPage := nil;
+      FTabFitRetryCount := 0;
+    end;
+    Exit;
+  end;
+
+  FTabFitPendingPage := nil;
+  FTabFitRetryCount := 0;
+  PDF.RefitPDFOnTabActivation;
 end;
 
 procedure TPDFTabsForm.TabsChange(Sender: TObject);
@@ -7177,6 +7201,7 @@ begin
        (PDFInTab(FTabs.ActivePage) <> nil) then
     begin
       FTabFitPendingPage := FTabs.ActivePage;
+      FTabFitRetryCount := 0;
       FTabFitTimer.Enabled := True;
     end;
   end;
