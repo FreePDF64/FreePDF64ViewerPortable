@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable 3.0.0
+# FreePDF64-Viewer Portable 3.1.0
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -18,15 +18,17 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows m
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
-## Neu in Version 3.0.0: JavaScript-V8 und statische XFA-Formulare
+## Neu in Version 3.1.0: JavaScript-V8 und statische XFA-Formulare
 
-Version **3.0.0** erweitert die Formularunterstützung des Viewers:
+Version **3.1.0** erweitert die Formularunterstützung des Viewers:
 
 - **PDFium mit V8-JavaScript:** Unterstützte JavaScript-Aktionen in interaktiven PDF-Formularen können ausgeführt werden.
 - **Automatische Formularberechnungen:** Abhängige Werte werden nach Eingaben und Änderungen an unterstützten Checkboxen und Optionsfeldern aktualisiert – auch über mehrere PDF-Seiten hinweg.
 - **AcroForm-Bearbeitung:** Textfelder, Checkboxen, Optionsfelder und weitere unterstützte Formularfelder ausfüllen und die Änderungen speichern.
 - **Statische XFA-Formulare:** Unterstützte statische XFA-Formulare bearbeiten und speichern. Beim Speichern werden die bearbeiteten Formularwerte mit den XFA-XML-Datensätzen synchronisiert.
 - **Verbesserte Tastaturbedienung:** Formularfelder mit **TAB** und **Umschalt+TAB** durchlaufen; die Bearbeitung und Übernahme der Werte bleibt erhalten.
+- **Anpassbare Benutzeroberfläche (Designs):** Es stehen nur Verfügung: Standard, Modern Hell, Windows Klassik, Klassisch Blau.
+- **Updatefunktion**
 
 > **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
 
@@ -187,16 +189,18 @@ A free, standalone, portable PDF viewer for Windows with tabs, cross-document se
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
-## New in version 3.0.0: V8 JavaScript and static XFA forms
+## New in version 3.1.0: V8 JavaScript and static XFA forms
 
-Version **3.0.0** expands the viewer's PDF form capabilities:
+Version **3.1.0** expands the viewer's PDF form capabilities:
 
 - **PDFium with V8 JavaScript:** Run supported JavaScript actions in interactive PDF forms.
 - **Automatic form calculations:** Update dependent values after text input and changes to supported checkboxes and radio buttons, including calculations across PDF pages.
 - **AcroForm editing:** Fill in text fields, checkboxes, radio buttons, and other supported form fields, then save the changes.
 - **Static XFA forms:** Edit and save supported static XFA forms. When saving, edited form values are synchronized with the XFA XML datasets.
 - **Improved keyboard navigation:** Move between form fields with **Tab** and **Shift+Tab** while retaining entered values.
-
+- **Customizable user interface (themes):** The following options are available: Standard, Modern Light, Windows Classic, Classic Blue.
+- **Update function**
+  
 > **Compatibility note:** Not all PDF JavaScript features or XFA forms are supported. In particular, support for **static XFA forms** does not imply full support for dynamic XFA layouts. Behavior depends on the structure of each document.
 
 ## What makes this viewer special
