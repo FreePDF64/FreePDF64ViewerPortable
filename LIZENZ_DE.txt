@@ -1,0 +1,29 @@
+# FreePDF64-Viewer Portable
+## Lizenzinformationen – Deutsch
+
+Copyright © 2026 FreePDF64@outlook.com
+
+**Lizenz: GNU General Public License Version 3 (GPL v3)**
+
+FreePDF64-Viewer Portable ist freie und quelloffene Software.
+
+Das Programm darf gemäß den Bedingungen der GNU General Public License, Version 3, kostenlos verwendet, kopiert, verändert und weitergegeben werden.
+
+Dies gilt sowohl für die private als auch für die gewerbliche Nutzung.
+
+Bei der Weitergabe veränderter Versionen müssen die Bedingungen der GPL v3 eingehalten werden. Dazu gehören insbesondere die Bereitstellung des entsprechenden Quellcodes und die Beibehaltung der erforderlichen Lizenz- und Urheberrechtshinweise.
+
+Das Programm wird ohne Gewährleistung bereitgestellt, soweit gesetzlich zulässig.
+
+Der vollständige, rechtlich maßgebliche Lizenztext ist in der Datei LICENSE.txt enthalten.
+
+Offizielle Lizenzinformationen:
+https://www.gnu.org/licenses/gpl-3.0.html
+
+**Drittanbieterkomponenten**
+
+FreePDF64-Viewer Portable verwendet unter anderem PDFium, QPDF und Xpdf. Diese Komponenten unterliegen ihren jeweiligen eigenen Lizenzbedingungen.
+
+Die GPL v3 für FreePDF64-Viewer Portable ersetzt oder verändert diese Drittanbieter-Lizenzen nicht.
+
+Diese deutsche Beschreibung dient ausschließlich der Information. Maßgeblich ist der offizielle englische Text der GNU GPL v3.
