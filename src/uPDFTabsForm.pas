@@ -4,7 +4,7 @@ interface
 
 uses
   uPDFLanguage,
-  System.SysUtils, System.Classes, System.Types, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.ShellAPI, Winapi.ShlObj,
+  System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
   Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, System.IniFiles, System.Win.Registry, Math,
   uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
@@ -98,6 +98,15 @@ type
     FWorkspaceMenu: TMenuItem;
     FOptionsMenu: TMenuItem;
     FHelpRootMenuItem: TMenuItem;
+    FUpdateAutoMenuItem: TMenuItem;
+    FUpdateManualMenuItem: TMenuItem;
+    FUpdateStartupTimer: TTimer;
+    FUpdateCheckBusy: Boolean;
+    FDesignMenu: TMenuItem;
+    FDesignItems: array[0..5] of TMenuItem;
+    FDesignIndex: Integer;
+    FAppliedDesignIndex: Integer;
+    FDesignHasBeenApplied: Boolean;
     FLanguageMenu: TMenuItem;
     FGermanMenuItem: TMenuItem;
     FEnglishMenuItem: TMenuItem;
@@ -182,6 +191,13 @@ type
     FInitialWindowMaximized: Boolean;
     FRightPDFOverlay: TPanel;
 
+    procedure DesignClick(Sender: TObject);
+    procedure ApplyViewerDesign;
+    procedure UpdateIntegratedOptionsVisibility;
+    procedure UpdateAutoClick(Sender: TObject);
+    procedure UpdateManualClick(Sender: TObject);
+    procedure UpdateStartupTick(Sender: TObject);
+    procedure StartUpdateCheck(AManual: Boolean);
     procedure SplitButtonPopup(Sender: TObject);
     procedure SplitPopupCloseLeft(Sender: TObject);
     procedure SplitPopupCloseRight(Sender: TObject);
@@ -923,10 +939,381 @@ begin
   end;
 end;
 
+function ViewerVersionString: string;
+var
+  Dummy, Size: DWORD;
+  Buf: TBytes;
+  Info: PVSFixedFileInfo;
+  InfoPtr: Pointer;
+  InfoLen: UINT;
+begin
+  Result := '0.0.0.0';
+  Size := GetFileVersionInfoSize(PChar(Application.ExeName), Dummy);
+  if Size = 0 then Exit;
+  SetLength(Buf, Size);
+  if GetFileVersionInfo(PChar(Application.ExeName), 0, Size, @Buf[0]) and
+     VerQueryValue(@Buf[0], '\', InfoPtr, InfoLen) and
+     (InfoLen >= SizeOf(TVSFixedFileInfo)) then
+  begin
+    Info := PVSFixedFileInfo(InfoPtr);
+    Result := Format('%d.%d.%d.%d',
+      [HiWord(Info.dwFileVersionMS), LoWord(Info.dwFileVersionMS),
+       HiWord(Info.dwFileVersionLS), LoWord(Info.dwFileVersionLS)]);
+  end;
+end;
+
+function NewerViewerVersion(const RemoteTag, LocalVersion: string): Boolean;
+var
+  A, B: TArray<string>;
+  I, N, R, L: Integer;
+  Remote: string;
+begin
+  Result := False;
+  Remote := Trim(RemoteTag);
+  if (Remote <> '') and (UpCase(Remote[1]) = 'V') then
+    Delete(Remote, 1, 1);
+  // Only numeric stable releases are compared automatically.
+  for I := 1 to Length(Remote) do
+    if not CharInSet(Remote[I], ['0'..'9', '.']) then Exit;
+  A := Remote.Split(['.']);
+  B := LocalVersion.Split(['.']);
+  N := Max(Length(A), Length(B));
+  for I := 0 to N - 1 do
+  begin
+    R := 0; L := 0;
+    if (I < Length(A)) and not TryStrToInt(A[I], R) then Exit;
+    if (I < Length(B)) and not TryStrToInt(B[I], L) then Exit;
+    if R > L then Exit(True);
+    if R < L then Exit(False);
+  end;
+end;
+
+procedure TPDFTabsForm.UpdateAutoClick(Sender: TObject);
+var
+  Ini: TIniFile;
+begin
+  FUpdateAutoMenuItem.Checked := not FUpdateAutoMenuItem.Checked;
+  Ini := TIniFile.Create(TabsIniFileName);
+  try
+    Ini.WriteBool('Updates', 'Automatic', FUpdateAutoMenuItem.Checked);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TPDFTabsForm.UpdateManualClick(Sender: TObject);
+begin
+  StartUpdateCheck(True);
+end;
+
+procedure TPDFTabsForm.UpdateStartupTick(Sender: TObject);
+var
+  Ini: TIniFile;
+  Last: TDateTime;
+begin
+  FUpdateStartupTimer.Enabled := False;
+  Ini := TIniFile.Create(TabsIniFileName);
+  try
+    if not Ini.ReadBool('Updates', 'Automatic', True) then Exit;
+    Last := Ini.ReadDateTime('Updates', 'LastCheck', 0);
+    if (Last > 0) and (Now - Last < 7) then Exit;
+  finally
+    Ini.Free;
+  end;
+  StartUpdateCheck(False);
+end;
+
+// Eigenes DPI-skaliertes Updatefenster (125 % / 250 %), ohne Aenderung
+// der Netzwerk- oder Versionsvergleichslogik.
+function ShowViewerUpdateDialog(AOwner: TCustomForm; const ATitle,
+  AMessage, AInstalled, AAvailable, AQuestion: string;
+  AOfferOpen: Boolean; const ADownloadUrl: string = ''): Boolean;
+var
+  Dlg: TForm;
+  HeaderPanel, DividerPanel: TPanel;
+  Head, InstalledLabel, AvailableLabel, QuestionLabel: TLabel;
+  OpenButton, CancelButton: TButton;
+  DownloadEdit: TEdit;
+  P, W, H, M, FontSize: Integer;
+  function Sc(V: Integer): Integer;
+  begin
+    Result := MulDiv(V, P, 96);
+  end;
+begin
+  Result := False;
+  Dlg := TForm.CreateNew(AOwner);
+  try
+    Dlg.BorderStyle := bsDialog;
+    Dlg.Position := poOwnerFormCenter;
+    Dlg.Caption := ATitle;
+    Dlg.Font.Assign(AOwner.Font);
+    P := AOwner.CurrentPPI;
+    if P < 96 then P := 96;
+    Dlg.Scaled := False;
+    Dlg.Font.Name := 'Segoe UI';
+    FontSize := Sc(13);
+    Dlg.Font.Height := -FontSize;
+    Dlg.Color := clWhite;
+    W := Sc(540);
+    H := Sc(310);
+    M := Sc(26);
+    Dlg.ClientWidth := W;
+    Dlg.ClientHeight := H;
+    Dlg.Constraints.MinWidth := W;
+    Dlg.Constraints.MinHeight := H + Sc(35);
+
+    // Ruhiger Kopfbereich mit klarer Hierarchie; alle Maße DPI-skaliert.
+    HeaderPanel := TPanel.Create(Dlg);
+    HeaderPanel.Parent := Dlg;
+    HeaderPanel.SetBounds(0, 0, W, Sc(82));
+    HeaderPanel.BevelOuter := bvNone;
+    HeaderPanel.Color := $00F5F0E9;
+    HeaderPanel.ParentBackground := False;
+
+    Head := TLabel.Create(Dlg);
+    Head.Parent := HeaderPanel;
+    Head.SetBounds(M, Sc(23), W - 2 * M, Sc(38));
+    Head.AutoSize := False;
+    Head.Transparent := True;
+    Head.Font.Name := 'Segoe UI';
+    Head.Font.Height := -Sc(17);
+    Head.Font.Style := [fsBold];
+    Head.Font.Color := $008B4E1D;
+    Head.Caption := AMessage;
+
+    InstalledLabel := TLabel.Create(Dlg);
+    InstalledLabel.Parent := Dlg;
+    InstalledLabel.SetBounds(M, Sc(107), W - 2 * M, Sc(34));
+    InstalledLabel.AutoSize := False;
+    InstalledLabel.Font.Height := -FontSize;
+    InstalledLabel.Font.Color := clWindowText;
+    InstalledLabel.Caption := AInstalled;
+
+    AvailableLabel := TLabel.Create(Dlg);
+    AvailableLabel.Parent := Dlg;
+    AvailableLabel.SetBounds(M, Sc(149), W - 2 * M, Sc(36));
+    AvailableLabel.AutoSize := False;
+    AvailableLabel.Font.Height := -FontSize;
+    AvailableLabel.Font.Style := [fsBold];
+    AvailableLabel.Font.Color := $008B4E1D;
+    AvailableLabel.Caption := AAvailable;
+
+    QuestionLabel := TLabel.Create(Dlg);
+    QuestionLabel.Parent := Dlg;
+    QuestionLabel.SetBounds(M, Sc(192), W - 2 * M, Sc(25));
+    QuestionLabel.AutoSize := False;
+    QuestionLabel.Font.Height := -FontSize;
+    QuestionLabel.Caption := AQuestion;
+
+    // Direkter Downloadlink der neuen Version, sichtbar und kopierbar.
+    if ADownloadUrl <> '' then
+    begin
+      DownloadEdit := TEdit.Create(Dlg);
+      DownloadEdit.Parent := Dlg;
+      DownloadEdit.SetBounds(M, Sc(220), W - 2 * M, Sc(24));
+      DownloadEdit.ReadOnly := True;
+      DownloadEdit.TabStop := True;
+      DownloadEdit.Text := ADownloadUrl;
+      DownloadEdit.Hint := ADownloadUrl;
+      DownloadEdit.ShowHint := True;
+    end;
+
+    DividerPanel := TPanel.Create(Dlg);
+    DividerPanel.Parent := Dlg;
+    DividerPanel.SetBounds(M, Sc(248), W - 2 * M, Sc(1));
+    DividerPanel.BevelOuter := bvNone;
+    DividerPanel.Color := $00E2E2E2;
+    DividerPanel.ParentBackground := False;
+
+    CancelButton := TButton.Create(Dlg);
+    CancelButton.Parent := Dlg;
+    CancelButton.SetBounds(W - M - Sc(130), H - Sc(52), Sc(130), Sc(38));
+    CancelButton.Font.Height := -Sc(11);
+    CancelButton.Caption := 'OK';
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+
+    if AOfferOpen then
+    begin
+      CancelButton.Caption := 'Abbrechen';
+      if SameText(PDFLanguage, 'en') then CancelButton.Caption := 'Cancel';
+      OpenButton := TButton.Create(Dlg);
+      OpenButton.Parent := Dlg;
+      OpenButton.SetBounds(W - M - Sc(300), H - Sc(52), Sc(158), Sc(38));
+      OpenButton.Font.Height := -Sc(11);
+      if ADownloadUrl <> '' then
+      begin
+        if SameText(PDFLanguage, 'en') then OpenButton.Caption := 'Download'
+        else OpenButton.Caption := 'Herunterladen';
+      end
+      else if SameText(PDFLanguage, 'en') then OpenButton.Caption := 'Open GitHub'
+      else OpenButton.Caption := 'GitHub öffnen';
+      OpenButton.ModalResult := mrOk;
+      OpenButton.Default := True;
+    end
+    else
+      CancelButton.Default := True;
+    Result := Dlg.ShowModal = mrOk;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+function ViewerUpdateText(AEnglish: Boolean; const AEnglishText, AGermanText: string): string;
+begin
+  if AEnglish then
+    Result := AEnglishText
+  else
+    Result := AGermanText;
+end;
+
+procedure TPDFTabsForm.StartUpdateCheck(AManual: Boolean);
+begin
+  if FUpdateCheckBusy then Exit;
+  FUpdateCheckBusy := True;
+  TThread.CreateAnonymousThread(
+    procedure
+    var
+      Http: THTTPClient;
+      Response: IHTTPResponse;
+      Root: TJSONValue;
+      Tag, Url, DownloadUrl, ErrorText: string;
+      Assets: TJSONValue;
+      Asset: TJSONValue;
+      AssetName, AssetUrl: string;
+      I: Integer;
+      Success: Boolean;
+    begin
+      Tag := ''; Url := ''; DownloadUrl := ''; ErrorText := ''; Success := False;
+      Http := THTTPClient.Create;
+      try
+        Http.ConnectionTimeout := 5000;
+        Http.ResponseTimeout := 8000;
+        Http.UserAgent := 'FreePDF64-Viewer-Portable';
+        try
+          Response := Http.Get('https://api.github.com/repos/FreePDF64/FreePDF64ViewerPortable/releases/latest');
+          if Response.StatusCode <> 200 then
+            raise Exception.Create('GitHub HTTP ' + IntToStr(Response.StatusCode));
+          Root := TJSONObject.ParseJSONValue(Response.ContentAsString(TEncoding.UTF8));
+          try
+            if not (Root is TJSONObject) then
+              raise Exception.Create('Invalid GitHub response');
+            Tag := TJSONObject(Root).GetValue<string>('tag_name', '');
+            Url := TJSONObject(Root).GetValue<string>('html_url', '');
+            if (Tag = '') or (Url = '') or
+               not Url.StartsWith('https://github.com/FreePDF64/FreePDF64ViewerPortable/releases/') then
+              raise Exception.Create('Invalid release data');
+            // GitHub-Release-Asset statt nur Release-Seite anbieten.
+            Assets := TJSONObject(Root).GetValue('assets');
+            if Assets is TJSONArray then
+              for I := 0 to TJSONArray(Assets).Count - 1 do
+              begin
+                Asset := TJSONArray(Assets).Items[I];
+                if not (Asset is TJSONObject) then Continue;
+                AssetName := TJSONObject(Asset).GetValue<string>('name', '');
+                AssetUrl := TJSONObject(Asset).GetValue<string>('browser_download_url', '');
+                if SameText(ExtractFileExt(AssetName), '.zip') and
+                   AssetUrl.StartsWith('https://github.com/FreePDF64/FreePDF64ViewerPortable/releases/download/') then
+                begin
+                  DownloadUrl := AssetUrl;
+                  Break;
+                end;
+              end;
+            Success := True;
+          finally
+            Root.Free;
+          end;
+        except
+          on E: Exception do ErrorText := E.Message;
+        end;
+      finally
+        Http.Free;
+      end;
+      TThread.Synchronize(nil, TThreadProcedure(
+        procedure
+        var
+          Ini: TIniFile;
+          MsgText: string;
+        begin
+          if PDFTabsWindow = nil then Exit;
+          PDFTabsWindow.FUpdateCheckBusy := False;
+          if Success then
+          begin
+            Ini := TIniFile.Create(TabsIniFileName);
+            try
+              Ini.WriteDateTime('Updates', 'LastCheck', Now);
+            finally
+              Ini.Free;
+            end;
+            if NewerViewerVersion(Tag, ViewerVersionString) then
+            begin
+              if PDFLanguage = 'en' then
+                MsgText := 'A new version is available.' + sLineBreak + sLineBreak +
+                  'Installed version: ' + ViewerVersionString + sLineBreak +
+                  'Available version: ' + Tag + sLineBreak + sLineBreak +
+                  'Open GitHub Releases?'
+              else
+                MsgText := 'Eine neue Version ist verfügbar.' + sLineBreak + sLineBreak +
+                  'Installierte Version: ' + ViewerVersionString + sLineBreak +
+                  'Verfügbare Version: ' + Tag + sLineBreak + sLineBreak +
+                  'GitHub Releases öffnen?';
+              if ShowViewerUpdateDialog(PDFTabsWindow,
+                   'FreePDF64-Viewer Portable',
+                   ViewerUpdateText(SameText(PDFLanguage, 'en'),
+                     'A new version is available.', 'Eine neue Version ist verfügbar.'),
+                   ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Installed version: ',
+                     'Installierte Version: ') + ViewerVersionString,
+                   ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Available version: ',
+                     'Verfügbare Version: ') + Tag,
+                   ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Open download page on GitHub?',
+                     'Downloadseite auf GitHub öffnen?'), True, DownloadUrl) then
+              begin
+                if DownloadUrl <> '' then
+                  ShellExecute(0, 'open', PChar(DownloadUrl), nil, nil, SW_SHOWNORMAL)
+                else
+                  ShellExecute(0, 'open', PChar(Url), nil, nil, SW_SHOWNORMAL);
+              end;
+            end
+            else if AManual then
+            begin
+              if PDFLanguage = 'en' then MsgText := 'You are using the latest version.'
+              else MsgText := 'Du verwendest die aktuelle Version.';
+              MessageDlg(MsgText, mtInformation, [mbOK], 0);
+            end;
+          end
+          else if AManual then
+          begin
+            if Pos('GitHub HTTP 503', ErrorText) > 0 then
+            begin
+              if PDFLanguage = 'en' then
+                MsgText := 'The update check could not be completed.' + sLineBreak +
+                  sLineBreak + 'GitHub is temporarily unavailable (HTTP 503).' +
+                  sLineBreak + sLineBreak + 'Please try again later.'
+              else
+                MsgText := 'Die Updateprüfung konnte nicht abgeschlossen werden.' +
+                  sLineBreak + sLineBreak +
+                  'GitHub ist vorübergehend nicht erreichbar (HTTP 503).' +
+                  sLineBreak + sLineBreak +
+                  'Bitte versuchen Sie es später erneut.';
+              MessageDlg(MsgText, mtInformation, [mbOK], 0);
+            end
+            else
+            begin
+              if PDFLanguage = 'en' then MsgText := 'Update check failed: '
+              else MsgText := 'Updateprüfung fehlgeschlagen: ';
+              MessageDlg(MsgText + ErrorText, mtWarning, [mbOK], 0);
+            end;
+          end;
+        end));
+    end).Start;
+end;
+
 procedure TPDFTabsForm.TabsFormShow(Sender: TObject);
 begin
 
   DragAcceptFiles(Handle, True);
+  if not FUpdateStartupTimer.Enabled then
+    FUpdateStartupTimer.Enabled := True;
   // Willkommensseite immer initialisieren, auch bei minimiertem Start.
   UpdateWelcomeView;
   if FStartupMinimizePending then
@@ -1997,6 +2384,11 @@ begin
     end
     else if PDFLanguage = 'en' then
     begin
+      AddSection('Customizable user interface (themes)', '');
+      AddSection('Select a theme',
+        'Four themes are available: Standard, Modern Light, Windows Classic and Classic Blue. '
+        + 'Toolbars, buttons and controls use colors matching the selected theme. '
+        + 'Select a theme under Options → Theme.');
       AddSection('Opening and organizing PDFs', '');
       AddSection('Open PDF files',
         'Use File → Open PDF…, Ctrl+O, or drag and drop. Each PDF opens in its own tab.');
@@ -2153,6 +2545,11 @@ begin
     end
     else
     begin
+      AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
+      AddSection('Design auswählen',
+        'Vier Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik und Klassisch Blau. '
+        + 'Symbolleisten, Schaltflächen und Bedienelemente werden farblich an das gewählte Design angepasst. '
+        + 'Wählen Sie das gewünschte Design unter Optionen → Design.');
       AddSection('PDFs öffnen und organisieren', '');
       AddSection('PDF-Dateien öffnen',
         'Über „Datei → PDF öffnen …“, Strg+O oder per Drag&Drop. Mehrere PDFs werden in eigenen Tabs geöffnet.');
@@ -2875,6 +3272,185 @@ begin
   Msg.Result := 0;
 end;
 
+procedure TPDFTabsForm.UpdateIntegratedOptionsVisibility;
+var
+  I: Integer;
+begin
+  if FOptionsMenu = nil then Exit;
+  if RunningAlongsideFreePDF64 then
+    for I := 0 to FOptionsMenu.Count - 1 do
+      FOptionsMenu.Items[I].Visible :=
+        (FOptionsMenu.Items[I] = FLanguageMenu) or
+        (FOptionsMenu.Items[I] = FDesignMenu);
+end;
+
+procedure TPDFTabsForm.DesignClick(Sender: TObject);
+begin
+  if not (Sender is TMenuItem) then Exit;
+  if FDesignIndex = TMenuItem(Sender).Tag then Exit;
+  FDesignIndex := TMenuItem(Sender).Tag;
+  if (FDesignIndex < 0) or (FDesignIndex > 5) or (FDesignIndex = 2) or (FDesignIndex = 4) then Exit;
+  FDesignItems[FDesignIndex].Checked := True;
+  with TIniFile.Create(TabsIniFileName) do
+  try
+    WriteInteger('Viewer', 'Design', FDesignIndex);
+  finally
+    Free;
+  end;
+  ApplyViewerDesign;
+end;
+
+procedure TPDFTabsForm.ApplyViewerDesign;
+var
+  BaseColor, HeaderColor, TextColor: TColor;
+  TabIndex, ControlIndex: Integer;
+begin
+  // Aufwendige Palettenzuweisung ausschliesslich beim echten Wechsel.
+  if FDesignHasBeenApplied and (FAppliedDesignIndex = FDesignIndex) then Exit;
+  FAppliedDesignIndex := FDesignIndex;
+  FDesignHasBeenApplied := True;
+  // Keine Rekursion durch Komponenten und keine Aenderung am PDF-Renderer.
+  // Standard (0) verwendet die bisherigen Originalfarben.
+  if FDesignIndex = 0 then
+  begin
+    Color := clBtnFace;
+    if FViewerHeader <> nil then FViewerHeader.Color := clBtnFace;
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Color := clBtnFace;
+    if FTabActionsPanel <> nil then FTabActionsPanel.Color := clBtnFace;
+    // Auch Schriftfarben der Kopf- und Seitenleisten auf Standard zuruecksetzen.
+    if FViewerHeader <> nil then
+    begin
+      FViewerHeader.Font.Color := clWindowText;
+      FViewerHeader.Font.Style := [];
+    end;
+    if FTabActionsPanel <> nil then FTabActionsPanel.Font.Color := clWindowText;
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Color := clWindowText;
+    if FWelcomePanel <> nil then FWelcomePanel.Font.Color := clWindowText;
+    if FRecentScroll <> nil then FRecentScroll.Font.Color := clWindowText;
+    if FWelcomePanel <> nil then FWelcomePanel.Color := RGB(248, 250, 253);
+    if FRecentScroll <> nil then FRecentScroll.Color := RGB(248, 250, 253);
+    if FWelcomeTitle <> nil then FWelcomeTitle.Font.Color := RGB(29, 45, 67);
+    if FWelcomeHint <> nil then FWelcomeHint.Font.Color := RGB(94, 108, 126);
+    if FLeftPDFOverlay <> nil then FLeftPDFOverlay.Color := clBtnFace;
+    if FRightPDFOverlay <> nil then FRightPDFOverlay.Color := clBtnFace;
+    if FSplitLeft <> nil then FSplitLeft.Color := clBtnFace;
+    if FSplitRight <> nil then FSplitRight.Color := clBtnFace;
+    if FRecentTitle <> nil then FRecentTitle.Font.Color := clWindowText;
+    if FRecentClearButton <> nil then FRecentClearButton.Font.Color := clWindowText;
+    if FWelcomeOpenButton <> nil then FWelcomeOpenButton.Font.Color := clWindowText;
+    if FWelcomeWorkspaceButton <> nil then FWelcomeWorkspaceButton.Font.Color := clWindowText;
+  end
+  else
+  begin
+    case FDesignIndex of
+      1: begin BaseColor := RGB(239, 242, 247); HeaderColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); end;
+      2: begin BaseColor := RGB(42, 45, 51); HeaderColor := RGB(54, 58, 65); TextColor := clWhite; end;
+      3: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
+      4: begin BaseColor := RGB(21, 22, 25); HeaderColor := RGB(34, 36, 40); TextColor := clWhite; end;
+    else
+      begin BaseColor := RGB(220, 233, 247); HeaderColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); end;
+    end;
+    Color := BaseColor;
+    if FViewerHeader <> nil then FViewerHeader.Color := HeaderColor;
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Color := HeaderColor;
+    if FTabActionsPanel <> nil then FTabActionsPanel.Color := HeaderColor;
+    // Passende Schriftfarben fuer die Symbolleisten- und Startseitencontainer.
+    // Nur Darstellung, keine Groessen oder Layoutpositionen veraendern.
+    if FViewerHeader <> nil then FViewerHeader.Font.Color := TextColor;
+    if FViewerHeader <> nil then
+      if FDesignIndex <> 0 then FViewerHeader.Font.Style := [fsBold]
+      else FViewerHeader.Font.Style := [];
+    if FTabActionsPanel <> nil then FTabActionsPanel.Font.Color := TextColor;
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Color := TextColor;
+    if FWelcomePanel <> nil then FWelcomePanel.Font.Color := TextColor;
+    if FRecentScroll <> nil then FRecentScroll.Font.Color := TextColor;
+    if FWelcomePanel <> nil then FWelcomePanel.Color := BaseColor;
+    if FRecentScroll <> nil then FRecentScroll.Color := BaseColor;
+    if FLeftPDFOverlay <> nil then FLeftPDFOverlay.Color := BaseColor;
+    if FRightPDFOverlay <> nil then FRightPDFOverlay.Color := BaseColor;
+    if FSplitLeft <> nil then FSplitLeft.Color := BaseColor;
+    if FSplitRight <> nil then FSplitRight.Color := BaseColor;
+    if FWelcomeTitle <> nil then FWelcomeTitle.Font.Color := TextColor;
+    if FWelcomeHint <> nil then FWelcomeHint.Font.Color := TextColor;
+    if FRecentTitle <> nil then FRecentTitle.Font.Color := TextColor;
+    if FRecentClearButton <> nil then FRecentClearButton.Font.Color := TextColor;
+    if FWelcomeOpenButton <> nil then FWelcomeOpenButton.Font.Color := TextColor;
+    if FWelcomeWorkspaceButton <> nil then FWelcomeWorkspaceButton.Font.Color := TextColor;
+  end;
+  // Klassische erhabene Rahmen nur fuer das Windows-Klassik-Design.
+  // Bei allen anderen Designs die urspruenglichen flachen Rahmen verwenden.
+  if FViewerHeader <> nil then
+    if FDesignIndex = 3 then FViewerHeader.BevelOuter := bvRaised
+    else FViewerHeader.BevelOuter := bvNone;
+  if FTabActionsPanel <> nil then
+    if FDesignIndex = 3 then FTabActionsPanel.BevelOuter := bvRaised
+    else FTabActionsPanel.BevelOuter := bvNone;
+  if FEmptyTabStrip <> nil then
+    if FDesignIndex = 3 then FEmptyTabStrip.BevelOuter := bvRaised
+    else FEmptyTabStrip.BevelOuter := bvNone;
+  // Auch die beiden Split-Ansichten erhalten im Klassik-Modus
+  // eine dezente 3D-Einfassung; die PDF-Seiten selbst bleiben unberuehrt.
+  if FLeftPDFOverlay <> nil then
+    if FDesignIndex = 3 then FLeftPDFOverlay.BevelOuter := bvRaised
+    else FLeftPDFOverlay.BevelOuter := bvNone;
+  if FRightPDFOverlay <> nil then
+    if FDesignIndex = 3 then FRightPDFOverlay.BevelOuter := bvRaised
+    else FRightPDFOverlay.BevelOuter := bvNone;
+  // Klassische 3D-Einfassung fuer den aeusseren Split-Container.
+  if FSplitHost <> nil then
+    if FDesignIndex = 3 then FSplitHost.BevelOuter := bvRaised
+    else FSplitHost.BevelOuter := bvNone;
+  // Trennbereich der Zweifensteransicht farblich angleichen.
+  // Die aktiven Rahmen und die PDF-Ansichten bleiben unveraendert.
+  if FSplitHost <> nil then
+  begin
+    if FDesignIndex = 0 then FSplitHost.Color := clBtnFace
+    else FSplitHost.Color := Color;
+  end;
+  if FSplitDivider <> nil then
+  begin
+    case FDesignIndex of
+      2: FSplitDivider.Color := RGB(91, 99, 111);
+      3: FSplitDivider.Color := RGB(128, 128, 128);
+      4: FSplitDivider.Color := RGB(72, 76, 84);
+      5: FSplitDivider.Color := RGB(114, 156, 196);
+      1: FSplitDivider.Color := RGB(166, 183, 205);
+    else
+      FSplitDivider.Color := RGB(135, 150, 169);
+    end;
+  end;
+  // Symbolleisten aller bereits geoeffneten PDFs mit umstellen.
+  if FTabs <> nil then
+    for TabIndex := 0 to FTabs.PageCount - 1 do
+      for ControlIndex := 0 to FTabs.Pages[TabIndex].ControlCount - 1 do
+        if FTabs.Pages[TabIndex].Controls[ControlIndex] is TPDFBrowserForm then
+          TPDFBrowserForm(FTabs.Pages[TabIndex].Controls[ControlIndex]).ApplyToolbarDesign(FDesignIndex);
+  // Die direkt in der Kopfzeile liegenden Schaltflaechen verwenden
+  // dieselbe OwnerDraw-Palette wie die PDF-Symbolleiste.
+  if FMainProgramButton is TPDFDesignButton then
+    TPDFDesignButton(FMainProgramButton).SetDesign(FDesignIndex);
+  if FTabTextSearchButton is TPDFDesignButton then
+    TPDFDesignButton(FTabTextSearchButton).SetDesign(FDesignIndex);
+  if FTabNextButton is TPDFDesignButton then
+    TPDFDesignButton(FTabNextButton).SetDesign(FDesignIndex);
+  if FTabPrevButton is TPDFDesignButton then
+    TPDFDesignButton(FTabPrevButton).SetDesign(FDesignIndex);
+  if FTabSearchButton is TPDFDesignButton then
+    TPDFDesignButton(FTabSearchButton).SetDesign(FDesignIndex);
+  if FDesignIndex <> 0 then
+  begin
+    if FTabActionsPanel <> nil then FTabActionsPanel.Font.Style := [fsBold];
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Style := [fsBold];
+  end
+  else
+  begin
+    if FTabActionsPanel <> nil then FTabActionsPanel.Font.Style := [];
+    if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Style := [];
+  end;
+  if FTabs <> nil then FTabs.Invalidate;
+  if FEmptyTabStrip <> nil then FEmptyTabStrip.Invalidate;
+end;
+
 procedure TPDFTabsForm.RefreshLanguage;
 var
   I: Integer;
@@ -2913,6 +3489,37 @@ begin
       FVisualCompareMenuItem.Caption := 'PDFs visuell vergleichen ...';
   if FLanguageMenu <> nil then FLanguageMenu.Caption := Tr('Sprache / Language');
   if FHelpRootMenuItem <> nil then FHelpRootMenuItem.Caption := Tr('Hilfe');
+  if FDesignMenu <> nil then
+  begin
+    if SameText(PDFLanguage, 'en') then
+      FDesignMenu.Caption := 'Theme'
+    else
+      FDesignMenu.Caption := 'Design';
+    if PDFLanguage = 'en' then
+    begin
+      FDesignItems[0].Caption := 'Default';
+      FDesignItems[1].Caption := 'Modern Light';
+      FDesignItems[2].Caption := 'Modern Dark';
+      FDesignItems[3].Caption := 'Windows Classic';
+      FDesignItems[4].Caption := 'Black';
+      FDesignItems[5].Caption := 'Classic Blue';
+    end
+    else
+    begin
+      FDesignItems[0].Caption := 'Standard';
+      FDesignItems[1].Caption := 'Modern Hell';
+      FDesignItems[2].Caption := 'Modern Dunkel';
+      FDesignItems[3].Caption := 'Windows Klassik';
+      FDesignItems[4].Caption := 'Schwarz';
+      FDesignItems[5].Caption := 'Klassisch Blau';
+    end;
+  end;
+  if FUpdateManualMenuItem <> nil then
+    if PDFLanguage = 'en' then FUpdateManualMenuItem.Caption := 'Check for updates ...'
+    else FUpdateManualMenuItem.Caption := 'Nach Updates suchen ...';
+  if FUpdateAutoMenuItem <> nil then
+    if PDFLanguage = 'en' then FUpdateAutoMenuItem.Caption := 'Check for updates weekly'
+    else FUpdateAutoMenuItem.Caption := 'Automatisch wöchentlich nach Updates suchen';
 
   // Nach dem Setzen der Hauptpunkte nochmals die jeweiligen Untermenues
   // durchlaufen, damit dynamisch geaenderte Beschriftungen nachziehen.
@@ -2931,6 +3538,12 @@ begin
   if FTrayPopup <> nil then
     for I := 0 to FTrayPopup.Items.Count - 1 do
       TranslatePDFMenu(FTrayPopup.Items[I]);
+  if FUpdateManualMenuItem <> nil then
+    if PDFLanguage = 'en' then FUpdateManualMenuItem.Caption := 'Check for updates ...'
+    else FUpdateManualMenuItem.Caption := 'Nach Updates suchen ...';
+  if FUpdateAutoMenuItem <> nil then
+    if PDFLanguage = 'en' then FUpdateAutoMenuItem.Caption := 'Check for updates weekly'
+    else FUpdateAutoMenuItem.Caption := 'Automatisch wöchentlich nach Updates suchen';
 
   // Auch separat erzeugte, bereits geöffnete Dialoge und Hilfsfenster
   // aktualisieren (Dokumenteigenschaften, Textsuche, Anlagenfenster usw.).
@@ -3090,6 +3703,7 @@ var
   TabHost: TPanel;
   Dpi: Integer;
   ButtonHeight: Integer;
+  DesignI: Integer;
 begin
   inherited CreateNew(AOwner);
   KeyPreview := True;
@@ -3117,6 +3731,10 @@ begin
   LoadRecentPDFs;
   CleanupRecentThumbnails(False);
   InitializePDFLanguage(TabsIniFileName);
+  FUpdateStartupTimer := TTimer.Create(Self);
+  FUpdateStartupTimer.Enabled := False;
+  FUpdateStartupTimer.Interval := 3500;
+  FUpdateStartupTimer.OnTimer := UpdateStartupTick;
   // Eigenstaendiges Hilfe-Menue des portablen Viewers.
   FHelpMainMenu := TMainMenu.Create(Self);
   FHomeMenu := TMenuItem.Create(FHelpMainMenu);
@@ -3229,7 +3847,30 @@ begin
   FOptionsMenu := TMenuItem.Create(FHelpMainMenu);
   FOptionsMenu.Caption := Tr('Optionen');
   FHelpMainMenu.Items.Add(FOptionsMenu);
-  FOptionsMenu.Visible := not RunningAlongsideFreePDF64;
+  FOptionsMenu.Visible := True;
+  // Umschaltbare Viewer-Farbdesigns; 0 bewahrt den bisherigen Zustand.
+  FDesignMenu := TMenuItem.Create(FHelpMainMenu);
+  FDesignMenu.Caption := 'Design';
+  for DesignI := 0 to 5 do
+  begin
+    FDesignItems[DesignI] := TMenuItem.Create(FHelpMainMenu);
+    FDesignItems[DesignI].Tag := DesignI;
+    FDesignItems[DesignI].RadioItem := True;
+    FDesignItems[DesignI].GroupIndex := 23;
+    FDesignItems[DesignI].OnClick := DesignClick;
+    // Designs 2 (Modern Dunkel) und 4 (Schwarz) bleiben intern reserviert.
+    if (DesignI <> 2) and (DesignI <> 4) then
+      FDesignMenu.Add(FDesignItems[DesignI]);
+  end;
+  with TIniFile.Create(TabsIniFileName) do
+  try
+    FDesignIndex := ReadInteger('Viewer', 'Design', 0);
+  finally
+    Free;
+  end;
+  if (FDesignIndex < 0) or (FDesignIndex > 5) or (FDesignIndex = 2) or (FDesignIndex = 4) then
+    FDesignIndex := 0;
+  FDesignItems[FDesignIndex].Checked := True;
   // Sprache: Windows-UI-Sprache beim ersten Start, danach INI-Auswahl.
   FLanguageMenu := TMenuItem.Create(FHelpMainMenu);
   FLanguageMenu.Caption := Tr('Sprache / Language');
@@ -3248,6 +3889,8 @@ begin
   FLanguageMenu.Add(FEnglishMenuItem);
   FGermanMenuItem.Checked := PDFLanguage = 'de';
   FEnglishMenuItem.Checked := PDFLanguage = 'en';
+  // Design direkt unterhalb der Sprachauswahl anzeigen.
+  FOptionsMenu.Add(FDesignMenu);
   // Sprachwahl optisch von den restlichen Optionen trennen.
   HelpItem := TMenuItem.Create(FHelpMainMenu);
   HelpItem.Caption := '-';
@@ -3290,11 +3933,24 @@ begin
   HelpItem.Caption := '-';
   FHelpRootMenuItem.Add(HelpItem);
   HelpItem := TMenuItem.Create(FHelpMainMenu);
+  HelpItem.Caption := 'Nach Updates suchen ...';
+  HelpItem.OnClick := UpdateManualClick;
+  FHelpRootMenuItem.Add(HelpItem);
+  FUpdateManualMenuItem := HelpItem;
+  FUpdateAutoMenuItem := TMenuItem.Create(FHelpMainMenu);
+  FUpdateAutoMenuItem.Caption := 'Automatisch wöchentlich nach Updates suchen';
+  FUpdateAutoMenuItem.OnClick := UpdateAutoClick;
+  FHelpRootMenuItem.Add(FUpdateAutoMenuItem);
+  HelpItem := TMenuItem.Create(FHelpMainMenu);
+  HelpItem.Caption := '-';
+  FHelpRootMenuItem.Add(HelpItem);
+  HelpItem := TMenuItem.Create(FHelpMainMenu);
   HelpItem.Caption := Tr('Über FreePDF64-Viewer ...');
   HelpItem.OnClick := ShowAboutViewer;
   FHelpRootMenuItem.Add(HelpItem);
   Ini := TIniFile.Create(TabsIniFileName);
   try
+    FUpdateAutoMenuItem.Checked := Ini.ReadBool('Updates', 'Automatic', True);
     FTrayEnabled := Ini.ReadBool('Viewer', 'BeimSchliessenInTray', False);
     FStartMinimized := Ini.ReadBool('Viewer', 'BeimStartMinimieren', False);
   finally
@@ -3306,6 +3962,8 @@ begin
   // Startverhalten gilt fuer jeden Programmstart, unabhaengig vom
   // Windows-Autostart. Die Tray-Option gilt ausschliesslich beim X.
   FStartupMinimizePending := FStartMinimized;
+  // Beim Start aus FreePDF64 nur Sprache und Design unter Optionen anbieten.
+  UpdateIntegratedOptionsVisibility;
   // Erst nach dem Ein-/Ausblenden von Optionen das fertige Menue zuweisen.
   // So wird die Rechtsbuendigkeit nicht durch einen spaeteren Neuaufbau
   // des Windows-Menues wieder verworfen.
@@ -3525,7 +4183,7 @@ begin
   FEmptyTabStrip.OnMouseUp := EmptyTabStripMouseUp;
   UpdateEmptyTabStrip;
   // Hauptprogramm im selben Prozess sichtbar machen.
-  FMainProgramButton := TButton.Create(Self);
+  FMainProgramButton := TPDFDesignButton.Create(Self);
   FMainProgramButton.Parent := Header;
   FMainProgramButton.Align := alLeft;
   FMainProgramButton.Width := Max(MulDiv(170, Dpi, 96),
@@ -3564,7 +4222,7 @@ begin
     FTabSplitButton.Hint := 'Split view / Close split view (select two tabs with Ctrl+Click)';
   FTabSplitButton.ShowHint := True;
   FTabSplitButton.OnClick := SplitMenuClick;
-  FTabTextSearchButton := TButton.Create(Self);
+  FTabTextSearchButton := TPDFDesignButton.Create(Self);
   FTabTextSearchButton.Parent := FLeftPDFOverlay;
   FTabTextSearchButton.Align := alNone;
   FTabTextSearchButton.SetBounds(1 + MulDiv(25, Dpi, 96), 1,
@@ -3594,7 +4252,7 @@ begin
   FSplitButtonPopup.OnPopup := SplitButtonPopup;
   FTabSplitButton.PopupMenu := FSplitButtonPopup;
   FTabSplitButton.BringToFront;
-  FTabNextButton := TButton.Create(Self);
+  FTabNextButton := TPDFDesignButton.Create(Self);
   FTabNextButton.Parent := SearchArea;
   FTabNextButton.Align := alLeft;
   FTabNextButton.Width := MulDiv(25, Dpi, 96);
@@ -3602,7 +4260,7 @@ begin
   FTabNextButton.Hint := '';
   FTabNextButton.ShowHint := False;
   FTabNextButton.OnClick := TabArrowClick;
-  FTabPrevButton := TButton.Create(Self);
+  FTabPrevButton := TPDFDesignButton.Create(Self);
   FTabPrevButton.Parent := SearchArea;
   FTabPrevButton.Align := alLeft;
   FTabPrevButton.Width := MulDiv(25, Dpi, 96);
@@ -3610,7 +4268,7 @@ begin
   FTabPrevButton.Hint := '';
   FTabPrevButton.ShowHint := False;
   FTabPrevButton.OnClick := TabArrowClick;
-  FTabSearchButton := TButton.Create(Self);
+  FTabSearchButton := TPDFDesignButton.Create(Self);
   FTabSearchButton.Parent := SearchArea;
   FTabSearchButton.Align := alRight;
   FTabSearchButton.Width := MulDiv(39, Dpi, 96);
@@ -3689,6 +4347,8 @@ begin
   FActivationTimer.OnTimer := ActivationTimerTick;
   LoadWindowSettings;
   OnClose := TabsFormClose;
+  RefreshLanguage;
+  ApplyViewerDesign;
   OnShow := TabsFormShow;
   RefreshLanguage;
 end;
@@ -3702,21 +4362,36 @@ var
 begin
   if (FTabCountBadge = nil) or (FTabs = nil) then Exit;
   C := FTabCountBadge.Canvas;
-  C.Brush.Color := FTabCountBadge.Parent.Brush.Color;
+  if FDesignIndex = 3 then
+    C.Brush.Color := RGB(192, 192, 192)
+  else
+    C.Brush.Color := FTabCountBadge.Parent.Brush.Color;
   C.FillRect(FTabCountBadge.ClientRect);
 
   Pad := MulDiv(6, CurrentPPI, 96);
   R := Rect(Pad, MulDiv(7, CurrentPPI, 96),
     FTabCountBadge.Width - Pad, FTabCountBadge.Height - MulDiv(7, CurrentPPI, 96));
-  Radius := MulDiv(14, CurrentPPI, 96);
-  C.Pen.Style := psClear;
-  C.Brush.Color := RGB(225, 236, 250);
-  C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, Radius, Radius);
+  if FDesignIndex = 3 then
+  begin
+    // Windows Klassik: keine zusaetzliche Plakette und kein zweiter
+    // 3D-Rahmen. Die Zahl steht direkt auf dem Hintergrund der Tab-Leiste.
+    R := FTabCountBadge.ClientRect;
+  end
+  else
+  begin
+    Radius := MulDiv(14, CurrentPPI, 96);
+    C.Pen.Style := psClear;
+    C.Brush.Color := RGB(225, 236, 250);
+    C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, Radius, Radius);
+  end;
   C.Brush.Style := bsClear;
   C.Font.Name := 'Segoe UI';
-  C.Font.Size := 10;
+  C.Font.Size := 9;
   C.Font.Style := [fsBold];
-  C.Font.Color := RGB(35, 85, 145);
+  if FDesignIndex = 3 then
+    C.Font.Color := clBlack
+  else
+    C.Font.Color := RGB(35, 85, 145);
   S := IntToStr(FTabs.PageCount);
   TextX := R.Left + (R.Right - R.Left - C.TextWidth(S)) div 2;
   TextY := R.Top + (R.Bottom - R.Top - C.TextHeight(S)) div 2;
@@ -4545,6 +5220,7 @@ end;
 
 destructor TPDFTabsForm.Destroy;
 begin
+  if Assigned(FUpdateStartupTimer) then FUpdateStartupTimer.Enabled := False;
   SetTrayIcon(False);
   if FLocalTextSearchHotkeyRegistered then
   begin
@@ -5470,11 +6146,8 @@ begin
     FTabs.Realign;
     if (L <> nil) and (L.Parent <> nil) then L.Parent.Realign;
     if (R <> nil) and (R.Parent <> nil) then R.Parent.Realign;
-    // Die feste Toolbar-Anordnung aus der schmalen Split-Ansicht
-    // verwerfen, nachdem die Formulare wieder in ihren Tabs liegen.
-    if L <> nil then L.RefreshToolbarAfterSplit;
-    if R <> nil then R.RefreshToolbarAfterSplit;
-    // Jetzt haben beide PDF-Formulare wieder die volle Tab-Geometrie.
+    // Die Leisten zuerst wieder einblenden. Ein Layout bei noch
+    // ausgeblendeter Navigation berechnet falsche Zeilenpositionen.
     SetSplitPDFToolbars(L, True, FSplitLeftTopBarVisible,
       FSplitLeftNavBarVisible);
     SetSplitPDFToolbars(R, True, FSplitRightTopBarVisible,
@@ -5560,6 +6233,24 @@ begin
   FSplitRight.BorderWidth := 2;
   FSplitRight.Caption := '';
   FSplitRight.OnClick := SplitPaneClick;
+  // Nur die neu angelegten Split-Container initialisieren; keine globale
+  // Neuanwendung der Palette beim Wechsel in die Zweifensteransicht.
+  if FDesignIndex = 3 then
+  begin
+    FSplitLeft.Color := RGB(192, 192, 192);
+    FSplitRight.Color := RGB(192, 192, 192);
+    FSplitHost.BevelOuter := bvRaised;
+  end
+  else if FDesignIndex = 1 then
+  begin
+    FSplitLeft.Color := RGB(239, 242, 247);
+    FSplitRight.Color := RGB(239, 242, 247);
+  end
+  else if FDesignIndex = 5 then
+  begin
+    FSplitLeft.Color := RGB(220, 233, 247);
+    FSplitRight.Color := RGB(220, 233, 247);
+  end;
   // Die VCL sortiert gleich ausgerichtete Controls nach ihrer Position.
   // Der Splitter muss rechts neben dem linken Panel beginnen, nicht bei x=0.
   FSplitLeft.Left := 0;
@@ -5726,7 +6417,7 @@ begin
   if FEditMenu <> nil then FEditMenu.Visible := FSplitHost = nil;
   if FWorkspaceMenu <> nil then FWorkspaceMenu.Visible := FSplitHost = nil;
   if FOptionsMenu <> nil then
-    FOptionsMenu.Visible := (FSplitHost = nil) and (not RunningAlongsideFreePDF64);
+    FOptionsMenu.Visible := FSplitHost = nil;
   if FHelpRootMenuItem <> nil then
     FHelpRootMenuItem.Visible := FSplitHost = nil;
   FSplitViewMenuItem.Visible := True;
@@ -5978,6 +6669,7 @@ begin
   APDF.BorderStyle := bsNone;
   APDF.Parent := Tab;
   APDF.Align := alClient;
+  APDF.ApplyToolbarDesign(FDesignIndex);
   // Lazy Loading: Alle Register anlegen, aber ausschliesslich das
   // jeweils aktive PDF initialisieren. Kein unsichtbarer Erst-Tab-Start.
   FAddingPDF := True;
@@ -6634,6 +7326,9 @@ var
   CX, CY, Arm: Integer;
   Hovered: Boolean;
   SplitTab: Boolean;
+  OldBkMode: Integer;
+  OtherR: TRect;
+  BorderColor: TColor;
 begin
   if (TabIndex < 0) or (TabIndex >= FTabs.PageCount) then Exit;
   R := Rect;
@@ -6644,45 +7339,181 @@ begin
      (FDeferredActivePDF.Parent is TTabSheet) and
      (FTabs.PageCount > 1) then
     VisualActive := FTabs.Pages[TabIndex] = TTabSheet(FDeferredActivePDF.Parent);
-  SplitTab := ((FTabs.Pages[TabIndex] = FSplitAnchorTab) or
-               (FTabs.Pages[TabIndex] = FSplitSelectedTab)) and
-              (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil);
+  // Beide fuer die Zweifensteransicht markierten Registerkarten
+  // erhalten dieselbe aktive Darstellung des gewaehlten Designs.
+  // Auch nach StartSplit und beim Austausch eines Teilfensters gilt
+  // die Markierung fuer beide tatsaechlich angezeigten PDFs.
+  if FSplitHost <> nil then
+    SplitTab := (FTabs.Pages[TabIndex] = FSplitLeftTab) or
+                (FTabs.Pages[TabIndex] = FSplitRightTab)
+  else
+    SplitTab := (FSplitAnchorTab <> nil) and
+                (FSplitSelectedTab <> nil) and
+                ((FTabs.Pages[TabIndex] = FSplitAnchorTab) or
+                 (FTabs.Pages[TabIndex] = FSplitSelectedTab));
   VisualActive := VisualActive or SplitTab;
+  // Die native aktive Registerkarte ist einige Pixel hoeher als die
+  // zweite Strg-markierte. Beide Auswahlreiter auf dieselbe sichtbare
+  // Ober- und Unterkante zeichnen, ohne ihre Breite zu veraendern.
+  if SplitTab then
+  begin
+    if (FSplitHost <> nil) and (FSplitLeftTab <> nil) and
+       (FSplitRightTab <> nil) then
+    begin
+      if FTabs.Pages[TabIndex] = FSplitLeftTab then
+        OtherR := FTabs.TabRect(FSplitRightTab.PageIndex)
+      else
+        OtherR := FTabs.TabRect(FSplitLeftTab.PageIndex);
+    end
+    else if (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) then
+    begin
+      if FTabs.Pages[TabIndex] = FSplitAnchorTab then
+        OtherR := FTabs.TabRect(FSplitSelectedTab.PageIndex)
+      else
+        OtherR := FTabs.TabRect(FSplitAnchorTab.PageIndex);
+    end
+    else
+      OtherR := R;
+    // OwnerDraw receives different rectangles for the native selected tab.
+    // Use the same vertical extent for both selected tabs without changing widths.
+    R.Top := Min(R.Top, OtherR.Top);
+    R.Bottom := Max(R.Bottom, OtherR.Bottom);
+  end;
   if VisualActive then
   begin
-    FTabs.Canvas.Brush.Color := RGB(211, 231, 249);
-    FTabs.Canvas.Font.Color := RGB(25, 63, 99);
+    if FDesignIndex = 3 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(192, 192, 192);
+      FTabs.Canvas.Font.Color := clBlack;
+    end
+    else if FDesignIndex = 2 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(72, 83, 101);
+      FTabs.Canvas.Font.Color := clWhite;
+    end
+    else if FDesignIndex = 4 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(53, 57, 65);
+      FTabs.Canvas.Font.Color := clWhite;
+    end
+    else if FDesignIndex = 5 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(176, 207, 235);
+      FTabs.Canvas.Font.Color := RGB(24, 55, 88);
+    end
+    else if FDesignIndex = 1 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(219, 232, 247);
+      FTabs.Canvas.Font.Color := RGB(35, 48, 65);
+    end
+    else
+    begin
+      FTabs.Canvas.Brush.Color := RGB(211, 231, 249);
+      FTabs.Canvas.Font.Color := RGB(25, 63, 99);
+    end;
     FTabs.Canvas.Font.Style := [fsBold];
   end
   else
   begin
-    FTabs.Canvas.Brush.Color := RGB(229, 233, 238);
-    FTabs.Canvas.Font.Color := RGB(69, 78, 88);
+    if FDesignIndex = 3 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(212, 208, 200);
+      FTabs.Canvas.Font.Color := clBlack;
+    end
+    else if FDesignIndex = 2 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(51, 55, 62);
+      FTabs.Canvas.Font.Color := clWhite;
+    end
+    else if FDesignIndex = 4 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(30, 32, 37);
+      FTabs.Canvas.Font.Color := clWhite;
+    end
+    else if FDesignIndex = 5 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(190, 214, 237);
+      FTabs.Canvas.Font.Color := RGB(37, 70, 102);
+    end
+    else if FDesignIndex = 1 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(230, 236, 245);
+      FTabs.Canvas.Font.Color := RGB(65, 79, 97);
+    end
+    else
+    begin
+      FTabs.Canvas.Brush.Color := RGB(229, 233, 238);
+      FTabs.Canvas.Font.Color := RGB(69, 78, 88);
+    end;
     FTabs.Canvas.Font.Style := [];
   end;
   FTabs.Canvas.FillRect(R);
+  // Statt einer zusaetzlichen Akzentlinie erhalten beide markierten
+  // Registerkarten dieselbe geschlossene Kontur. Die Tab-Breite bleibt
+  // unveraendert und die Beschriftung wird transparent gezeichnet.
+  if SplitTab then
+  begin
+    if FDesignIndex in [2, 4] then
+      BorderColor := RGB(133, 153, 179)
+    else if FDesignIndex = 3 then
+      BorderColor := RGB(115, 115, 115)
+    else
+      BorderColor := RGB(107, 142, 174);
+    FTabs.Canvas.Brush.Style := bsClear;
+    FTabs.Canvas.Pen.Style := psSolid;
+    FTabs.Canvas.Pen.Width := 1;
+    FTabs.Canvas.Pen.Color := BorderColor;
+    FTabs.Canvas.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+    FTabs.Canvas.Brush.Style := bsSolid;
+  end
+  else if FDesignIndex = 3 then
+    DrawEdge(FTabs.Canvas.Handle, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
   S := FTabs.Pages[TabIndex].Caption;
   CloseR := TabCloseRect(TabIndex);
   TextR := R;
   Inc(TextR.Left, MulDiv(9, CurrentPPI, 96));
   TextR.Right := CloseR.Left - MulDiv(5, CurrentPPI, 96);
-  DrawText(FTabs.Canvas.Handle, PChar(S), Length(S), TextR,
-    DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_END_ELLIPSIS);
+  // DrawText darf keine weisse Windows-Hintergrundflaeche hinter
+  // der Beschriftung zeichnen. Die Tab-Farbe bleibt durchgehend sichtbar.
+  OldBkMode := SetBkMode(FTabs.Canvas.Handle, TRANSPARENT);
+  try
+    DrawText(FTabs.Canvas.Handle, PChar(S), Length(S), TextR,
+      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_END_ELLIPSIS);
+  finally
+    SetBkMode(FTabs.Canvas.Handle, OldBkMode);
+  end;
   // Chrome-aehnliches Schliessen-X: dezentes X, bei Hover runder
   // Hintergrund und Hand-Cursor. Der gesamte Bereich ist klickbar.
   Hovered := TabIndex = FHoverCloseTabIndex;
   if Hovered then
   begin
-    FTabs.Canvas.Brush.Color := RGB(204, 210, 218);
+    if FDesignIndex = 3 then
+      FTabs.Canvas.Brush.Color := RGB(192, 192, 192)
+    else
+      FTabs.Canvas.Brush.Color := RGB(204, 210, 218);
     FTabs.Canvas.Pen.Style := psClear;
-    FTabs.Canvas.RoundRect(CloseR.Left, CloseR.Top, CloseR.Right,
-      CloseR.Bottom, MulDiv(7, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96));
+    if FDesignIndex = 3 then
+    begin
+      FTabs.Canvas.FillRect(CloseR);
+      DrawEdge(FTabs.Canvas.Handle, CloseR, EDGE_RAISED, BF_RECT);
+    end
+    else
+    begin
+      if FDesignIndex in [2, 4] then
+        FTabs.Canvas.Brush.Color := RGB(100, 107, 119)
+      else if FDesignIndex = 5 then
+        FTabs.Canvas.Brush.Color := RGB(151, 188, 222);
+      FTabs.Canvas.RoundRect(CloseR.Left, CloseR.Top, CloseR.Right,
+        CloseR.Bottom, MulDiv(7, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96));
+    end;
     FTabs.Canvas.Pen.Style := psSolid;
   end;
   CX := (CloseR.Left + CloseR.Right) div 2;
   CY := (CloseR.Top + CloseR.Bottom) div 2;
   Arm := Max(4, MulDiv(5, CurrentPPI, 96));
-  if Hovered then
+  if FDesignIndex in [2, 4] then
+    FTabs.Canvas.Pen.Color := clWhite
+  else if Hovered then
     FTabs.Canvas.Pen.Color := RGB(35, 42, 50)
   else
     FTabs.Canvas.Pen.Color := RGB(93, 101, 111);
@@ -7062,7 +7893,8 @@ begin
     Exit;
   end;
 
-  FTabs.ActivePage.Realign;
+  // Kein erzwungenes Realign beim normalen Registerwechsel.
+  // RefitPDFOnTabActivation prueft die Viewport-Groesse selbst.
   PDF := PDFInTab(FTabs.ActivePage);
   if (PDF = nil) or not PDF.PDFNavigationSucceeded then
   begin
@@ -7176,7 +8008,10 @@ begin
       begin
         with TPDFBrowserForm(FTabs.ActivePage.Controls[ControlIndex]) do
         begin
-          Show;
+          // Bereits initialisierte Viewer beim Tabwechsel nicht erneut
+          // sichtbar schalten oder einen Ladevorgang anfordern.
+          if not Visible then
+            Show;
           if not PDFNavigationSucceeded then
             RequestPDFLoadFast;
         end;
@@ -7206,7 +8041,12 @@ begin
     end;
   end;
 
-  PostMessage(Handle, WM_APP + 193, 0, 0); // Tastaturwechsel.
+  // Nur noch ungeladene PDFs an den asynchronen Lader uebergeben.
+  // Ein bereits geladener Tab benoetigt keinen weiteren Lade-Post.
+  if (FTabs.ActivePage <> nil) and
+     (PDFInTab(FTabs.ActivePage) <> nil) and
+     (not PDFInTab(FTabs.ActivePage).PDFNavigationSucceeded) then
+    PostMessage(Handle, WM_APP + 193, 0, 0); // Tastaturwechsel.
 
 end;
 
@@ -7401,6 +8241,19 @@ begin
     else
       PDF := PDFInTab(FSplitLeftTab);
     if (PDF <> nil) and PDF.CanFocus then PDF.SetFocus;
+    Exit(True);
+  end;
+
+  // ESC bricht eine vorbereitete Zweifenster-Auswahl ab, ohne Tabs zu schliessen.
+  if (Message.CharCode = VK_ESCAPE) and (FSplitHost = nil) and
+     (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) and
+     (GetKeyState(VK_CONTROL) >= 0) and (GetKeyState(VK_MENU) >= 0) and
+     (GetKeyState(VK_SHIFT) >= 0) then
+  begin
+    FSplitSelectedTab := nil;
+    FSplitAnchorTab := FTabs.ActivePage;
+    UpdateSplitMenuState;
+    FTabs.Invalidate;
     Exit(True);
   end;
 
@@ -7774,6 +8627,16 @@ begin
   if (Key = VK_ESCAPE) and FFullScreen then
   begin
     ToggleFullScreen;
+    Key := 0;
+    Exit;
+  end;
+  if (Key = VK_ESCAPE) and (Shift = []) and (FSplitHost = nil) and
+     (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) then
+  begin
+    FSplitSelectedTab := nil;
+    FSplitAnchorTab := FTabs.ActivePage;
+    UpdateSplitMenuState;
+    FTabs.Invalidate;
     Key := 0;
     Exit;
   end;

@@ -19,19 +19,63 @@ type
   TPDFiumSaveButton = class(TBitBtn)
   private
     FHighlighted: Boolean;
+    FDesign: Integer;
+    procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure SetHighlighted(const Value: Boolean);
     procedure UpdateSaveGlyph;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
   public
     constructor Create(AOwner: TComponent); override;
+    procedure SetDesign(AValue: Integer);
     property Highlighted: Boolean read FHighlighted write SetHighlighted;
+  end;
+
+  // Owner-drawn toolbar button; original Windows rendering for design 0.
+  // Speichert das Originalsymbol direkt am Button. Beim Designwechsel
+  // wird immer vom Original ausgegangen (keine kumulative Umfaerbung).
+  TPDFGlyphOriginal = class(TComponent)
+  public
+    Original: TBitmap;
+    LastDesign: Integer;
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+  end;
+
+  // Farbtreuer Bitmap-Button: zeichnet bei alternativen Designs selbst.
+  TPDFThemeBitBtn = class(TBitBtn)
+  private
+    FDesign: Integer;
+    FHover: Boolean;
+    procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
+    procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+  protected
+    procedure CreateParams(var Params: TCreateParams); override;
+  public
+    procedure SetDesign(AValue: Integer);
+  end;
+
+  TPDFDesignButton = class(TButton)
+  private
+    FDesign: Integer;
+    FHover: Boolean;
+    procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
+    procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure CreateParams(var Params: TCreateParams); override;
+  public
+    procedure SetDesign(AValue: Integer);
   end;
 
   // Ein einzelnes, DPI-abhaengig gezeichnetes Stift-und-Lineal-Symbol.
   TPDFToolsButton = class(TBitBtn)
   private
     FHighlighted: Boolean;
+    FDesign: Integer;
+    procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure SetHighlighted(const Value: Boolean);
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
@@ -40,6 +84,7 @@ type
     procedure ChangeScale(M, D: Integer; isDpiChange: Boolean); override;
   public
     constructor Create(AOwner: TComponent); override;
+    procedure SetDesign(AValue: Integer);
     property Highlighted: Boolean read FHighlighted write SetHighlighted;
   end;
 
@@ -395,6 +440,9 @@ type
     procedure SetMergedToolbarWidth(AWidth: Integer);
     procedure SetMergedToolbarTrailingControls(const AControls: array of TControl;
       AParent: TWinControl);
+    procedure DrawViewModeItem(Control: TWinControl; Index: Integer; ARect: TRect; State: TOwnerDrawState);
+    procedure ApplyButtonDesign(ADesign: Integer);
+    procedure ApplyPDFBackgroundDesign(ADesign: Integer);
     property ToolbarPanel: TPanel read FBar;
     property EditToggleButton: TPDFToolsButton read FEditToggle;
     procedure RefreshLanguage;
@@ -443,6 +491,9 @@ type
     property OnFirstPagePaint: TNotifyEvent read FOnFirstPagePaint write FOnFirstPagePaint;
   end;
 
+// Farbkontrast fuer bestehende BitBtn-Glyphen; keine Groessenaenderung.
+procedure ApplyPDFGlyphContrast(AButton: TBitBtn; ADesign: Integer);
+
 implementation
 
 var
@@ -450,6 +501,393 @@ var
   GThumbnailsLoaded: Boolean = False;
   GThumbnailsVisible: Boolean = False;
   GThumbnailSplitMode: Boolean = False;
+
+constructor TPDFGlyphOriginal.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  Original := TBitmap.Create;
+  LastDesign := -1;
+end;
+
+destructor TPDFGlyphOriginal.Destroy;
+begin
+  Original.Free;
+  inherited;
+end;
+
+procedure ApplyPDFGlyphContrast(AButton: TBitBtn; ADesign: Integer);
+var
+  Cache: TPDFGlyphOriginal;
+  I, X, Y: Integer;
+  B: TBitmap;
+  C, TargetColor: TColor;
+  R, G, Bl: Byte;
+  L: Integer;
+  TransparentPixel: TColor;
+  Mask: array of Byte;
+  NX, NY: Integer;
+  IsInk: Boolean;
+begin
+  if (AButton = nil) or AButton.Glyph.Empty then Exit;
+  Cache := nil;
+  for I := 0 to AButton.ComponentCount - 1 do
+    if AButton.Components[I] is TPDFGlyphOriginal then
+    begin
+      Cache := TPDFGlyphOriginal(AButton.Components[I]);
+      Break;
+    end;
+  if Cache = nil then
+  begin
+    Cache := TPDFGlyphOriginal.Create(AButton);
+    Cache.Original.Assign(AButton.Glyph);
+  end;
+  // Nur beim tatsaechlichen Designwechsel Bitmapdaten anfassen.
+  if Cache.LastDesign = ADesign then Exit;
+  if ADesign = 0 then
+  begin
+    AButton.Glyph.Assign(Cache.Original);
+    Cache.LastDesign := ADesign;
+    Exit;
+  end;
+  case ADesign of
+    1: TargetColor := RGB(35, 48, 65);       // Modern Hell
+    2, 4: TargetColor := RGB(232, 238, 246); // alte dunkle Paletten (nicht im Menue)
+    3: TargetColor := RGB(16, 16, 16);       // Windows Klassik
+    5: TargetColor := RGB(24, 55, 88);       // Klassisch Blau
+  else
+    TargetColor := clBlack;
+  end;
+  B := TBitmap.Create;
+  try
+    B.Assign(Cache.Original);
+    TransparentPixel := ColorToRGB(B.TransparentColor);
+    B.PixelFormat := pf24bit;
+    // Eine Pixel breite Konturverstaerkung vorbereiten, nur aus der
+    // ORIGINAL-Glyphe. Die Maske wird nicht bei jedem Paint berechnet.
+    SetLength(Mask, B.Width * B.Height);
+    for Y := 0 to B.Height - 1 do
+      for X := 0 to B.Width - 1 do
+      begin
+        C := ColorToRGB(B.Canvas.Pixels[X, Y]);
+        R := GetRValue(C);
+        G := GetGValue(C);
+        Bl := GetBValue(C);
+        L := (Integer(R) * 30 + Integer(G) * 59 + Integer(Bl) * 11) div 100;
+        IsInk := (not B.Transparent or (C <> TransparentPixel)) and
+          (Abs(Integer(R) - Integer(G)) <= 18) and
+          (Abs(Integer(G) - Integer(Bl)) <= 18) and (L < 145);
+        if IsInk then Mask[Y * B.Width + X] := 1;
+      end;
+    for Y := 0 to B.Height - 1 do
+      for X := 0 to B.Width - 1 do
+      begin
+        C := ColorToRGB(B.Canvas.Pixels[X, Y]);
+        if B.Transparent and (C = TransparentPixel) then Continue;
+        R := GetRValue(C);
+        G := GetGValue(C);
+        Bl := GetBValue(C);
+        L := (Integer(R) * 30 + Integer(G) * 59 + Integer(Bl) * 11) div 100;
+        // Dunkle Strichsymbole (einschliesslich geglaetteter Kanten)
+        // erhalten die zur Palette passende Vordergrundfarbe.
+        // Farbige Statussymbole und helle Flaechen bleiben erhalten.
+        if (Abs(Integer(R) - Integer(G)) <= 18) and
+           (Abs(Integer(G) - Integer(Bl)) <= 18) and (L < 145) then
+        begin
+          if ADesign in [2, 4] then
+            B.Canvas.Pixels[X, Y] := RGB(225 - L div 5, 232 - L div 5, 242 - L div 5)
+          else
+            B.Canvas.Pixels[X, Y] := TargetColor;
+        end;
+      end;
+    // Dezente 1-Pixel-Verstaerkung: nur bisher transparente Nachbarpixel
+    // einer dunklen monochromen Kontur faerben. Farbige Glyphen bleiben
+    // unangetastet; Original, Groesse und Layout bleiben erhalten.
+    if B.Transparent then
+      for Y := 0 to B.Height - 1 do
+        for X := 0 to B.Width - 1 do
+          if ColorToRGB(B.Canvas.Pixels[X, Y]) = TransparentPixel then
+          begin
+            IsInk := False;
+            for NY := Y - 1 to Y + 1 do
+            begin
+              if IsInk then Break;
+              if (NY < 0) or (NY >= B.Height) then Continue;
+              for NX := X - 1 to X + 1 do
+              begin
+                if (NX < 0) or (NX >= B.Width) or
+                   ((Abs(NX-X) + Abs(NY-Y)) <> 1) then Continue;
+                if Mask[NY * B.Width + NX] = 1 then
+                begin
+                  IsInk := True;
+                  Break;
+                end;
+              end;
+            end;
+            if IsInk then B.Canvas.Pixels[X, Y] := TargetColor;
+          end;
+    B.Transparent := Cache.Original.Transparent;
+    if B.Transparent then
+      B.TransparentColor := Cache.Original.TransparentColor;
+    AButton.Glyph.Assign(B);
+    Cache.LastDesign := ADesign;
+  finally
+    B.Free;
+  end;
+end;
+
+procedure TPDFThemeBitBtn.BMSetStyle(var Message: TMessage);
+begin
+  // VCL/Windows setzt beim Fokuswechsel den Button-Typ per BM_SETSTYLE
+  // auf BS_PUSHBUTTON oder BS_DEFPUSHBUTTON zurueck. In alternativen
+  // Designs muss BS_OWNERDRAW auch danach erhalten bleiben.
+  if FDesign <> 0 then
+    Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
+  inherited;
+end;
+
+procedure TPDFThemeBitBtn.CreateParams(var Params: TCreateParams);
+begin
+  inherited CreateParams(Params);
+  if FDesign <> 0 then
+    Params.Style := (Params.Style and not $000F) or BS_OWNERDRAW;
+end;
+
+procedure TPDFThemeBitBtn.SetDesign(AValue: Integer);
+begin
+  if FDesign = AValue then Exit; // Keine Neuzeichnung ohne Designwechsel.
+
+  if FDesign <> AValue then
+  begin
+    FDesign := AValue;
+    FHover := False;
+    if HandleAllocated then RecreateWnd;
+  end;
+  Invalidate;
+end;
+
+procedure TPDFThemeBitBtn.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  FHover := True;
+  if FDesign <> 0 then Invalidate;
+end;
+
+procedure TPDFThemeBitBtn.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FHover := False;
+  if FDesign <> 0 then Invalidate;
+end;
+
+procedure TPDFThemeBitBtn.CNDrawItem(var Message: TWMDrawItem);
+var
+  DC: HDC;
+  R, GR: TRect;
+  Back, Edge, Fore: TColor;
+  State: UINT;
+  C: TCanvas;
+  GX, GY: Integer;
+  S: string;
+begin
+  if FDesign = 0 then
+  begin
+    inherited;
+    Exit;
+  end;
+  DC := Message.DrawItemStruct^.hDC;
+  R := Message.DrawItemStruct^.rcItem;
+  State := Message.DrawItemStruct^.itemState;
+  case FDesign of
+    1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); Fore := RGB(35, 48, 65); end;
+    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
+  else
+    begin Back := clBtnFace; Edge := clBtnShadow; Fore := clWindowText; end;
+  end;
+  if FHover and Enabled then
+    case FDesign of
+      1: Back := RGB(213, 226, 242);
+      3: Back := RGB(208, 208, 208);
+      5: Back := RGB(174, 204, 233);
+    end;
+  if (State and ODS_SELECTED) <> 0 then
+    case FDesign of
+      1: Back := RGB(190, 211, 236);
+      3: Back := RGB(176, 176, 176);
+      5: Back := RGB(155, 190, 225);
+    end;
+  if not Enabled then Fore := clGrayText;
+  C := TCanvas.Create;
+  try
+    C.Handle := DC;
+    C.Brush.Color := Back;
+    C.FillRect(R);
+    if FDesign = 3 then
+    begin
+      // Windows Klassik: derselbe 3D-Rahmen wie TPDFDesignButton.
+      if (State and ODS_SELECTED) <> 0 then
+        DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
+      else
+        DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+    end
+    else
+    begin
+      C.Pen.Color := Edge;
+      C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+    end;
+    S := Caption;
+    C.Font.Assign(Font);
+    C.Font.Color := Fore;
+    C.Brush.Style := bsClear;
+    if (Glyph <> nil) and not Glyph.Empty then
+    begin
+      GX := R.Left + (R.Right - R.Left - Glyph.Width) div 2;
+      GY := R.Top + (R.Bottom - R.Top - Glyph.Height) div 2;
+      if S <> '' then GX := R.Left + 4;
+      C.Draw(GX, GY, Glyph);
+    end;
+    if S <> '' then
+    begin
+      GR := R;
+      if (Glyph <> nil) and not Glyph.Empty then Inc(GR.Left, Glyph.Width + 6);
+      DrawText(DC, PChar(S), Length(S), GR, DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX);
+    end;
+  finally
+    C.Handle := 0;
+    C.Free;
+  end;
+  if (State and ODS_FOCUS) <> 0 then
+  begin
+    InflateRect(R, -3, -3);
+    DrawFocusRect(DC, R);
+  end;
+  Message.Result := 1;
+end;
+
+procedure TPDFDesignButton.BMSetStyle(var Message: TMessage);
+begin
+  // VCL/Windows setzt beim Fokuswechsel den Button-Typ per BM_SETSTYLE
+  // auf BS_PUSHBUTTON oder BS_DEFPUSHBUTTON zurueck. In alternativen
+  // Designs muss BS_OWNERDRAW auch danach erhalten bleiben.
+  if FDesign <> 0 then
+    Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
+  inherited;
+end;
+
+procedure TPDFDesignButton.CreateParams(var Params: TCreateParams);
+begin
+  inherited CreateParams(Params);
+  if FDesign <> 0 then
+    Params.Style := (Params.Style and not $000F) or BS_OWNERDRAW;
+end;
+
+procedure TPDFDesignButton.SetDesign(AValue: Integer);
+begin
+  if FDesign = AValue then Exit; // Keine Neuzeichnung ohne Designwechsel.
+
+  // Auch die Schaltflaechen der Miniaturansicht (Seiten/Inhalte/X)
+  // verwenden in allen alternativen Designs eine kraeftige Schrift.
+  // Standard behaelt die urspruengliche Schriftgestaltung.
+  ParentFont := False;
+  if AValue <> 0 then
+    Font.Style := Font.Style + [fsBold]
+  else
+    Font.Style := Font.Style - [fsBold];
+  FDesign := AValue;
+  FHover := False;
+  if HandleAllocated then RecreateWnd;
+  Invalidate;
+end;
+
+procedure TPDFDesignButton.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  FHover := True;
+  if FDesign <> 0 then Invalidate;
+end;
+
+procedure TPDFDesignButton.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FHover := False;
+  if FDesign <> 0 then Invalidate;
+end;
+
+procedure TPDFDesignButton.CNDrawItem(var Message: TWMDrawItem);
+var
+  DC: HDC;
+  R: TRect;
+  Back, Edge, Fore: TColor;
+  State: UINT;
+  OldFont: HGDIOBJ;
+  S: string;
+begin
+  if FDesign = 0 then
+  begin
+    inherited;
+    Exit;
+  end;
+  DC := Message.DrawItemStruct^.hDC;
+  R := Message.DrawItemStruct^.rcItem;
+  State := Message.DrawItemStruct^.itemState;
+  case FDesign of
+    1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); Fore := RGB(35, 48, 65); end;
+    2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); Fore := clWhite; end;
+    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); Fore := clWhite; end;
+    5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
+  else
+    begin Back := clBtnFace; Edge := clBtnShadow; Fore := clWindowText; end;
+  end;
+  if FHover and Enabled then
+    case FDesign of
+      2: Back := RGB(86, 94, 107);
+      4: Back := RGB(68, 73, 81);
+      5: Back := RGB(183, 212, 243);
+    else
+      Back := RGB(213, 226, 242);
+    end;
+  if (State and ODS_SELECTED) <> 0 then
+    case FDesign of
+      2, 4: Back := RGB(91, 106, 128);
+    else
+      Back := RGB(177, 202, 230);
+    end;
+  if not Enabled then Fore := clGrayText;
+  SetBkColor(DC, ColorToRGB(Back));
+  SetDCBrushColor(DC, ColorToRGB(Back));
+  FillRect(DC, R, GetStockObject(DC_BRUSH));
+  if FDesign = 3 then
+  begin
+    if (State and ODS_SELECTED) <> 0 then
+      DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
+    else
+      DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+  end
+  else
+  begin
+    SetDCBrushColor(DC, ColorToRGB(Edge));
+    FrameRect(DC, R, GetStockObject(DC_BRUSH));
+  end;
+  S := Caption;
+  if S <> '' then
+  begin
+    OldFont := SelectObject(DC, Font.Handle);
+    try
+      SetBkMode(DC, TRANSPARENT);
+      SetTextColor(DC, ColorToRGB(Fore));
+      DrawText(DC, PChar(S), Length(S), R, DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX);
+    finally
+      SelectObject(DC, OldFont);
+    end;
+  end;
+  if (State and ODS_FOCUS) <> 0 then
+  begin
+    InflateRect(R, -3, -3);
+    DrawFocusRect(DC, R);
+  end;
+  Message.Result := 1;
+end;
 
 procedure LoadGlobalThumbnails;
 var Ini: TIniFile;
@@ -918,6 +1356,19 @@ begin
   UpdateSaveGlyph;
 end;
 
+procedure TPDFiumSaveButton.BMSetStyle(var Message: TMessage);
+begin
+  Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
+  inherited;
+end;
+
+procedure TPDFiumSaveButton.SetDesign(AValue: Integer);
+begin
+  if FDesign = AValue then Exit;
+  FDesign := AValue;
+  Invalidate;
+end;
+
 procedure TPDFiumSaveButton.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
@@ -928,61 +1379,77 @@ procedure TPDFiumSaveButton.CNDrawItem(var Message: TWMDrawItem);
 var
   DC: HDC;
   R: TRect;
-  Brush: HBRUSH;
-  C: TCanvas;
-  GX, GY: Integer;
+  Back, Edge: TColor;
+  State: UINT;
   Theme: HTHEME;
-  State: Integer;
+  ThemeState: Integer;
+  GX, GY: Integer;
+  C: TCanvas;
 begin
   DC := Message.DrawItemStruct^.hDC;
   R := Message.DrawItemStruct^.rcItem;
-  if FHighlighted and Enabled then
+  State := Message.DrawItemStruct^.itemState;
+  // Rahmen und Hintergrund identisch zu TPDFDesignButton (Info/Drucken).
+  if FDesign <> 0 then
   begin
-    // Nur bei ungespeicherten Aenderungen orange; kein dauerhaft dunkler Button.
-    Brush := CreateSolidBrush(RGB(255, 175, 65));
-    try
-      FillRect(DC, R, Brush);
-    finally
-      DeleteObject(Brush);
+    case FDesign of
+      1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); end;
+      2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); end;
+      3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
+      4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); end;
+      5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); end;
+    else
+      begin Back := clBtnFace; Edge := clBtnShadow; end;
     end;
-    DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
+    if (State and ODS_SELECTED) <> 0 then
+      case FDesign of
+        2, 4: Back := RGB(91, 106, 128);
+      else
+        Back := RGB(177, 202, 230);
+      end;
+    if FHighlighted and Enabled then Back := RGB(255, 175, 65);
+    SetDCBrushColor(DC, ColorToRGB(Back));
+    FillRect(DC, R, GetStockObject(DC_BRUSH));
+    if FDesign = 3 then
+    begin
+      if (State and ODS_SELECTED) <> 0 then
+        DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
+      else
+        DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+    end
+    else
+    begin
+      SetDCBrushColor(DC, ColorToRGB(Edge));
+      FrameRect(DC, R, GetStockObject(DC_BRUSH));
+    end;
   end
   else
   begin
-    // Windows zeichnet den normalen Button im selben Stil wie die Nachbarbuttons.
+    // Standarddesign: Windows-Themenrahmen wie bei den Nachbarbuttons.
     Theme := 0;
-    if IsThemeActive then
-      Theme := OpenThemeData(Handle, 'BUTTON');
+    if IsThemeActive then Theme := OpenThemeData(Handle, 'BUTTON');
     if Theme <> 0 then
     begin
       try
-        if not Enabled then
-          State := 4  // PBS_DISABLED
-        else if (Message.DrawItemStruct^.itemState and ODS_SELECTED) <> 0 then
-          State := 3  // PBS_PRESSED
-        else if (Message.DrawItemStruct^.itemState and ODS_HOTLIGHT) <> 0 then
-          State := 2  // PBS_HOT
-        else
-          State := 1; // PBS_NORMAL
-        DrawThemeBackground(Theme, DC, 1 {BP_PUSHBUTTON}, State, R, nil);
+        if not Enabled then ThemeState := 4
+        else if (State and ODS_SELECTED) <> 0 then ThemeState := 3
+        else if (State and ODS_HOTLIGHT) <> 0 then ThemeState := 2
+        else ThemeState := 1;
+        DrawThemeBackground(Theme, DC, 1, ThemeState, R, nil);
       finally
         CloseThemeData(Theme);
       end;
     end
     else
+      DrawFrameControl(DC, R, DFC_BUTTON, DFCS_BUTTONPUSH);
+    if FHighlighted and Enabled then
     begin
-      Brush := CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
-      try
-        FillRect(DC, R, Brush);
-      finally
-        DeleteObject(Brush);
-      end;
-      if (Message.DrawItemStruct^.itemState and ODS_SELECTED) <> 0 then
-        DrawEdge(DC, R, EDGE_SUNKEN, BF_RECT)
-      else
-        DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
+      InflateRect(R, -3, -3);
+      SetDCBrushColor(DC, RGB(255, 175, 65));
+      FillRect(DC, R, GetStockObject(DC_BRUSH));
     end;
   end;
+  R := Message.DrawItemStruct^.rcItem;
   if (Glyph <> nil) and not Glyph.Empty then
   begin
     GX := (R.Left + R.Right - Glyph.Width) div 2;
@@ -1021,12 +1488,12 @@ begin
     B.Canvas.FillRect(Rect(0, 0, B.Width, B.Height));
     X := 3;
     Y := 2;
-    // Monochrome Diskette: schwarzer Umriss, weisses Beschriftungsfeld.
+    // Kontur-Icon statt massiver schwarzer Flaeche: wie die Nachbarsymbole.
     B.Canvas.Pen.Color := clBlack;
     B.Canvas.Pen.Width := 1;
-    B.Canvas.Brush.Color := clBlack;
+    B.Canvas.Brush.Color := clFuchsia;
     B.Canvas.Rectangle(X, Y, X + 17, Y + 18);
-    B.Canvas.Brush.Color := clWhite;
+    B.Canvas.Brush.Color := clFuchsia;
     B.Canvas.Rectangle(X + 3, Y + 2, X + 13, Y + 8);
     B.Canvas.MoveTo(X + 10, Y + 2);
     B.Canvas.LineTo(X + 10, Y + 8);
@@ -1049,6 +1516,19 @@ begin
   // Nur die PDF-Seiten sichtbar lassen; den Bearbeitungszustand bewahren.
   FBar.Visible := not AEnabled;
   FEditBar.Visible := (not AEnabled) and FEditVisible;
+end;
+
+procedure TPDFToolsButton.BMSetStyle(var Message: TMessage);
+begin
+  Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
+  inherited;
+end;
+
+procedure TPDFToolsButton.SetDesign(AValue: Integer);
+begin
+  if FDesign = AValue then Exit;
+  FDesign := AValue;
+  Invalidate;
 end;
 
 procedure TPDFToolsButton.CreateParams(var Params: TCreateParams);
@@ -1079,6 +1559,25 @@ begin
       DeleteObject(Brush);
     end;
     DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
+  end
+  else if FDesign <> 0 then
+  begin
+    case FDesign of
+      1: Brush := CreateSolidBrush(RGB(232, 238, 246));
+      3: Brush := CreateSolidBrush(RGB(192, 192, 192));
+      5: Brush := CreateSolidBrush(RGB(190, 214, 237));
+    else
+      Brush := CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
+    end;
+    try
+      FillRect(DC, R, Brush);
+    finally
+      DeleteObject(Brush);
+    end;
+    if FHighlighted or ((Message.DrawItemStruct^.itemState and ODS_SELECTED) <> 0) then
+      DrawEdge(DC, R, EDGE_SUNKEN, BF_RECT)
+    else
+      DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
   end
   else
   begin
@@ -1217,7 +1716,7 @@ end;
 constructor TFreePDF64PDFiumView.CreateInParent(AOwner: TComponent; AParent: TWinControl);
   function Btn(const S: string; X, W: Integer; Handler: TNotifyEvent): TButton;
   begin
-    Result := TButton.Create(Self);
+    Result := TPDFDesignButton.Create(Self);
     Result.Parent := FBar;
     Result.SetBounds(X, 4, W, 28);
     Result.Caption := S;
@@ -1226,7 +1725,7 @@ constructor TFreePDF64PDFiumView.CreateInParent(AOwner: TComponent; AParent: TWi
   function ArrowButton(UndoDirection: Boolean; X: Integer;
     Handler: TNotifyEvent): TBitBtn;
   begin
-    Result := TBitBtn.Create(Self);
+    Result := TPDFThemeBitBtn.Create(Self);
     Result.Parent := FEditBar;
     Result.SetBounds(X, 4, 36, 28);
     Result.Caption := '';
@@ -1260,11 +1759,13 @@ begin
   FBar.Height := 36;
   FEditVisible := False;
   FBar.BevelOuter := bvNone;
+  FBar.DoubleBuffered := True;
   FEditBar := TPanel.Create(Self);
   FEditBar.Parent := Self;
   FEditBar.Align := alTop;
   FEditBar.Height := 0;
   FEditBar.BevelOuter := bvNone;
+  FEditBar.DoubleBuffered := True;
   FEditBar.Visible := False;
   // Die Hauptleiste muss bei alTop oberhalb der Bearbeitungsleiste liegen.
   FBar.BringToFront;
@@ -1334,6 +1835,7 @@ begin
   FViewSelect := TComboBox.Create(Self);
   FViewSelect.Parent := FBar;
   FViewSelect.Style := csDropDownList;
+  FViewSelect.OnDrawItem := DrawViewModeItem;
   FViewSelect.SetBounds(597, 5, 116, 26);
   FViewSelect.ParentFont := False;
   FViewSelect.Font.Size := 8;
@@ -1477,7 +1979,7 @@ begin
   FTextSizeSelect.Hint := ToolbarHint('Schriftgröße in Punkt (1–200)', 'Font size in points (1–200)');
   FTextSizeSelect.ShowHint := True;
   FTextSizeSelect.OnChange := TextStyleChange;
-  FTextColorButton := TButton.Create(Self);
+  FTextColorButton := TPDFDesignButton.Create(Self);
   FTextColorButton.Parent := FEditBar;
   FTextColorButton.Caption := ToolbarHint('Textfarbe ...', 'Text color ...');
   FTextColorButton.OnClick := TextColorClick;
@@ -1566,19 +2068,19 @@ begin
   FOutlineTitle.Caption := Tr('Inhaltsverzeichnis');
   FOutlineTitle.SetBounds(12, 8, 200, 22);
   FOutlineTitle.Font.Style := [fsBold];
-  FOutlineClose := TButton.Create(Self);
+  FOutlineClose := TPDFDesignButton.Create(Self);
   FOutlineClose.Parent := FOutlineHeader;
   FOutlineClose.Caption := 'X';
   FOutlineClose.SetBounds(170, 5, 28, 25);
   FOutlineClose.Anchors := [akTop, akRight];
   FOutlineClose.OnClick := ToggleOutline;
-  FThumbTab := TButton.Create(Self);
+  FThumbTab := TPDFDesignButton.Create(Self);
   FThumbTab.Parent := FOutlineHeader;
   FThumbTab.Caption := Tr('Seiten');
   FThumbTab.Tag := 1;
   FThumbTab.SetBounds(8, 40, 91, 28);
   FThumbTab.OnClick := OutlineTabClick;
-  FBookmarksTab := TButton.Create(Self);
+  FBookmarksTab := TPDFDesignButton.Create(Self);
   FBookmarksTab.Parent := FOutlineHeader;
   FBookmarksTab.Caption := Tr('Inhalte');
   FBookmarksTab.Tag := 0;
@@ -2110,6 +2612,238 @@ begin
     FResizePending := False;
     LayoutAllPages;
   end;
+end;
+
+procedure TFreePDF64PDFiumView.DrawViewModeItem(Control: TWinControl;
+  Index: Integer; ARect: TRect; State: TOwnerDrawState);
+var
+  C: TComboBox;
+  R: TRect;
+begin
+  C := TComboBox(Control);
+  C.Canvas.Brush.Color := C.Color;
+  C.Canvas.FillRect(ARect);
+  // Nach einem Wechsel aus der Zweifensteransicht kann Windows die
+  // geschlossene OwnerDraw-Combo kurz mit Index = -1 zeichnen.
+  // In diesem Fall den aktuellen Text verwenden, statt leer zu bleiben.
+  C.Canvas.Font.Assign(C.Font);
+  C.Canvas.Font.Color := C.Font.Color;
+  R := ARect;
+  Inc(R.Left, 5);
+  if (Index >= 0) and (Index < C.Items.Count) then
+    DrawText(C.Canvas.Handle, PChar(C.Items[Index]), -1, R,
+      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
+  else if (C = FViewSelect) and (FViewMode >= 0) and
+          (FViewMode < C.Items.Count) then
+    DrawText(C.Canvas.Handle, PChar(C.Items[FViewMode]), -1, R,
+      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
+  else if (C = FTextFontSelect) and (C.ItemIndex >= 0) and
+          (C.ItemIndex < C.Items.Count) then
+    DrawText(C.Canvas.Handle, PChar(C.Items[C.ItemIndex]), -1, R,
+      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
+  else if C.Text <> '' then
+    DrawText(C.Canvas.Handle, PChar(C.Text), -1, R,
+      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX);
+end;
+
+procedure TFreePDF64PDFiumView.ApplyButtonDesign(ADesign: Integer);
+var
+  BackColor, TextColor, FieldColor: TColor;
+  procedure Walk(AParent: TWinControl);
+  var
+    I: Integer;
+    C: TControl;
+  begin
+    for I := 0 to AParent.ControlCount - 1 do
+    begin
+      C := AParent.Controls[I];
+      if C is TPDFDesignButton then
+        begin
+        TPDFDesignButton(C).ParentFont := False;
+        if ADesign <> 0 then
+          TPDFDesignButton(C).Font.Style := [fsBold]
+        else
+          TPDFDesignButton(C).Font.Style := [];
+        TPDFDesignButton(C).SetDesign(ADesign);
+      end
+      else if C is TPDFiumSaveButton then
+        TPDFiumSaveButton(C).SetDesign(ADesign)
+      else if C is TPDFToolsButton then
+        TPDFToolsButton(C).SetDesign(ADesign)
+      else if C is TPDFThemeBitBtn then
+      begin
+        TPDFThemeBitBtn(C).Font.Style := [fsBold];
+        ApplyPDFGlyphContrast(TPDFThemeBitBtn(C), ADesign);
+        TPDFThemeBitBtn(C).SetDesign(ADesign);
+      end
+      else if C is TBitBtn then
+        ApplyPDFGlyphContrast(TBitBtn(C), ADesign);
+      if C is TWinControl then
+        Walk(TWinControl(C));
+    end;
+  end;
+begin
+  // Nicht nur die OwnerDraw-Buttons: auch die Container und die
+  // Beschriftungen muessen die aktive Designpalette erhalten.
+  case ADesign of
+    1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := RGB(245, 247, 250); end;
+    2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
+    3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
+    4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
+    5: begin BackColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); FieldColor := RGB(205, 225, 245); end;
+  else
+    begin BackColor := clBtnFace; TextColor := clWindowText; FieldColor := clWindow; end;
+  end;
+  FBar.ParentColor := False;
+  FBar.ParentBackground := False;
+  FBar.Color := BackColor;
+  if ADesign <> 0 then FBar.Font.Style := [fsBold]
+  else FBar.Font.Style := [];
+  FEditBar.ParentColor := False;
+  FEditBar.ParentBackground := False;
+  FEditBar.Color := BackColor;
+  if ADesign <> 0 then FEditBar.Font.Style := [fsBold]
+  else FEditBar.Font.Style := [];
+  FStatus.ParentFont := False;
+  FPageTotal.ParentFont := False;
+  FZoomStatus.ParentFont := False;
+  FStatus.Font.Color := TextColor;
+  FPageTotal.Font.Color := TextColor;
+  FZoomStatus.Font.Color := TextColor;
+  if ADesign <> 0 then
+  begin
+    FStatus.Font.Style := [fsBold];
+    FPageTotal.Font.Style := [fsBold];
+    FZoomStatus.Font.Style := [fsBold];
+  end
+  else
+  begin
+    FStatus.Font.Style := [];
+    FPageTotal.Font.Style := [];
+    FZoomStatus.Font.Style := [];
+  end;
+  // Undurchsichtiger Labelhintergrund verhindert hellen Text auf
+  // einem vom Windows-Theme hell gezeichneten Toolbar-Hintergrund.
+  FStatus.Transparent := False;
+  FPageTotal.Transparent := False;
+  FZoomStatus.Transparent := False;
+  FStatus.Color := BackColor;
+  FPageTotal.Color := BackColor;
+  FZoomStatus.Color := BackColor;
+  // Kopf der linken Miniatur-/Inhaltsleiste wie die Symbolleisten
+  // faerben. Nur beim echten Designwechsel, nicht bei Tabwechseln.
+  if FOutlineHeader <> nil then
+  begin
+    FOutlineHeader.ParentColor := False;
+    FOutlineHeader.ParentBackground := False;
+    FOutlineHeader.Color := BackColor;
+  end;
+  if FOutlineTitle <> nil then
+  begin
+    FOutlineTitle.Transparent := True;
+    FOutlineTitle.Font.Color := TextColor;
+    if ADesign <> 0 then FOutlineTitle.Font.Style := [fsBold]
+    else FOutlineTitle.Font.Style := [];
+  end;
+  // Einmalig bei der Designanwendung auch die nativen Eingabefelder
+  // setzen. Diese werden von Walk absichtlich nicht neu aufgebaut.
+  if FPageEdit <> nil then
+  begin
+    FPageEdit.ParentFont := False;
+    FPageEdit.Color := FieldColor;
+    FPageEdit.Font.Color := TextColor;
+    if ADesign <> 0 then FPageEdit.Font.Style := [fsBold]
+    else FPageEdit.Font.Style := [];
+  end;
+  if FViewSelect <> nil then
+  begin
+    FViewSelect.ParentFont := False;
+    // Die native csDropDownList zeichnet ihre geschlossene Flaeche
+    // selbst und ignoriert dabei teilweise Color. OwnerDraw vermeidet
+    // diesen weissen Hintergrund ohne Arbeit beim Tabwechsel.
+    // Designfarbe des Ansichtsmodus wie vor M25/M27 wiederherstellen.
+    if ADesign = 0 then
+      FViewSelect.Style := csDropDownList
+    else
+      FViewSelect.Style := csOwnerDrawFixed;
+    FViewSelect.OnDrawItem := DrawViewModeItem;
+    FViewSelect.Color := FieldColor;
+    FViewSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FViewSelect.Font.Style := [fsBold]
+    else FViewSelect.Font.Style := [];
+  end;
+  if FFlowSelect <> nil then
+  begin
+    FFlowSelect.ParentFont := False;
+    if ADesign = 0 then FFlowSelect.Style := csDropDownList
+    else FFlowSelect.Style := csOwnerDrawFixed;
+    FFlowSelect.OnDrawItem := DrawViewModeItem;
+    FFlowSelect.Color := FieldColor;
+    FFlowSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FFlowSelect.Font.Style := [fsBold]
+    else FFlowSelect.Font.Style := [];
+  end;
+  if FShapeSelect <> nil then
+  begin
+    FShapeSelect.ParentFont := False;
+    if ADesign = 0 then FShapeSelect.Style := csDropDownList
+    else FShapeSelect.Style := csOwnerDrawFixed;
+    FShapeSelect.OnDrawItem := DrawViewModeItem;
+    FShapeSelect.Color := FieldColor;
+    FShapeSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FShapeSelect.Font.Style := [fsBold]
+    else FShapeSelect.Font.Style := [];
+  end;
+  if FWidthSelect <> nil then
+  begin
+    FWidthSelect.ParentFont := False;
+    if ADesign = 0 then FWidthSelect.Style := csDropDownList
+    else FWidthSelect.Style := csOwnerDrawFixed;
+    FWidthSelect.OnDrawItem := DrawViewModeItem;
+    FWidthSelect.Color := FieldColor;
+    FWidthSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FWidthSelect.Font.Style := [fsBold]
+    else FWidthSelect.Font.Style := [];
+  end;
+  if FTextFontSelect <> nil then
+  begin
+    FTextFontSelect.ParentFont := False;
+    if ADesign = 0 then FTextFontSelect.Style := csDropDownList
+    else FTextFontSelect.Style := csOwnerDrawFixed;
+    FTextFontSelect.OnDrawItem := DrawViewModeItem;
+    FTextFontSelect.Color := FieldColor;
+    FTextFontSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FTextFontSelect.Font.Style := [fsBold]
+    else FTextFontSelect.Font.Style := [];
+  end;
+  if FTextSizeSelect <> nil then
+  begin
+    FTextSizeSelect.ParentFont := False;
+    FTextSizeSelect.Color := FieldColor;
+    FTextSizeSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FTextSizeSelect.Font.Style := [fsBold]
+    else FTextSizeSelect.Font.Style := [];
+  end;
+  Walk(Self);
+  // Der Werkzeuge-Button kann in die gemeinsame Browser-Symbolleiste
+  // umgehaengt sein und liegt dann ausserhalb von Self/Walk(Self).
+  // Nur beim echten Designwechsel direkt mit der Palette versorgen.
+  if FEditToggle <> nil then
+    FEditToggle.SetDesign(ADesign);
+  FBar.Invalidate;
+  FEditBar.Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.ApplyPDFBackgroundDesign(ADesign: Integer);
+begin
+  if FScroll = nil then Exit;
+  // Ausschliesslich Klassisch Blau: Papier bleibt weiss, die Umgebung hellblau.
+  // Beim Wechsel zu anderen Designs den bisherigen neutralen Hintergrund nutzen.
+  if ADesign = 5 then
+    FScroll.Color := RGB(220, 234, 247)
+  else
+    FScroll.Color := clBtnShadow;
+  FScroll.Invalidate;
 end;
 
 procedure TFreePDF64PDFiumView.RefreshPDFDisplay;
@@ -5114,6 +5848,38 @@ begin
   Realign;
   LayoutToolbar(nil);
   Realign;
+  // Beim Zurueckhaengen koennen die Windows-Handles der OwnerDraw-
+  // Comboboxen neu entstehen. Verlorene Auswahl nur dann wiederherstellen;
+  // weder Palette noch Symbolbitmaps erneut berechnen.
+  if (FViewSelect <> nil) and (FViewSelect.Items.Count > 0) then
+  begin
+    if FViewSelect.ItemIndex < 0 then
+      FViewSelect.ItemIndex := EnsureRange(FViewMode, 0, FViewSelect.Items.Count - 1);
+  end;
+  if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex < 0) and
+     (FShapeSelect.Items.Count > 0) then
+    FShapeSelect.ItemIndex := 0;
+  if (FWidthSelect <> nil) and (FWidthSelect.ItemIndex < 0) and
+     (FWidthSelect.Items.Count > 3) then
+    FWidthSelect.ItemIndex := 3;
+  // Auch die Schriftart-Combo liegt auf der verschiebbaren Werkzeugleiste.
+  // Nach der Zweifensteransicht kann ihr geschlossenes OwnerDraw-Feld
+  // trotz gueltiger Auswahl leer bleiben. Die Auswahl ohne OnChange erneut
+  // an das Windows-Handle uebergeben und nur dieses Feld neu zeichnen.
+  if (FTextFontSelect <> nil) and (FTextFontSelect.Items.Count > 0) then
+  begin
+    if FTextFontSelect.ItemIndex < 0 then
+    begin
+      FTextFontSelect.ItemIndex := FTextFontSelect.Items.IndexOf('Arial');
+      if FTextFontSelect.ItemIndex < 0 then
+        FTextFontSelect.ItemIndex := 0;
+    end;
+    FTextFontSelect.Perform(CB_SETCURSEL, FTextFontSelect.ItemIndex, 0);
+    FTextFontSelect.Invalidate;
+  end;
+  if FViewSelect <> nil then FViewSelect.Invalidate;
+  if FShapeSelect <> nil then FShapeSelect.Invalidate;
+  if FWidthSelect <> nil then FWidthSelect.Invalidate;
 end;
 
 procedure TFreePDF64PDFiumView.SetMergedToolbarTrailingControls(
@@ -5455,13 +6221,13 @@ begin
     EditH := FShapeSelect.Height;
     if EditH < 1 then EditH := Px(24);
     PlaceControl(FShapeSelect, Px(110), EditH);
-    PlaceControl(FWidthSelect, Px(46), EditH);
+    PlaceControl(FWidthSelect, Px(54), EditH);
     PlaceControl(FHighlightButton, Px(116), EditH);
     PlaceControl(FColorButton, Px(60), EditH);
     PlaceControl(FColorSwatch, Px(22), EditH);
     PlaceControl(FTextInsertSeparator, Px(8), EditH);
     PlaceControl(FTextInsertButton, Px(92), EditH);
-    PlaceControl(FNoteButton, Px(92), EditH);
+    PlaceControl(FNoteButton, Px(108), EditH);
     PlaceControl(FTextUndoButton, Px(36), EditH);
     PlaceControl(FTextRedoButton, Px(36), EditH);
     PlaceControl(FTextFontSelect, Px(128), EditH);

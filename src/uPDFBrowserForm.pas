@@ -62,6 +62,8 @@ type
     FWorkspacesButton: TButton;
     FGlobalFindButton: TBitBtn;
     FSearchCountLabel: TLabel;
+    FToolbarDesignIndex: Integer;
+    FToolbarDesignApplied: Boolean;
     FGlobalSearchActive: Boolean;
     FGlobalSearchCount: Integer;
     FPageNavigationTimer: TTimer;
@@ -106,6 +108,7 @@ type
     PDFFileName: string;
     destructor Destroy; override;
     function IsShortCut(var Message: TWMKey): Boolean; override;
+    procedure ApplyToolbarDesign(ADesign: Integer);
     procedure RefreshToolbarAfterSplit;
     procedure PlaceSplitButton(AButton: TButton; AVisible: Boolean);
     procedure UpdateAttachmentWindowPosition;
@@ -163,6 +166,10 @@ type
 implementation
 
 uses uPDFPortableAttachments;
+
+type
+  TEditDesignAccess = class(TCustomEdit);
+  TComboDesignAccess = class(TCustomComboBox);
 
 procedure SaveRecentPageCount(const AFileName: string; APageCount: Integer);
 var
@@ -756,7 +763,7 @@ begin
   FToolbar.DoubleBuffered := True;
 
   // Datei- und Arbeitsbereichsaktionen vor der Textsuche.
-  FOpenPDFButton := TButton.Create(Self);
+  FOpenPDFButton := TPDFDesignButton.Create(Self);
   FOpenPDFButton.Parent := FToolbar;
   FOpenPDFButton.Caption := '📂';
   FOpenPDFButton.Font.Name := 'Segoe UI Emoji';
@@ -766,7 +773,7 @@ begin
   FOpenPDFButton.ShowHint := True;
   FOpenPDFButton.OnClick := OpenPDFToolbarClick;
 
-  FWorkspacesButton := TButton.Create(Self);
+  FWorkspacesButton := TPDFDesignButton.Create(Self);
   FWorkspacesButton.Parent := FToolbar;
   FWorkspacesButton.Caption := '';
   FWorkspacesButton.Width := ScalePx(34);
@@ -782,7 +789,7 @@ begin
   // --------------------------------------------------
   // Textsuche
   // --------------------------------------------------
-  FFindButton := TBitBtn.Create(Self);
+  FFindButton := TPDFThemeBitBtn.Create(Self);
   FFindButton.Parent := FToolbar;
   FFindButton.Caption := '';
   SetSearchGlyph(FFindButton, False);
@@ -796,7 +803,7 @@ begin
   FFindButton.Height := 28;
   FFindButton.OnClick := FindTermClick;
 
-  FGlobalFindButton := TBitBtn.Create(Self);
+  FGlobalFindButton := TPDFThemeBitBtn.Create(Self);
   FGlobalFindButton.Parent := FToolbar;
   FGlobalFindButton.Caption := '';
   SetSearchGlyph(FGlobalFindButton, True);
@@ -829,7 +836,7 @@ begin
   // --------------------------------------------------
   // PDF-Anlagen
   // --------------------------------------------------
-  FAttachmentsButton := TBitBtn.Create(Self);
+  FAttachmentsButton := TPDFThemeBitBtn.Create(Self);
   FAttachmentsButton.Parent := FToolbar;
   FAttachmentsButton.Caption := '';
   SetAttachmentGlyph(FAttachmentsButton, False);
@@ -870,7 +877,7 @@ begin
   Canvas.Font.Assign(FSearchCountLabel.Font);
   FSearchCountLabel.SetBounds(XPos,
     (ToolbarHeight - ControlHeight) div 2,
-    Max(ScalePx(70), Max(Canvas.TextWidth(FSearchCountLabel.Caption + '  ...'), Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + ScalePx(8)),
+    Max(ScalePx(70), Max(Canvas.TextWidth(FSearchCountLabel.Caption + '  ...'), Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + ScalePx(12)),
     ControlHeight);
   Inc(XPos, FSearchCountLabel.Width + Gap);
   FAttachmentSeparator.Visible := False;
@@ -1325,6 +1332,10 @@ begin
     FPDFiumView.PlaceEditButton(FToolbar,
       MulDiv(8, CurrentPPI, 96),
       MulDiv(6, CurrentPPI, 96), MulDiv(28, CurrentPPI, 96));
+    FToolbarDesignApplied := False; // Neue Steuerelemente einmalig initialisieren.
+    // Bei Lazy Loading existierte die PDFium-Symbolleiste beim ersten
+    // Designaufruf noch nicht. Nach dem Erzeugen nachfaerben.
+    ApplyToolbarDesign(FToolbarDesignIndex);
   end;
   // Beide Symbolleisten bei ausreichender Breite in einer Zeile anordnen.
   UpdateUnifiedToolbar;
@@ -1511,6 +1522,8 @@ begin
       // Nicht durch die allgemeine TBitBtn-Hoehenkorrektur veraendern.
       if C.Name = 'PDFEditToggleButton' then
         C.SetBounds(C.Left, C.Top, ScalePx(34), ScalePx(28))
+      else if C is TPDFDesignButton then
+        Continue // Design erfolgt in ApplyToolbarDesign, nicht im Layout
       else if C is TButton then
         C.Height := ScalePx(24)
       else if C is TBitBtn then
@@ -1753,6 +1766,143 @@ begin
     AButton.Visible := False;
 end;
 
+procedure TPDFBrowserForm.ApplyToolbarDesign(ADesign: Integer);
+var
+  BackColor, TextColor, FieldColor: TColor;
+  procedure PaintControls(AParent: TWinControl);
+  var
+    I: Integer;
+    C: TControl;
+  begin
+    if AParent = nil then Exit;
+    for I := 0 to AParent.ControlCount - 1 do
+    begin
+      C := AParent.Controls[I];
+      if C is TPanel then
+      begin
+        TPanel(C).ParentColor := False;
+        TPanel(C).ParentBackground := False;
+        TPanel(C).Color := BackColor;
+        TPanel(C).Font.Color := TextColor;
+        if ADesign <> 0 then TPanel(C).Font.Style := [fsBold]
+        else TPanel(C).Font.Style := [];
+      end
+      else if C is TCustomEdit then
+      begin
+        TEditDesignAccess(C).Color := FieldColor;
+        TEditDesignAccess(C).Font.Color := TextColor;
+        if ADesign <> 0 then TEditDesignAccess(C).Font.Style := [fsBold]
+        else TEditDesignAccess(C).Font.Style := [];
+      end
+      else if C is TCustomComboBox then
+      begin
+        TComboDesignAccess(C).Color := FieldColor;
+        TComboDesignAccess(C).Font.Color := TextColor;
+        if ADesign <> 0 then TComboDesignAccess(C).Font.Style := [fsBold]
+        else TComboDesignAccess(C).Font.Style := [];
+      end
+      else if C is TLabel then
+      begin
+        TLabel(C).Font.Color := TextColor;
+        if ADesign <> 0 then TLabel(C).Font.Style := [fsBold]
+        else TLabel(C).Font.Style := [];
+      end
+      else if C is TPDFDesignButton then
+      begin
+        TPDFDesignButton(C).Font.Color := TextColor;
+        if ADesign <> 0 then TPDFDesignButton(C).Font.Style := [fsBold]
+        else TPDFDesignButton(C).Font.Style := [];
+        TPDFDesignButton(C).SetDesign(ADesign);
+      end
+      else if C is TButton then
+      begin
+        TButton(C).Font.Color := TextColor;
+        if ADesign <> 0 then TButton(C).Font.Style := [fsBold]
+        else TButton(C).Font.Style := [];
+      end
+      else if C is TPDFThemeBitBtn then
+      begin
+        TPDFThemeBitBtn(C).Font.Color := TextColor;
+        ApplyPDFGlyphContrast(TPDFThemeBitBtn(C), ADesign);
+        if ADesign <> 0 then TPDFThemeBitBtn(C).Font.Style := [fsBold]
+        else TPDFThemeBitBtn(C).Font.Style := [];
+        TPDFThemeBitBtn(C).SetDesign(ADesign);
+      end
+      else if C is TBitBtn then
+      begin
+        TBitBtn(C).Font.Color := TextColor;
+        ApplyPDFGlyphContrast(TBitBtn(C), ADesign);
+        if ADesign <> 0 then TBitBtn(C).Font.Style := [fsBold]
+        else TBitBtn(C).Font.Style := [];
+      end;
+      if C is TWinControl then
+        PaintControls(TWinControl(C));
+    end;
+  end;
+begin
+  // Nur bei Designwechsel oder erstmaliger Initialisierung anwenden.
+  if FToolbarDesignApplied and (FToolbarDesignIndex = ADesign) then Exit;
+  FToolbarDesignIndex := ADesign;
+  FToolbarDesignApplied := True;
+  if FPDFiumView <> nil then
+    FPDFiumView.ApplyPDFBackgroundDesign(ADesign);
+  // Ausschliesslich Darstellung: keine Aenderung an Position, Groesse,
+  // Symbolen, Ereignissen oder der PDFium-Zeichenflaeche.
+  case ADesign of
+    1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := clWhite; end;
+    2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
+    3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := clWhite; end;
+    4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
+    5: begin BackColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); FieldColor := RGB(205, 225, 245); end;
+  else
+    begin BackColor := clBtnFace; TextColor := clWindowText; FieldColor := clWindow; end;
+  end;
+  if FOpenPDFButton is TPDFDesignButton then
+    TPDFDesignButton(FOpenPDFButton).SetDesign(ADesign);
+  if FWorkspacesButton is TPDFDesignButton then
+    TPDFDesignButton(FWorkspacesButton).SetDesign(ADesign);
+  if ADesign <> 0 then
+  begin
+    if FOpenPDFButton <> nil then FOpenPDFButton.Font.Style := [fsBold];
+    if FWorkspacesButton <> nil then FWorkspacesButton.Font.Style := [fsBold];
+  end
+  else
+  begin
+    if FOpenPDFButton <> nil then FOpenPDFButton.Font.Style := [];
+    if FWorkspacesButton <> nil then FWorkspacesButton.Font.Style := [];
+  end;
+  if FToolbar <> nil then
+  begin
+    FToolbar.ParentColor := False;
+    FToolbar.ParentBackground := False;
+    FToolbar.Color := BackColor;
+    FToolbar.Font.Color := TextColor;
+    if ADesign <> 0 then FToolbar.Font.Style := [fsBold]
+    else FToolbar.Font.Style := [];
+    PaintControls(FToolbar);
+    if FSearchCountLabel <> nil then
+    begin
+      FSearchCountLabel.ParentFont := False;
+      FSearchCountLabel.Font.Color := TextColor;
+      FSearchCountLabel.Transparent := False;
+      FSearchCountLabel.Color := BackColor;
+    end;
+    FToolbar.Invalidate;
+  end;
+  if (FPDFiumView <> nil) and (FPDFiumView.ToolbarPanel <> nil) then
+  begin
+    if FPDFiumView.ToolbarPanel is TPanel then
+    begin
+      TPanel(FPDFiumView.ToolbarPanel).ParentColor := False;
+      TPanel(FPDFiumView.ToolbarPanel).ParentBackground := False;
+      TPanel(FPDFiumView.ToolbarPanel).Color := BackColor;
+      TPanel(FPDFiumView.ToolbarPanel).Font.Color := TextColor;
+    end;
+    PaintControls(FPDFiumView.ToolbarPanel);
+    FPDFiumView.ApplyButtonDesign(ADesign);
+  end;
+end;
+
 procedure TPDFBrowserForm.RefreshToolbarAfterSplit;
 begin
   // Nach dem Reparenting aus der Split-Ansicht die zuvor fixierte
@@ -1801,7 +1951,7 @@ begin
       ExtraWidth := Canvas.TextWidth('  ...');
     FSearchCountLabel.Width := Max(Px(70),
       Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
-          Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + Px(8));
+          Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + Px(12));
   end;
 
   LeftRequired := 2 * Margin + 8 * Gap + Px(22);
@@ -1896,7 +2046,7 @@ begin
           ExtraWidth := Canvas.TextWidth('  ...');
         FSearchCountLabel.Width := Max(Px(70),
           Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
-              Canvas.TextWidth(Tr('Alle PDFs: 9999 Treffer'))) + Px(8));
+              Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + Px(12));
         SetLength(SavedBounds, FToolbar.ControlCount);
         for I := 0 to FToolbar.ControlCount - 1 do
           SavedBounds[I] := FToolbar.Controls[I].BoundsRect;
@@ -1912,6 +2062,8 @@ begin
     end;
   finally
     FMergingToolbar := False;
+    // Reparenting veraendert keine Designpalette: kein erneutes Einfaerben.
+    // Die OwnerDraw-Buttons zeichnen sich bei Bedarf selbst.
   end;
 end;
 
