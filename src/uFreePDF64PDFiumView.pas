@@ -392,6 +392,7 @@ type
     procedure TextResizeMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure PositionTextResizeGrip;
+    procedure UpdateTextEditorHeight;
     procedure FinishTextEditor(ACommit: Boolean);
     procedure ColorClick(Sender: TObject);
     procedure SaveClick(Sender: TObject);
@@ -7857,6 +7858,28 @@ begin
     TForm(L.Parent).ModalResult := mrOk;
 end;
 
+procedure TFreePDF64PDFiumView.UpdateTextEditorHeight;
+var
+  Measure: TBitmap;
+  NeededHeight: Integer;
+begin
+  if FTextEditor = nil then Exit;
+  Measure := TBitmap.Create;
+  try
+    Measure.Canvas.Font.Assign(FTextEditor.Font);
+    // Zeichenhoehe plus DPI-abhaengiger Innenabstand des Eingabefeldes.
+    NeededHeight := Measure.Canvas.TextHeight('HgÄÜ') +
+      MulDiv(12, CurrentPPI, 96);
+  finally
+    Measure.Free;
+  end;
+  if FTextEditor.Height < NeededHeight then
+  begin
+    FTextEditor.Height := NeededHeight;
+    PositionTextResizeGrip;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.TextStyleChange(Sender: TObject);
 var
   N: Integer;
@@ -7868,6 +7891,7 @@ begin
     FTextEditor.Font.Name := FTextFontSelect.Text;
     FTextEditor.Font.Size := FTextInsertSize;
     FTextEditor.Font.Color := FTextInsertColor;
+    UpdateTextEditorHeight;
   end;
 end;
 
@@ -8303,6 +8327,7 @@ begin
     FTextEditor.Font.Color := FTextInsertColor;
     FTextEditor.SetBounds(Img.Left + X, Img.Top + Y - FTextEditor.Height + 4,
       Max(180, Min(400, Img.Width - X)), Max(28, FTextEditor.Height));
+    UpdateTextEditorHeight;
     FTextEditor.OnKeyDown := TextEditorKeyDown;
     FTextEditor.OnMouseDown := TextEditorMouseDown;
     FTextEditor.OnMouseMove := TextEditorMouseMove;
