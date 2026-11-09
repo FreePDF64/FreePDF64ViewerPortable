@@ -77,7 +77,7 @@ Die **Zweifensteransicht** eignet sich besonders für den Vergleich zweier Dokum
 
 *Gespeicherte Arbeitsbereiche auf einen Blick: nach Speicherdatum sortiert, mit PDF-Anzahl und den Aktionen Öffnen, Umbenennen und Löschen.*
 
-## So sieht FreePDF64-Viewer Portable aus
+## So sieht FreePDF64-Viewer Portable aus 
 
 ![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
 
@@ -248,7 +248,7 @@ The **split view** is particularly useful for comparing document versions, contr
 
 *Saved workspaces at a glance: sorted by save date, with the PDF count and options to open, rename, or delete each workspace.*
 
-## See FreePDF64-Viewer Portable in action
+## See FreePDF64-Viewer Portable in with the "Classic Blue" design
 
 ![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/Mainwindow.png)
 
