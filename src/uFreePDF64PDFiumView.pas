@@ -6286,13 +6286,9 @@ begin
   PlaceControl(FFitSeparator, Px(2), Px(22));
   PlaceButton(FFit, 38);
   PlaceControl(FViewSelect, Px(130), EditH);
-  // Standard: bisherigen optischen Versatz des nativen Dropdowns erhalten.
-  // Andere Designs: OwnerDraw-Feld ohne Zusatzversatz exakt zur
-  // Mittellinie der beiden benachbarten Buttons ausrichten.
-  if FViewSelect.Style = csDropDownList then
-    FViewSelect.Top := FViewSelect.Top + Px(4)
-  else
-    FViewSelect.Top := FFit.Top + (FFit.Height - FViewSelect.Height) div 2;
+  // Das native Dropdown sitzt optisch etwas hoeher als die Buttons;
+  // daher in der gemeinsamen Leiste leicht nach unten versetzen.
+  FViewSelect.Top := FViewSelect.Top + Px(4);
   PlaceControl(FPageModeSeparator, Px(2), Px(22));
   PlaceButton(FTwoPageButton, 32);
   PlaceControl(FFlowSeparator, Px(2), Px(22));
@@ -7750,6 +7746,7 @@ begin
           TargetLanguage + '&text=' + TNetEncoding.URL.Encode(S) + '&op=translate';
       end;
     3: URL := 'https://www.google.com/search?q=' + TNetEncoding.URL.Encode(S);
+    4: URL := 'https://www.bing.com/search?q=' + TNetEncoding.URL.Encode(S);
   else
     Exit;
   end;
@@ -8191,6 +8188,14 @@ begin
       NoteItem := TMenuItem.Create(FSelectionMenu);
       NoteItem.Caption := ToolbarHint('Mit Google übersetzen', 'Translate with Google');
       NoteItem.Tag := 2;
+      NoteItem.OnClick := SelectionMenuClick;
+      FSelectionMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := '-';
+      FSelectionMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := ToolbarHint('Mit Bing suchen', 'Search with Bing');
+      NoteItem.Tag := 4;
       NoteItem.OnClick := SelectionMenuClick;
       FSelectionMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FSelectionMenu);
