@@ -421,10 +421,222 @@ begin
   end;
 end;
 
+// Such-, Sortier- und Vorschaufunktionen des Arbeitsbereich-Managers.
+type
+  TWorkspaceEntry = record
+    DisplayName, FilePath: string;
+    SavedAt: TDateTime;
+    PDFCount: Integer;
+  end;
+
+  TWorkspaceListController = class
+  public
+    List: TListView;
+    Search: TEdit;
+    OwnerForm: TForm;
+    DesignIndex: Integer;
+    SortColumn: Integer;
+    SortAscending: Boolean;
+    Entries: array of TWorkspaceEntry;
+    procedure Refresh;
+    procedure SearchChanged(Sender: TObject);
+    procedure ColumnClicked(Sender: TObject; Column: TListColumn);
+    procedure ShowContents(Sender: TObject);
+  end;
+
+procedure TWorkspaceListController.Refresh;
+var
+  Indices: array of Integer;
+  I, J, Tmp, C: Integer;
+  Item: TListItem;
+  SelectedFile: string;
+  Match: Boolean;
+begin
+  SelectedFile := '';
+  if (List.Selected <> nil) and (List.Selected.SubItems.Count > 2) then
+    SelectedFile := List.Selected.SubItems[2];
+  // Die Einträge wurden bereits durch ReloadList aus den vorhandenen
+  // Arbeitsbereichsdateien geladen. Hier nur die Anzeige sortieren/filtern:
+  // ein erneutes Einlesen mit anderem INI-Schema würde die Liste leeren.
+  SetLength(Indices, Length(Entries));
+  C := 0;
+  for I := 0 to High(Entries) do
+  begin
+    Match := (Search = nil) or
+      (Pos(AnsiLowerCase(Trim(Search.Text)),
+       AnsiLowerCase(Entries[I].DisplayName)) > 0);
+    if Match then
+    begin
+      Indices[C] := I;
+      Inc(C);
+    end;
+  end;
+  SetLength(Indices, C);
+  for I := 0 to C - 2 do
+    for J := I + 1 to C - 1 do
+    begin
+      case SortColumn of
+        0: Tmp := CompareText(Entries[Indices[I]].DisplayName, Entries[Indices[J]].DisplayName);
+        2: Tmp := Entries[Indices[I]].PDFCount - Entries[Indices[J]].PDFCount;
+      else
+        if Entries[Indices[I]].SavedAt < Entries[Indices[J]].SavedAt then Tmp := -1
+        else if Entries[Indices[I]].SavedAt > Entries[Indices[J]].SavedAt then Tmp := 1
+        else Tmp := CompareText(Entries[Indices[I]].DisplayName, Entries[Indices[J]].DisplayName);
+      end;
+      if not SortAscending then Tmp := -Tmp;
+      if Tmp > 0 then
+      begin
+        Tmp := Indices[I]; Indices[I] := Indices[J]; Indices[J] := Tmp;
+      end;
+    end;
+  List.Items.BeginUpdate;
+  try
+    List.Items.Clear;
+    for I := 0 to C - 1 do
+    begin
+      Item := List.Items.Add;
+      Item.Caption := Entries[Indices[I]].DisplayName;
+      if Entries[Indices[I]].SavedAt > 0 then
+        Item.SubItems.Add(FormatDateTime('dd.mm.yyyy hh:nn', Entries[Indices[I]].SavedAt))
+      else
+        Item.SubItems.Add('–');
+      Item.SubItems.Add(IntToStr(Entries[Indices[I]].PDFCount));
+      Item.SubItems.Add(Entries[Indices[I]].FilePath);
+      if SameText(Entries[Indices[I]].FilePath, SelectedFile) then
+        List.Selected := Item;
+    end;
+    if (List.Selected = nil) and (List.Items.Count > 0) then
+      List.Selected := List.Items[0];
+  finally
+    List.Items.EndUpdate;
+  end;
+end;
+
+procedure TWorkspaceListController.SearchChanged(Sender: TObject);
+begin
+  Refresh;
+end;
+
+function CompareWorkspaceListItems(Item1, Item2: TListItem; Data: Integer): Integer;
+var
+  A, B: string;
+  Col: Integer;
+begin
+  Col := Abs(Data) - 1;
+  case Col of
+    0: begin A := Item1.Caption; B := Item2.Caption; end;
+    2: begin
+      Result := StrToIntDef(Item1.SubItems[1], 0) -
+                StrToIntDef(Item2.SubItems[1], 0);
+      if Data < 0 then Result := -Result;
+      Exit;
+    end;
+  else
+    begin
+      A := Item1.SubItems[0];
+      B := Item2.SubItems[0];
+      // dd.mm.yyyy hh:nn -> yyyymmddhhnn
+      if Length(A) >= 16 then A := Copy(A, 7, 4) + Copy(A, 4, 2) +
+        Copy(A, 1, 2) + Copy(A, 12, 2) + Copy(A, 15, 2);
+      if Length(B) >= 16 then B := Copy(B, 7, 4) + Copy(B, 4, 2) +
+        Copy(B, 1, 2) + Copy(B, 12, 2) + Copy(B, 15, 2);
+    end;
+  end;
+  Result := CompareText(A, B);
+  if Data < 0 then Result := -Result;
+end;
+
+procedure TWorkspaceListController.ColumnClicked(Sender: TObject; Column: TListColumn);
+begin
+  if SortColumn = Column.Index then
+    SortAscending := not SortAscending
+  else
+  begin
+    SortColumn := Column.Index;
+    SortAscending := Column.Index = 0;
+  end;
+  // Sortierung dauerhaft in der bereits vorhandenen Viewer-INI speichern.
+  with TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini') do
+  try
+    WriteInteger('Arbeitsbereiche', 'SortColumn', SortColumn);
+    WriteBool('Arbeitsbereiche', 'SortAscending', SortAscending);
+  finally
+    Free;
+  end;
+  // Bereits sichtbare ListView-Einträge direkt sortieren.
+  // Kein Clear/Neuaufbau: die Einträge bleiben bei jedem Spaltenklick erhalten.
+  if SortAscending then
+    List.CustomSort(@CompareWorkspaceListItems, SortColumn + 1)
+  else
+    List.CustomSort(@CompareWorkspaceListItems, -(SortColumn + 1));
+end;
+
+procedure TWorkspaceListController.ShowContents(Sender: TObject);
+var
+  Dialog: TForm;
+  Memo: TMemo;
+  CloseButton: TButton;
+  Ini: TIniFile;
+  I, Count: Integer;
+  S, FilePath: string;
+begin
+  if (List.Selected = nil) or (List.Selected.SubItems.Count < 3) then Exit;
+  FilePath := List.Selected.SubItems[2];
+  if not FileExists(FilePath) then Exit;
+  Dialog := TForm.CreateNew(OwnerForm);
+  try
+    Dialog.Caption := Tr('Inhalt anzeigen ...');
+    Dialog.Position := poOwnerFormCenter;
+    Dialog.BorderStyle := bsSizeable;
+    Dialog.Font.Name := 'Segoe UI';
+    Dialog.Font.Size := 10;
+    Dialog.ClientWidth := MulDiv(660, OwnerForm.CurrentPPI, 96);
+    Dialog.ClientHeight := MulDiv(390, OwnerForm.CurrentPPI, 96);
+    case DesignIndex of
+      1: Dialog.Color := RGB(229,236,246);
+      3: Dialog.Color := RGB(232,232,232);
+      5: Dialog.Color := RGB(220,233,247);
+    else Dialog.Color := clWhite;
+    end;
+    Memo := TMemo.Create(Dialog);
+    Memo.Parent := Dialog;
+    Memo.Align := alClient;
+    Memo.ReadOnly := True;
+    Memo.ScrollBars := ssBoth;
+    Memo.WordWrap := False;
+    Memo.Font.Name := 'Segoe UI';
+    Memo.Font.Size := 10;
+    Ini := TIniFile.Create(FilePath);
+    try
+      Count := Ini.ReadInteger('PDFs', 'Count', 0);
+      if Count > 200 then Count := 200;
+      if Count < 0 then Count := 0;
+      for I := 1 to Count do
+      begin
+        S := Ini.ReadString('PDFs', 'File' + IntToStr(I), '');
+        if S <> '' then Memo.Lines.Add(S);
+      end;
+    finally
+      Ini.Free;
+    end;
+    CloseButton := TPDFDesignButton.Create(Dialog);
+    CloseButton.Parent := Dialog;
+    TPDFDesignButton(CloseButton).SetDesign(DesignIndex);
+    CloseButton.Align := alBottom;
+    CloseButton.Height := MulDiv(42, OwnerForm.CurrentPPI, 96);
+    CloseButton.Caption := Tr('Schließen');
+    CloseButton.ModalResult := mrOk;
+    CloseButton.Cancel := True;
+    Dialog.ShowModal;
+  finally
+    Dialog.Free;
+  end;
+end;
+
 // Arbeitsbereich-Dialoge mit eigenen DPI-gerechten Abmessungen statt
 // der festen Groessen der Standard-InputQuery/MessageDlg-Fenster.
 function WorkspaceDialog(AOwner: TForm; const ATitle, AText: string;
-  AConfirm: Boolean; AInput: Boolean; var AValue: string): Integer;
+  AConfirm: Boolean; AInput: Boolean; var AValue: string; ADesign: Integer): Integer;
 var
   Dialog: TForm;
   Heading, Info: TLabel;
@@ -434,6 +646,7 @@ var
   R: TRect;
   Flags: Cardinal;
   S: string;
+  BackColor, ForeColor: TColor;
 begin
   Result := mrCancel;
   Dialog := TForm.CreateNew(AOwner);
@@ -447,7 +660,14 @@ begin
     Dialog.Caption := Tr(ATitle);
     Dialog.Font.Name := 'Segoe UI';
     Dialog.Font.Size := 11;
-    Dialog.Color := clWhite;
+    case ADesign of
+      1: begin BackColor := RGB(229,236,246); ForeColor := RGB(35,48,65); end;
+      3: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
+      5: begin BackColor := RGB(220,233,247); ForeColor := RGB(24,55,88); end;
+    else begin BackColor := clWhite; ForeColor := clWindowText; end;
+    end;
+    Dialog.Color := BackColor;
+    Dialog.Font.Color := ForeColor;
     Margin := MulDiv(24, D, 96);
     Gap := MulDiv(14, D, 96);
     ContentW := MulDiv(460, D, 96);
@@ -461,6 +681,7 @@ begin
     Heading.Font.Name := 'Segoe UI Semibold';
     Heading.Font.Size := 15;
     Heading.Caption := Tr(ATitle);
+    Heading.Font.Color := ForeColor;
 
     Info := TLabel.Create(Dialog);
     Info.Parent := Dialog;
@@ -468,6 +689,7 @@ begin
     Info.WordWrap := True;
     Info.Font.Size := 11;
     Info.Caption := Tr(AText);
+    Info.Font.Color := ForeColor;
     Dialog.Canvas.Font.Assign(Info.Font);
     R := Rect(0, 0, ContentW, 0);
     Flags := DT_WORDBREAK or DT_CALCRECT or DT_NOPREFIX;
@@ -493,7 +715,7 @@ begin
     ButtonW := MulDiv(118, D, 96);
     ButtonH := MulDiv(38, D, 96);
     Dialog.ClientHeight := Y + ButtonH + Margin;
-    AcceptButton := TButton.Create(Dialog);
+    AcceptButton := TPDFDesignButton.Create(Dialog);
     AcceptButton.Parent := Dialog;
     // Primäre Aktion links, alternative Aktion rechts (übliche Dialogreihenfolge).
     AcceptButton.SetBounds(TotalW - Margin - 2 * ButtonW - Gap,
@@ -504,10 +726,11 @@ begin
     if AConfirm then AcceptButton.ModalResult := mrYes
     else AcceptButton.ModalResult := mrOk;
     AcceptButton.Default := True;
+    TPDFDesignButton(AcceptButton).SetDesign(ADesign);
 
     if AConfirm or AInput then
     begin
-      CancelButton := TButton.Create(Dialog);
+      CancelButton := TPDFDesignButton.Create(Dialog);
       CancelButton.Parent := Dialog;
       CancelButton.SetBounds(AcceptButton.Left + ButtonW + Gap,
         Y, ButtonW, ButtonH);
@@ -516,6 +739,7 @@ begin
       if AConfirm then CancelButton.ModalResult := mrNo
       else CancelButton.ModalResult := mrCancel;
       CancelButton.Cancel := True;
+      TPDFDesignButton(CancelButton).SetDesign(ADesign);
     end;
     if AInput then Dialog.ActiveControl := Edit
     else Dialog.ActiveControl := AcceptButton;
@@ -1553,11 +1777,11 @@ var
 begin
   if FTabs.PageCount = 0 then
   begin
-    WorkspaceDialog(Self, 'Information', 'Es sind keine PDFs geöffnet.', False, False, Name);
+    WorkspaceDialog(Self, 'Information', 'Es sind keine PDFs geöffnet.', False, False, Name, FDesignIndex);
     Exit;
   end;
   Name := Tr('Arbeitsbereich') + ' ' + FormatDateTime('dd.mm.yyyy hh:nn', Now);
-  if WorkspaceDialog(Self, 'Arbeitsbereich speichern', 'Name des Arbeitsbereichs:', False, True, Name) <> mrOk then Exit;
+  if WorkspaceDialog(Self, 'Arbeitsbereich speichern', 'Name des Arbeitsbereichs:', False, True, Name, FDesignIndex) <> mrOk then Exit;
   Name := Trim(Name);
   if Name = '' then Exit;
   ForceDirectories(WorkspaceFolder);
@@ -1598,7 +1822,7 @@ begin
   finally
     Ini.Free;
   end;
-  WorkspaceDialog(Self, 'Information', 'Arbeitsbereich „' + Name + '“ gespeichert.', False, False, Name);
+  WorkspaceDialog(Self, 'Information', 'Arbeitsbereich „' + Name + '“ gespeichert.', False, False, Name, FDesignIndex);
 end;
 
 procedure TPDFTabsForm.OpenWorkspaceFile(const APath: string);
@@ -1695,7 +1919,7 @@ begin
       MessageDlg('Fehler beim Laden des Arbeitsbereichs:' + sLineBreak +
         LoadErrors.Text, mtError, [mbOK], 0);
     if MissingCount > 0 then
-      WorkspaceDialog(Self, 'Hinweis', IntToStr(MissingCount) + ' PDF-Datei(en) sind nicht erreichbar.', False, False, S);
+      WorkspaceDialog(Self, 'Hinweis', IntToStr(MissingCount) + ' PDF-Datei(en) sind nicht erreichbar.', False, False, S, FDesignIndex);
   finally
     LoadErrors.Free;
     OpenFiles.Free;
@@ -1721,37 +1945,37 @@ procedure TPDFTabsForm.ManageWorkspacesClick(Sender: TObject);
 var
   Form: TForm;
   List: TListView;
-  Bar, Header: TPanel;
+  Bar, Header, SearchBar: TPanel;
+  SearchBox: TEdit;
+  Controller: TWorkspaceListController;
+  BContents: TButton;
   HeaderTitle, HeaderHint: TLabel;
   BOpen, BReplace, BRename, BDelete, BClose: TButton;
   UIUnit, ButtonH, ButtonY, Gap, LeftPos, CloseWidth: Integer;
   SR: TSearchRec;
   Ini: TIniFile;
-  Item: TListItem;
   Name, Path, NewName: string;
   Modified: TDateTime;
   Action: Integer;
   PendingWorkspacePath: string;
   ReplaceWorkspace: Boolean;
-  Entries: array of record
-    DisplayName, FilePath: string;
-    SavedAt: TDateTime;
-    PDFCount: Integer;
-  end;
   EntryCount, InsertAt: Integer;
+  BackColor, HeadColor, ForeColor: TColor;
   function SelectedPath: string;
   begin
     Result := '';
     if List.Selected <> nil then Result := List.Selected.SubItems[2];
   end;
-  procedure ReloadList;
+  procedure ReloadList(Sender: TObject);
   var
-    J, K: Integer;
+    J, K, L, CompareResult: Integer;
+    TempEntry: TWorkspaceEntry;
+    Item: TListItem;
   begin
-    List.Items.BeginUpdate;
-    try
+      List.Items.BeginUpdate;
+      try
       List.Items.Clear;
-      SetLength(Entries, 0);
+      SetLength(Controller.Entries, 0);
       EntryCount := 0;
       ForceDirectories(WorkspaceFolder);
       if System.SysUtils.FindFirst(WorkspaceFolder + '*.ini', faAnyFile, SR) = 0 then
@@ -1768,18 +1992,18 @@ var
             InsertAt := 0;
             while InsertAt < EntryCount do
             begin
-              if Modified > Entries[InsertAt].SavedAt then Break;
-              if (Modified = Entries[InsertAt].SavedAt) and
-                 (CompareText(Name, Entries[InsertAt].DisplayName) < 0) then Break;
+              if Modified > Controller.Entries[InsertAt].SavedAt then Break;
+              if (Modified = Controller.Entries[InsertAt].SavedAt) and
+                 (CompareText(Name, Controller.Entries[InsertAt].DisplayName) < 0) then Break;
               Inc(InsertAt);
             end;
-            SetLength(Entries, EntryCount + 1);
+            SetLength(Controller.Entries, EntryCount + 1);
             for J := EntryCount downto InsertAt + 1 do
-              Entries[J] := Entries[J - 1];
-            Entries[InsertAt].DisplayName := Name;
-            Entries[InsertAt].FilePath := Path;
-            Entries[InsertAt].SavedAt := Modified;
-            Entries[InsertAt].PDFCount := Ini.ReadInteger('PDFs', 'Count', 0);
+              Controller.Entries[J] := Controller.Entries[J - 1];
+            Controller.Entries[InsertAt].DisplayName := Name;
+            Controller.Entries[InsertAt].FilePath := Path;
+            Controller.Entries[InsertAt].SavedAt := Modified;
+            Controller.Entries[InsertAt].PDFCount := Ini.ReadInteger('PDFs', 'Count', 0);
             Inc(EntryCount);
           finally
             Ini.Free;
@@ -1788,33 +2012,60 @@ var
       finally
         System.SysUtils.FindClose(SR);
       end;
+      // Sortieren der eingelesenen Einträge VOR dem Aufbau der sichtbaren Liste.
+      // So kann ein Spaltenklick die Liste nicht mehr durch Refresh leeren.
+      for K := 0 to EntryCount - 2 do
+        for L := K + 1 to EntryCount - 1 do
+        begin
+          case Controller.SortColumn of
+            0: CompareResult := CompareText(Controller.Entries[K].DisplayName,
+                                           Controller.Entries[L].DisplayName);
+            2: CompareResult := Controller.Entries[K].PDFCount -
+                                Controller.Entries[L].PDFCount;
+          else
+            if Controller.Entries[K].SavedAt < Controller.Entries[L].SavedAt then
+              CompareResult := -1
+            else if Controller.Entries[K].SavedAt > Controller.Entries[L].SavedAt then
+              CompareResult := 1
+            else
+              CompareResult := CompareText(Controller.Entries[K].DisplayName,
+                                           Controller.Entries[L].DisplayName);
+          end;
+          if not Controller.SortAscending then CompareResult := -CompareResult;
+          if CompareResult > 0 then
+          begin
+            TempEntry := Controller.Entries[K];
+            Controller.Entries[K] := Controller.Entries[L];
+            Controller.Entries[L] := TempEntry;
+          end;
+        end;
       for K := 0 to EntryCount - 1 do
       begin
+        if (Trim(SearchBox.Text) <> '') and
+           (Pos(AnsiLowerCase(Trim(SearchBox.Text)),
+                AnsiLowerCase(Controller.Entries[K].DisplayName)) = 0) then
+          Continue;
         Item := List.Items.Add;
-        Item.Caption := Entries[K].DisplayName;
-        if Entries[K].SavedAt > 0 then
-          Item.SubItems.Add(FormatDateTime('dd.mm.yyyy hh:nn', Entries[K].SavedAt))
+        Item.Caption := Controller.Entries[K].DisplayName;
+        if Controller.Entries[K].SavedAt > 0 then
+          Item.SubItems.Add(FormatDateTime('dd.mm.yyyy hh:nn', Controller.Entries[K].SavedAt))
         else
           Item.SubItems.Add('–');
-        Item.SubItems.Add(IntToStr(Entries[K].PDFCount));
-        Item.SubItems.Add(Entries[K].FilePath);
+        Item.SubItems.Add(IntToStr(Controller.Entries[K].PDFCount));
+        Item.SubItems.Add(Controller.Entries[K].FilePath);
       end;
-      // Nach dem Speichern und beim erneuten Öffnen steht der neueste
-      // Arbeitsbereich oben und ist direkt ausgewählt.
-      if List.Items.Count > 0 then
-      begin
-        List.Selected := List.Items[0];
-        List.Items[0].MakeVisible(False);
+      if List.Items.Count > 0 then List.Selected := List.Items[0];
+      finally
+        List.Items.EndUpdate;
       end;
-    finally
-      List.Items.EndUpdate;
-    end;
+
   end;
 begin
+  Controller := nil;
   Form := TForm.CreateNew(Self);
   try
     Form.Caption := Tr('Arbeitsbereiche verwalten');
-    Form.Position := poOwnerFormCenter;
+    Form.Position := poDesigned;
     Form.BorderStyle := bsSizeable;
     UIUnit := Self.CurrentPPI;
     if UIUnit < 96 then UIUnit := 96;
@@ -1822,15 +2073,24 @@ begin
     Form.ClientHeight := MulDiv(490, UIUnit, 96);
     Form.Constraints.MinWidth := MulDiv(600, UIUnit, 96);
     Form.Constraints.MinHeight := MulDiv(350, UIUnit, 96);
+    Form.Left := Self.Left + (Self.Width - Form.Width) div 2;
+    Form.Top := Self.Top + (Self.Height - Form.Height) div 2;
     Form.Font.Name := 'Segoe UI';
     Form.Font.Size := 10;
-    Form.Color := $00FAFAFA;
+    case FDesignIndex of
+      1: begin BackColor := RGB(229,236,246); HeadColor := RGB(225,232,241); ForeColor := RGB(35,48,65); end;
+      3: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
+      5: begin BackColor := RGB(220,233,247); HeadColor := RGB(190,214,237); ForeColor := RGB(24,55,88); end;
+    else begin BackColor := $00FAFAFA; HeadColor := clWhite; ForeColor := clWindowText; end;
+    end;
+    Form.Color := BackColor;
+    Form.Font.Color := ForeColor;
     Header := TPanel.Create(Form);
     Header.Parent := Form;
     Header.Align := alTop;
     Header.Height := MulDiv(94, UIUnit, 96);
     Header.BevelOuter := bvNone;
-    Header.Color := clWhite;
+    Header.Color := HeadColor;
     Header.ParentBackground := False;
     HeaderTitle := TLabel.Create(Form);
     HeaderTitle.Parent := Header;
@@ -1839,19 +2099,51 @@ begin
     HeaderTitle.Font.Name := 'Segoe UI Semibold';
     HeaderTitle.Font.Size := 16;
     HeaderTitle.Caption := Tr('Meine Arbeitsbereiche');
+    HeaderTitle.Font.Color := ForeColor;
     HeaderHint := TLabel.Create(Form);
     HeaderHint.Parent := Header;
     HeaderHint.SetBounds(MulDiv(23, UIUnit, 96), MulDiv(54, UIUnit, 96),
       MulDiv(710, UIUnit, 96), MulDiv(23, UIUnit, 96));
-    HeaderHint.Font.Color := clGray;
+    if FDesignIndex = 0 then HeaderHint.Font.Color := clGray
+    else HeaderHint.Font.Color := ForeColor;
     HeaderHint.Caption := Tr('Gespeicherte PDF-Sammlungen öffnen und verwalten');
     HeaderHint.AutoSize := True;
     HeaderTitle.AutoSize := True;
     Header.Height := HeaderHint.Top + HeaderHint.Height + MulDiv(16, UIUnit, 96);
+    SearchBar := TPanel.Create(Form);
+    SearchBar.Parent := Form;
+    SearchBar.Align := alTop;
+    SearchBar.Height := MulDiv(44, UIUnit, 96);
+    SearchBar.BevelOuter := bvNone;
+    SearchBar.Color := BackColor;
+    SearchBar.ParentBackground := False;
+    SearchBox := TEdit.Create(Form);
+    SearchBox.Parent := SearchBar;
+    SearchBox.SetBounds(MulDiv(18, UIUnit, 96), MulDiv(7, UIUnit, 96),
+      MulDiv(470, UIUnit, 96), MulDiv(29, UIUnit, 96));
+    SearchBox.Anchors := [akLeft, akTop, akRight];
+    SearchBox.TextHint := Tr('Arbeitsbereich suchen ...');
+    Controller := TWorkspaceListController.Create;
+    Controller.Search := SearchBox;
+    Controller.OwnerForm := Form;
+    Controller.DesignIndex := FDesignIndex;
+    // Letzte Sortierung beim Öffnen wiederherstellen.
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      Controller.SortColumn := Ini.ReadInteger('Arbeitsbereiche', 'SortColumn', 1);
+      if (Controller.SortColumn < 0) or (Controller.SortColumn > 2) then
+        Controller.SortColumn := 1;
+      Controller.SortAscending := Ini.ReadBool('Arbeitsbereiche', 'SortAscending', False);
+    finally
+      Ini.Free;
+    end;
+    SearchBox.OnChange := Controller.SearchChanged;
     List := TListView.Create(Form);
     List.Parent := Form;
     List.Align := alClient;
     List.ViewStyle := vsReport;
+    Controller.List := List;
+    List.OnColumnClick := Controller.ColumnClicked;
     // TListView bietet bei vielen Einträgen automatisch eine vertikale
     // Scrollleiste sowie Mausrad- und Tastaturnavigation.
     List.ReadOnly := True;
@@ -1866,19 +2158,28 @@ begin
     List.Columns[1].Width := MulDiv(205, UIUnit, 96);
     List.Columns.Add.Caption := Tr('PDFs');
     List.Columns[2].Width := MulDiv(85, UIUnit, 96);
+    BContents := TPDFDesignButton.Create(Form);
+    BContents.Parent := SearchBar;
+    TPDFDesignButton(BContents).SetDesign(FDesignIndex);
+    BContents.Caption := Tr('Inhalt anzeigen ...');
+    BContents.SetBounds(MulDiv(510, UIUnit, 96), MulDiv(5, UIUnit, 96),
+      MulDiv(245, UIUnit, 96), MulDiv(34, UIUnit, 96));
+    BContents.Anchors := [akRight, akTop];
+    BContents.OnClick := Controller.ShowContents;
     Bar := TPanel.Create(Form);
     Bar.Parent := Form;
     Bar.Align := alBottom;
     Bar.Height := MulDiv(72, UIUnit, 96);
     Bar.BevelOuter := bvNone;
-    Bar.Color := clWhite;
+    Bar.Color := HeadColor;
     Bar.ParentBackground := False;
     ButtonH := MulDiv(38, UIUnit, 96);
     ButtonY := (Bar.Height - ButtonH) div 2;
     Gap := MulDiv(10, UIUnit, 96);
     LeftPos := MulDiv(18, UIUnit, 96);
-    BOpen := TButton.Create(Form);
+    BOpen := TPDFDesignButton.Create(Form);
     BOpen.Parent := Bar;
+    TPDFDesignButton(BOpen).SetDesign(FDesignIndex);
     BOpen.SetBounds(LeftPos, ButtonY, MulDiv(115, UIUnit, 96), ButtonH);
     BOpen.Caption := Tr('Öffnen'); BOpen.ModalResult := mrOk;
     BOpen.Default := True;
@@ -1887,24 +2188,28 @@ begin
     List.OnDblClick := WorkspaceListDblClick;
     // Arbeitsbereich exklusiv laden: bisherige PDFs erst nach
     // erfolgreicher Abfrage ungespeicherter Aenderungen schliessen.
-    BReplace := TButton.Create(Form);
+    BReplace := TPDFDesignButton.Create(Form);
     BReplace.Parent := Bar;
+    TPDFDesignButton(BReplace).SetDesign(FDesignIndex);
     BReplace.SetBounds(BOpen.Left + BOpen.Width + Gap, ButtonY,
       MulDiv(175, UIUnit, 96), ButtonH);
     BReplace.Caption := Tr('Alle schließen + öffnen');
     BReplace.ModalResult := mrYes;
-    BRename := TButton.Create(Form);
+    BRename := TPDFDesignButton.Create(Form);
     BRename.Parent := Bar;
+    TPDFDesignButton(BRename).SetDesign(FDesignIndex);
     BRename.SetBounds(BReplace.Left + BReplace.Width + Gap, ButtonY,
       MulDiv(130, UIUnit, 96), ButtonH);
     BRename.Caption := Tr('Umbenennen'); BRename.ModalResult := mrRetry;
-    BDelete := TButton.Create(Form);
+    BDelete := TPDFDesignButton.Create(Form);
     BDelete.Parent := Bar;
+    TPDFDesignButton(BDelete).SetDesign(FDesignIndex);
     BDelete.SetBounds(BRename.Left + BRename.Width + Gap, ButtonY,
       MulDiv(115, UIUnit, 96), ButtonH);
     BDelete.Caption := Tr('Löschen'); BDelete.ModalResult := mrIgnore;
-    BClose := TButton.Create(Form);
+    BClose := TPDFDesignButton.Create(Form);
     BClose.Parent := Bar;
+    TPDFDesignButton(BClose).SetDesign(FDesignIndex);
     CloseWidth := MulDiv(130, UIUnit, 96);
     BClose.SetBounds(Bar.ClientWidth - MulDiv(20, UIUnit, 96) - CloseWidth,
       ButtonY, CloseWidth, ButtonH);
@@ -1915,7 +2220,7 @@ begin
     PendingWorkspacePath := '';
     ReplaceWorkspace := False;
     repeat
-      ReloadList;
+      ReloadList(nil);
       Action := Form.ShowModal;
       if Action = mrOk then
       begin
@@ -1948,7 +2253,7 @@ begin
           Ini := TIniFile.Create(Path);
           try
             NewName := Ini.ReadString('Info', 'Name', 'Arbeitsbereich');
-            if (WorkspaceDialog(Self, 'Arbeitsbereich umbenennen', 'Neuer Name:', False, True, NewName) = mrOk) and
+            if (WorkspaceDialog(Self, 'Arbeitsbereich umbenennen', 'Neuer Name:', False, True, NewName, FDesignIndex) = mrOk) and
                (Trim(NewName) <> '') then
             begin
               Ini.WriteString('Info', 'Name', Trim(NewName));
@@ -1960,12 +2265,13 @@ begin
       else if Action = mrIgnore then
       begin
         Path := SelectedPath;
-        if (Path <> '') and (WorkspaceDialog(Self, 'Arbeitsbereich löschen', 'Arbeitsbereich wirklich löschen?', True, False, NewName) = mrYes) then System.SysUtils.DeleteFile(Path);
+        if (Path <> '') and (WorkspaceDialog(Self, 'Arbeitsbereich löschen', 'Arbeitsbereich wirklich löschen?', True, False, NewName, FDesignIndex) = mrYes) then System.SysUtils.DeleteFile(Path);
       end
       else Break;
     until False;
   finally
     Form.Free;
+    Controller.Free;
   end;
   // Den Arbeitsbereich erst nach dem vollständigen Schließen des modalen
   // Verwaltungsdialogs wechseln. So laufen dessen Nachrichten und
@@ -2340,9 +2646,11 @@ begin
         AddSection('About the application',
           'A standalone PDF viewer with tabs, document properties, attachment management and PDF tools.');
         AddSection('Copyright and contact',
-          'Copyright ©2026 FreePDF64-Viewer Portable' + sLineBreak + 'FreePDF64@outlook.com' + sLineBreak + sLineBreak +
-          'FreePDF64-Viewer Portable may be used free of charge in both private and commercial environments ("freeware").' + sLineBreak +
-          'The author accepts no liability for errors or damage arising directly or indirectly from the use of this software.');
+          'Copyright © 2026 Michael Tesch' + sLineBreak + 'FreePDF64@outlook.com');
+        AddSection('License – GNU GPL v3',
+          'FreePDF64-Viewer Portable is free and open-source software licensed under the GNU GPL v3 (GPL-3.0-only).' + sLineBreak +
+          'Use, modification and redistribution are permitted under the terms of this license.' + sLineBreak +
+          'The complete license text is included in the LICENSE_NOTICE_EN.txt file.');
         AddSection('Project page', 'https://github.com/FreePDF64/FreePDF64ViewerPortable');
         AddSection('Third-party software and libraries',
           'PDFium – PDF rendering engine, © The PDFium Authors.' + sLineBreak +
@@ -2363,9 +2671,11 @@ begin
         AddSection('Über das Programm',
           'Eigenständiger PDF-Viewer mit Registerkarten, Dokumenteigenschaften, Anlagenverwaltung und PDF-Werkzeugen.');
         AddSection('Copyright und Kontakt',
-          'Copyright ©2026 FreePDF64-Viewer Portable' + sLineBreak + 'FreePDF64@outlook.com' + sLineBreak + sLineBreak +
-          'FreePDF64-Viewer Portable darf sowohl im privaten als auch im kommerziellen Umfeld ohne Bezahlung eingesetzt werden ("Freeware").' + sLineBreak +
-          'Der Autor übernimmt keinerlei Haftung für Fehler, die direkt oder indirekt aus der Benutzung dieser Software entstehen.');
+          'Copyright © 2026 Michael Tesch' + sLineBreak + 'FreePDF64@outlook.com');
+        AddSection('Lizenz – GNU GPL v3',
+          'FreePDF64-Viewer Portable ist freie und quelloffene Software unter der GNU GPL v3 (GPL-3.0-only).' + sLineBreak +
+          'Nutzung, Änderung und Weitergabe sind gemäß den Bedingungen dieser Lizenz gestattet.' + sLineBreak +
+          'Der vollständige Lizenztext ist in der Datei LIZENZ_DE.txt enthalten.');
         AddSection('Projektseite', 'https://github.com/FreePDF64/FreePDF64ViewerPortable');
         AddSection('Zusatzprogramme und Bibliotheken',
           'PDFium – PDF-Darstellungsbibliothek, © The PDFium Authors.' + sLineBreak +
@@ -3309,6 +3619,7 @@ begin
   if FDesignHasBeenApplied and (FAppliedDesignIndex = FDesignIndex) then Exit;
   FAppliedDesignIndex := FDesignIndex;
   FDesignHasBeenApplied := True;
+  SetPDFDialogDesign(FDesignIndex);
   // Keine Rekursion durch Komponenten und keine Aenderung am PDF-Renderer.
   // Standard (0) verwendet die bisherigen Originalfarben.
   if FDesignIndex = 0 then
@@ -3343,7 +3654,7 @@ begin
   else
   begin
     case FDesignIndex of
-      1: begin BaseColor := RGB(239, 242, 247); HeaderColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); end;
+      1: begin BaseColor := RGB(229, 236, 246); HeaderColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); end;
       2: begin BaseColor := RGB(42, 45, 51); HeaderColor := RGB(54, 58, 65); TextColor := clWhite; end;
       3: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
       4: begin BaseColor := RGB(21, 22, 25); HeaderColor := RGB(34, 36, 40); TextColor := clWhite; end;
@@ -3364,8 +3675,13 @@ begin
     if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Color := TextColor;
     if FWelcomePanel <> nil then FWelcomePanel.Font.Color := TextColor;
     if FRecentScroll <> nil then FRecentScroll.Font.Color := TextColor;
-    if FWelcomePanel <> nil then FWelcomePanel.Color := BaseColor;
-    if FRecentScroll <> nil then FRecentScroll.Color := BaseColor;
+    // Windows Klassik: Startseite wie die Zusatzfenster in hellem Grau.
+    if FWelcomePanel <> nil then
+      if FDesignIndex = 3 then FWelcomePanel.Color := RGB(232, 232, 232)
+      else FWelcomePanel.Color := BaseColor;
+    if FRecentScroll <> nil then
+      if FDesignIndex = 3 then FRecentScroll.Color := RGB(232, 232, 232)
+      else FRecentScroll.Color := BaseColor;
     if FLeftPDFOverlay <> nil then FLeftPDFOverlay.Color := BaseColor;
     if FRightPDFOverlay <> nil then FRightPDFOverlay.Color := BaseColor;
     if FSplitLeft <> nil then FSplitLeft.Color := BaseColor;
@@ -3385,9 +3701,9 @@ begin
   if FTabActionsPanel <> nil then
     if FDesignIndex = 3 then FTabActionsPanel.BevelOuter := bvRaised
     else FTabActionsPanel.BevelOuter := bvNone;
-  if FEmptyTabStrip <> nil then
-    if FDesignIndex = 3 then FEmptyTabStrip.BevelOuter := bvRaised
-    else FEmptyTabStrip.BevelOuter := bvNone;
+  // Der freie Bereich neben den Tabs darf auch im Klassik-Design
+  // keinen eigenen erhabenen Rahmen erhalten.
+  if FEmptyTabStrip <> nil then FEmptyTabStrip.BevelOuter := bvNone;
   // Auch die beiden Split-Ansichten erhalten im Klassik-Modus
   // eine dezente 3D-Einfassung; die PDF-Seiten selbst bleiben unberuehrt.
   if FLeftPDFOverlay <> nil then
@@ -3447,6 +3763,12 @@ begin
     if FTabActionsPanel <> nil then FTabActionsPanel.Font.Style := [];
     if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Style := [];
   end;
+  // Bereits geoeffnete Zusatzfenster bei einem Designwechsel aktualisieren.
+  for TabIndex := 0 to Screen.FormCount - 1 do
+    if (Screen.Forms[TabIndex] is TPDFGlobalSearchForm) or
+       (Screen.Forms[TabIndex].Caption = Tr('Dokumenteigenschaften')) or
+       (Screen.Forms[TabIndex].Caption = Tr('Eingebettete PDF-Anlagen')) then
+      ApplyPDFDialogDesign(Screen.Forms[TabIndex]);
   if FTabs <> nil then FTabs.Invalidate;
   if FEmptyTabStrip <> nil then FEmptyTabStrip.Invalidate;
 end;
@@ -3836,12 +4158,12 @@ begin
   // Direkt rechts neben Datei, unabhaengig vom Erzeugungszeitpunkt.
   FHelpMainMenu.Items.Insert(FHelpMainMenu.Items.IndexOf(FFileMenu) + 1, FWorkspaceMenu);
   HelpItem := TMenuItem.Create(FHelpMainMenu);
-  HelpItem.Caption := Tr('Arbeitsbereich speichern ...');
-  HelpItem.OnClick := SaveWorkspaceClick;
-  FWorkspaceMenu.Add(HelpItem);
-  HelpItem := TMenuItem.Create(FHelpMainMenu);
   HelpItem.Caption := Tr('Arbeitsbereiche verwalten ...');
   HelpItem.OnClick := ManageWorkspacesClick;
+  FWorkspaceMenu.Add(HelpItem);
+  HelpItem := TMenuItem.Create(FHelpMainMenu);
+  HelpItem.Caption := Tr('Arbeitsbereich speichern ...');
+  HelpItem.OnClick := SaveWorkspaceClick;
   FWorkspaceMenu.Add(HelpItem);
   // Einstellungen in einem eigenen Hauptmenü bündeln.
   FOptionsMenu := TMenuItem.Create(FHelpMainMenu);
@@ -6243,8 +6565,8 @@ begin
   end
   else if FDesignIndex = 1 then
   begin
-    FSplitLeft.Color := RGB(239, 242, 247);
-    FSplitRight.Color := RGB(239, 242, 247);
+    FSplitLeft.Color := RGB(229, 236, 246);
+    FSplitRight.Color := RGB(229, 236, 246);
   end
   else if FDesignIndex = 5 then
   begin

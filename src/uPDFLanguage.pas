@@ -3,7 +3,7 @@
 interface
 
 uses System.SysUtils, System.Classes, Winapi.Windows, System.IniFiles,
-     Vcl.Controls, Vcl.Forms, Vcl.Menus, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls;
+     Vcl.Controls, Vcl.Forms, Vcl.Menus, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Graphics;
 
 procedure InitializePDFLanguage(const IniPath: string);
 procedure SetPDFLanguage(const ALanguage: string);
@@ -11,13 +11,88 @@ function PDFLanguage: string;
 function Tr(const German: string): string;
 procedure TranslatePDFControls(AParent: TWinControl);
 procedure TranslatePDFMenu(AMenu: TMenuItem);
+// Gemeinsame Farbpalette fuer zusaetzliche PDF-Dialoge.
+procedure SetPDFDialogDesign(ADesign: Integer);
+procedure ApplyPDFDialogDesign(AForm: TCustomForm);
 
 implementation
 
 var
   FLanguage: string = 'de';
+  FPDFDialogDesign: Integer = 0;
   FIniPath: string;
   PairsDE, PairsEN: TStringList;
+
+
+procedure SetPDFDialogDesign(ADesign: Integer);
+begin
+  FPDFDialogDesign := ADesign;
+end;
+
+procedure ApplyPDFDialogDesign(AForm: TCustomForm);
+var
+  BaseColor, HeaderColor, TextColor, ListColor: TColor;
+  procedure ApplyChildren(AParent: TWinControl);
+  var
+    I: Integer;
+    C: TControl;
+  begin
+    for I := 0 to AParent.ControlCount - 1 do
+    begin
+      C := AParent.Controls[I];
+      if C is TPanel then
+      begin
+        TPanel(C).ParentBackground := False;
+        TPanel(C).ParentColor := False;
+        if TPanel(C).Align = alTop then TPanel(C).Color := HeaderColor
+        else TPanel(C).Color := BaseColor;
+        TPanel(C).Font.Color := TextColor;
+      end
+      else if C is TScrollBox then
+      begin
+        TScrollBox(C).ParentColor := False;
+        TScrollBox(C).Color := BaseColor;
+        TScrollBox(C).Font.Color := TextColor;
+      end
+      else if C is TLabel then
+        TLabel(C).Font.Color := TextColor
+      else if C is TListBox then
+      begin
+        TListBox(C).Color := ListColor;
+        TListBox(C).Font.Color := TextColor;
+      end;
+      // Eingabefelder behalten ihren hellen, gut lesbaren Hintergrund.
+      if C is TWinControl then ApplyChildren(TWinControl(C));
+    end;
+  end;
+begin
+  if (AForm = nil) or (FPDFDialogDesign = 0) then Exit;
+  case FPDFDialogDesign of
+    1: begin
+      BaseColor := RGB(229, 236, 246);
+      HeaderColor := RGB(225, 232, 241);
+      TextColor := RGB(35, 48, 65);
+      ListColor := RGB(248, 250, 253);
+    end;
+    3: begin
+      BaseColor := RGB(232, 232, 232);
+      HeaderColor := RGB(222, 222, 222);
+      TextColor := clBlack;
+      ListColor := clWhite;
+    end;
+    5: begin
+      BaseColor := RGB(220, 233, 247);
+      HeaderColor := RGB(190, 214, 237);
+      TextColor := RGB(24, 55, 88);
+      ListColor := RGB(246, 250, 255);
+    end;
+  else
+    Exit; // Nicht angebotene Designs unveraendert lassen.
+  end;
+  AForm.Color := BaseColor;
+  AForm.Font.Color := TextColor;
+  ApplyChildren(AForm);
+end;
 
 procedure AddPair(const DE, EN: string);
 begin
@@ -112,6 +187,8 @@ begin
   AddPair('FreePDF64-Viewer beenden', 'Exit FreePDF64-Viewer');
   AddPair('Arbeitsbereiche verwalten', 'Manage workspaces');
   AddPair('Meine Arbeitsbereiche', 'My workspaces');
+  AddPair('Arbeitsbereich suchen ...', 'Search workspaces ...');
+  AddPair('Inhalt anzeigen ...', 'Show contents ...');
   AddPair('Gespeicherte PDF-Sammlungen öffnen und verwalten', 'Open and manage saved PDF collections');
   AddPair('Name', 'Name');
   AddPair('Gespeichert am', 'Saved on');

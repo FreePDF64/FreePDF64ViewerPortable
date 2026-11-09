@@ -17,9 +17,9 @@ File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Anleitung_Unit.pas',0,1,16,1
 
 [Modules]
 Module0=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas
-Module2=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
-Module3=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas
+Module2=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas
+Module3=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
 Module4=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFStaticXFASync.pas
 Count=5
 EditWindowCount=1
@@ -27,13 +27,13 @@ EditWindowCount=1
 [D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas]
 ModuleType=TSourceModule
 
+[D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas]
+ModuleType=TSourceModule
+
 [D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uPDFStaticXFASync.pas]
@@ -69,13 +69,13 @@ BorlandEditorCodeExplorer=BorlandEditorCodeExplorer@EditWindow0
 TopPanelSize=0
 LeftPanelSize=1895
 LeftPanelClients=PropertyInspector,DockSite3
-LeftPanelData=000008000101000000007D0F00000000000001670700000000000001000000005A0E000009000000446F636B53697465330100000000891B00001100000050726F7065727479496E73706563746F72FFFFFFFF
+LeftPanelData=00000800010100000000980F00000000000001670700000000000001000000005A0E000009000000446F636B53697465330100000000B91B00001100000050726F7065727479496E73706563746F72FFFFFFFF
 RightPanelSize=1996
 RightPanelClients=DockSite2,DockSite4
-RightPanelData=000008000101000000007D0F00000000000001CC0700000000000001000000004912000009000000446F636B53697465320100000000891B000009000000446F636B5369746534FFFFFFFF
-BottomPanelSize=1576
+RightPanelData=00000800010100000000980F00000000000001CC0700000000000001000000004912000009000000446F636B53697465320100000000B91B000009000000446F636B5369746534FFFFFFFF
+BottomPanelSize=1528
 BottomPanelClients=MessageView,DockSite1
-BottomPanelData=0000080001020100000009000000446F636B5369746531E7440000000000000228060000000000000100000000E74400000F0000004D65737361676556696577466F726DFFFFFFFF
+BottomPanelData=0000080001020100000009000000446F636B5369746531E74400000000000002F8050000000000000100000000E74400000F0000004D65737361676556696577466F726DFFFFFFFF
 BottomMiddlePanelSize=0
 BottomMiddlePanelClients=DockSite0,GraphDrawingModel
 BottomMiddelPanelData=0000080001020200000009000000446F636B536974653010000000477261706844726177696E67566965779F1D00000000000002F206000000000000FFFFFFFF
@@ -94,9 +94,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
 [View1]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas
-CursorX=67
-CursorY=3121
-TopLine=3096
+CursorX=38
+CursorY=2104
+TopLine=2082
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -105,9 +105,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas
 [View2]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas
-CursorX=43
-CursorY=1526
-TopLine=1504
+CursorX=18
+CursorY=792
+TopLine=770
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -213,12 +213,12 @@ State=0
 Left=0
 Top=36
 Width=9922
-Height=1384
+Height=1333
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=9922
-ClientHeight=1384
-TBDockHeight=1384
+ClientHeight=1333
+TBDockHeight=1333
 LRDockWidth=2770
 Dockable=1
 StayOnTop=0
@@ -232,11 +232,11 @@ State=0
 Left=0
 Top=0
 Width=1996
-Height=2210
+Height=2261
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=2210
+ClientHeight=2261
 TBDockHeight=7152
 LRDockWidth=1996
 Dockable=1
@@ -251,11 +251,11 @@ State=0
 Left=0
 Top=565
 Width=1895
-Height=3261
+Height=3312
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1895
-ClientHeight=3261
+ClientHeight=3312
 PixelsPerInch=120
 MonitorNum=0
 TBDockHeight=8812
@@ -301,8 +301,8 @@ TBDockHeight=362
 LRDockWidth=273
 Dockable=1
 StayOnTop=0
-Name=62
-Description=171
+Name=77
+Description=214
 filter=1
 
 [DebugLogView]
@@ -689,11 +689,11 @@ State=0
 Left=0
 Top=710
 Width=1996
-Height=2210
+Height=2261
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=2210
+ClientHeight=2261
 PixelsPerInch=120
 MonitorNum=0
 TBDockHeight=8812

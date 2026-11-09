@@ -215,6 +215,7 @@ begin
   FTimer.OnTimer := SearchTick;
   LayoutSearchControls(nil);
   TranslatePDFControls(Self);
+  ApplyPDFDialogDesign(Self);
 end;
 
 // All measurements are derived from the current monitor DPI and font metrics.

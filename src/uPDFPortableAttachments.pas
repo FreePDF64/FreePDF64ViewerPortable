@@ -218,6 +218,7 @@ begin
   // Listeneinträgen sinnvoll. Hinzufügen bleibt immer möglich.
   ExtractButton.Enabled := FAttachmentList.Items.Count > 0;
   RemoveButton.Enabled := FAttachmentList.Items.Count > 0;
+  ApplyPDFDialogDesign(Self);
   AddButton.Enabled := True;
 
   // Verfügbaren Bildschirmarbeitsbereich ermitteln.

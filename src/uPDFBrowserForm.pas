@@ -643,7 +643,7 @@ begin
   if FWorkspacesButton <> nil then
   begin
     FWorkspacesButton.Caption := '';
-    FWorkspacesButton.Hint := ToolbarHintBrowser('Arbeitsbereiche öffnen und verwalten', 'Open and manage workspaces');
+    FWorkspacesButton.Hint := ToolbarHintBrowser('LMB: Arbeitsbereiche verwalten ...' + sLineBreak + 'RMB: Arbeitsbereiche speichern ...', 'LMB: Manage workspaces ...' + sLineBreak + 'RMB: Save workspace ...');
   end;
   if FFindButton <> nil then
     FFindButton.Hint := ToolbarHintBrowser(
@@ -780,7 +780,7 @@ begin
   FWorkspacesButton.Font.Name := 'Segoe UI Symbol';
   FWorkspacesButton.Font.Size := 12;
   FWorkspacesButton.Height := 28;
-  FWorkspacesButton.Hint := ToolbarHintBrowser('Arbeitsbereiche öffnen und verwalten', 'Open and manage workspaces');
+  FWorkspacesButton.Hint := ToolbarHintBrowser('LMB: Arbeitsbereiche verwalten ...' + sLineBreak + 'RMB: Arbeitsbereiche speichern ...', 'LMB: Manage workspaces ...' + sLineBreak + 'RMB: Save workspace ...');
   FWorkspacesButton.ShowHint := True;
   FWorkspacesButton.OnClick := OpenWorkspacesToolbarClick;
   FWorkspacesButton.OnMouseUp := WorkspacesToolbarMouseUp;

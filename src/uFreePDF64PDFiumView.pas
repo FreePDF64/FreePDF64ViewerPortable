@@ -152,6 +152,8 @@ type
     FThumbDropLine: TShape;
     FThumbDropTarget: Integer;
     FThumbMenu: TPopupMenu;
+    FOutlineMenu: TPopupMenu;
+    FOutlineExpandItem, FOutlineCollapseItem: TMenuItem;
     FInsertBeforeItem, FInsertAfterItem: TMenuItem;
     FOutlineHeader: TPanel;
     FOutlineTitle: TLabel;
@@ -334,6 +336,9 @@ type
     procedure ScrollThumbnailToCurrentPage;
     procedure ShowOutlineTab(AThumbnails: Boolean);
     procedure OutlineChange(Sender: TObject; Node: TTreeNode);
+    procedure OutlineExpandAll(Sender: TObject);
+    procedure OutlineCollapseAll(Sender: TObject);
+    procedure OutlineMenuPopup(Sender: TObject);
     procedure PopulateOutline;
     procedure UpdateSecurityIcon;
     procedure LayoutToolbar(Sender: TObject);
@@ -821,6 +826,9 @@ var
   State: UINT;
   OldFont: HGDIOBJ;
   S: string;
+  ChildIndex: Integer;
+  IconImage: TImage;
+  PaintCanvas: TCanvas;
 begin
   if FDesign = 0 then
   begin
@@ -881,6 +889,31 @@ begin
       SelectObject(DC, OldFont);
     end;
   end;
+  // Untergeordnete PNG-Symbole (z.B. Arbeitsbereiche) im OwnerDraw
+  // direkt zeichnen. Sonst uebermalt ein Fokus-/Klick-Redraw das TImage.
+  for ChildIndex := 0 to ControlCount - 1 do
+    if Controls[ChildIndex] is TImage then
+    begin
+      IconImage := TImage(Controls[ChildIndex]);
+      if (IconImage.Picture.Graphic <> nil) and
+         not IconImage.Picture.Graphic.Empty then
+      begin
+        PaintCanvas := TCanvas.Create;
+        try
+          PaintCanvas.Handle := DC;
+          // Dieselbe Zentrierung wie das TImage im Standard-Design.
+          // Insbesondere das Symbol "Seite anpassen" darf im
+          // OwnerDraw-Modus nicht links oben statt mittig erscheinen.
+          PaintCanvas.Draw(
+            IconImage.Left + (IconImage.Width - IconImage.Picture.Graphic.Width) div 2,
+            IconImage.Top + (IconImage.Height - IconImage.Picture.Graphic.Height) div 2,
+            IconImage.Picture.Graphic);
+          PaintCanvas.Handle := 0;
+        finally
+          PaintCanvas.Free;
+        end;
+      end;
+    end;
   if (State and ODS_FOCUS) <> 0 then
   begin
     InflateRect(R, -3, -3);
@@ -2092,6 +2125,16 @@ begin
   FOutlineTree.ReadOnly := True;
   FOutlineTree.HideSelection := False;
   FOutlineTree.OnChange := OutlineChange;
+  FOutlineMenu := TPopupMenu.Create(Self);
+  FOutlineMenu.OnPopup := OutlineMenuPopup;
+  FOutlineExpandItem := TMenuItem.Create(FOutlineMenu);
+  FOutlineExpandItem.OnClick := OutlineExpandAll;
+  FOutlineMenu.Items.Add(FOutlineExpandItem);
+  FOutlineCollapseItem := TMenuItem.Create(FOutlineMenu);
+  FOutlineCollapseItem.OnClick := OutlineCollapseAll;
+  FOutlineMenu.Items.Add(FOutlineCollapseItem);
+  FOutlineTree.PopupMenu := FOutlineMenu;
+  OutlineMenuPopup(nil);
   FOutlineTree.OnMouseWheel := OutlineMouseWheel;
   FThumbScroll := TPDFiumScrollBox.Create(Self);
   FThumbScroll.Parent := FOutlinePanel;
@@ -2623,27 +2666,15 @@ begin
   C := TComboBox(Control);
   C.Canvas.Brush.Color := C.Color;
   C.Canvas.FillRect(ARect);
-  // Nach einem Wechsel aus der Zweifensteransicht kann Windows die
-  // geschlossene OwnerDraw-Combo kurz mit Index = -1 zeichnen.
-  // In diesem Fall den aktuellen Text verwenden, statt leer zu bleiben.
-  C.Canvas.Font.Assign(C.Font);
-  C.Canvas.Font.Color := C.Font.Color;
-  R := ARect;
-  Inc(R.Left, 5);
   if (Index >= 0) and (Index < C.Items.Count) then
+  begin
+    C.Canvas.Font.Assign(C.Font);
+    C.Canvas.Font.Color := C.Font.Color;
+    R := ARect;
+    Inc(R.Left, 5);
     DrawText(C.Canvas.Handle, PChar(C.Items[Index]), -1, R,
-      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
-  else if (C = FViewSelect) and (FViewMode >= 0) and
-          (FViewMode < C.Items.Count) then
-    DrawText(C.Canvas.Handle, PChar(C.Items[FViewMode]), -1, R,
-      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
-  else if (C = FTextFontSelect) and (C.ItemIndex >= 0) and
-          (C.ItemIndex < C.Items.Count) then
-    DrawText(C.Canvas.Handle, PChar(C.Items[C.ItemIndex]), -1, R,
-      DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX)
-  else if C.Text <> '' then
-    DrawText(C.Canvas.Handle, PChar(C.Text), -1, R,
       DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX);
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ApplyButtonDesign(ADesign: Integer);
@@ -2730,17 +2761,16 @@ begin
   FStatus.Color := BackColor;
   FPageTotal.Color := BackColor;
   FZoomStatus.Color := BackColor;
-  // Kopf der linken Miniatur-/Inhaltsleiste wie die Symbolleisten
-  // faerben. Nur beim echten Designwechsel, nicht bei Tabwechseln.
+  // Kopfbereich der Miniaturansicht an die Designpalette anpassen.
   if FOutlineHeader <> nil then
   begin
     FOutlineHeader.ParentColor := False;
     FOutlineHeader.ParentBackground := False;
     FOutlineHeader.Color := BackColor;
+    FOutlineHeader.Invalidate;
   end;
   if FOutlineTitle <> nil then
   begin
-    FOutlineTitle.Transparent := True;
     FOutlineTitle.Font.Color := TextColor;
     if ADesign <> 0 then FOutlineTitle.Font.Style := [fsBold]
     else FOutlineTitle.Font.Style := [];
@@ -2761,12 +2791,8 @@ begin
     // Die native csDropDownList zeichnet ihre geschlossene Flaeche
     // selbst und ignoriert dabei teilweise Color. OwnerDraw vermeidet
     // diesen weissen Hintergrund ohne Arbeit beim Tabwechsel.
-    // Designfarbe des Ansichtsmodus wie vor M25/M27 wiederherstellen.
-    if ADesign = 0 then
-      FViewSelect.Style := csDropDownList
-    else
-      FViewSelect.Style := csOwnerDrawFixed;
-    FViewSelect.OnDrawItem := DrawViewModeItem;
+    if ADesign = 0 then FViewSelect.Style := csDropDownList
+    else FViewSelect.Style := csOwnerDrawFixed;
     FViewSelect.Color := FieldColor;
     FViewSelect.Font.Color := TextColor;
     if ADesign <> 0 then FViewSelect.Font.Style := [fsBold]
@@ -2837,12 +2863,14 @@ end;
 procedure TFreePDF64PDFiumView.ApplyPDFBackgroundDesign(ADesign: Integer);
 begin
   if FScroll = nil then Exit;
-  // Ausschliesslich Klassisch Blau: Papier bleibt weiss, die Umgebung hellblau.
-  // Beim Wechsel zu anderen Designs den bisherigen neutralen Hintergrund nutzen.
-  if ADesign = 5 then
-    FScroll.Color := RGB(220, 234, 247)
+  // Nur Modern Hell und Klassisch Blau erhalten einen farbigen
+  // PDF-Umgebungshintergrund. Die PDF-Seiten bleiben unveraendert.
+  case ADesign of
+    1: FScroll.Color := RGB(229, 236, 246); // Modern Hell
+    5: FScroll.Color := RGB(220, 234, 247); // Klassisch Blau
   else
     FScroll.Color := clBtnShadow;
+  end;
   FScroll.Invalidate;
 end;
 
@@ -2925,6 +2953,7 @@ begin
     OKButton.TabOrder := 1;
 
     Dialog.ClientHeight := ButtonY + Px(34) + Margin;
+    ApplyPDFDialogDesign(Dialog);
     Dialog.ActiveControl := Entry;
     Entry.SelectAll;
     case Dialog.ShowModal of
@@ -3250,6 +3279,19 @@ begin
     FThumbSelected.Clear;
     FThumbAnchor := -1;
     UpdateThumbnailSelection;
+    Key := 0;
+    Exit;
+  end;
+  // ESC entfernt nur die temporaere Textauswahl im PDF.
+  if (Key = VK_ESCAPE) and (FSelAnchorPage >= 0) and
+     (FSelFocusPage >= 0) then
+  begin
+    FSelecting := False;
+    FSelAnchorPage := -1;
+    FSelFocusPage := -1;
+    FSelAnchorChar := -1;
+    FSelFocusChar := -1;
+    RefreshSelectedPages;
     Key := 0;
     Exit;
   end;
@@ -3750,6 +3792,7 @@ begin
   end;
   if FBookmarksTab <> nil then FBookmarksTab.Caption := Tr('Inhalte');
   if FThumbMenu <> nil then RefreshThumbMenuCaptions;
+  if FOutlineMenu <> nil then OutlineMenuPopup(nil);
   LayoutToolbar(nil);
 end;
 
@@ -4512,6 +4555,25 @@ begin
       Viewer.FThumbSelected.Clear;
       Viewer.FThumbAnchor := -1;
       Viewer.UpdateThumbnailSelection;
+      Message.Result := 1;
+      Exit;
+    end;
+  end;
+  // ESC im PDF-Anzeigebereich als Dialogtaste abfangen, damit
+  // die bestehende Textauswahl vor einem Formular-ESC geloescht wird.
+  if (Message.CharCode = VK_ESCAPE) and
+     (Owner is TFreePDF64PDFiumView) then
+  begin
+    Viewer := TFreePDF64PDFiumView(Owner);
+    if (Viewer.FScroll = Self) and
+       (Viewer.FSelAnchorPage >= 0) and (Viewer.FSelFocusPage >= 0) then
+    begin
+      Viewer.FSelecting := False;
+      Viewer.FSelAnchorPage := -1;
+      Viewer.FSelFocusPage := -1;
+      Viewer.FSelAnchorChar := -1;
+      Viewer.FSelFocusChar := -1;
+      Viewer.RefreshSelectedPages;
       Message.Result := 1;
       Exit;
     end;
@@ -5652,6 +5714,59 @@ begin
     ShowPage(Item.PageIndex);
 end;
 
+procedure TFreePDF64PDFiumView.OutlineMenuPopup(Sender: TObject);
+begin
+  if FOutlineMenu = nil then Exit;
+  if SameText(PDFLanguage, 'en') then
+  begin
+    FOutlineExpandItem.Caption := 'Expand All';
+    FOutlineCollapseItem.Caption := 'Collapse All';
+  end
+  else
+  begin
+    FOutlineExpandItem.Caption := 'Alle aufklappen';
+    FOutlineCollapseItem.Caption := 'Alle zuklappen';
+  end;
+  FOutlineExpandItem.Enabled := (FOutlineTree <> nil) and (FOutlineTree.Items.Count > 0);
+  FOutlineCollapseItem.Enabled := FOutlineExpandItem.Enabled;
+end;
+
+procedure TFreePDF64PDFiumView.OutlineExpandAll(Sender: TObject);
+var
+  Node: TTreeNode;
+begin
+  if FOutlineTree = nil then Exit;
+  FOutlineTree.Items.BeginUpdate;
+  try
+    Node := FOutlineTree.Items.GetFirstNode;
+    while Node <> nil do
+    begin
+      Node.Expand(False);
+      Node := Node.GetNext;
+    end;
+  finally
+    FOutlineTree.Items.EndUpdate;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.OutlineCollapseAll(Sender: TObject);
+var
+  Node: TTreeNode;
+begin
+  if FOutlineTree = nil then Exit;
+  FOutlineTree.Items.BeginUpdate;
+  try
+    Node := FOutlineTree.Items.GetFirstNode;
+    while Node <> nil do
+    begin
+      Node.Collapse(False);
+      Node := Node.GetNext;
+    end;
+  finally
+    FOutlineTree.Items.EndUpdate;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.PopulateOutline;
   procedure AddNodes(AParent: TTreeNode; AList: TObjectList<TPDFBookmarkItem>);
   var
@@ -5848,38 +5963,6 @@ begin
   Realign;
   LayoutToolbar(nil);
   Realign;
-  // Beim Zurueckhaengen koennen die Windows-Handles der OwnerDraw-
-  // Comboboxen neu entstehen. Verlorene Auswahl nur dann wiederherstellen;
-  // weder Palette noch Symbolbitmaps erneut berechnen.
-  if (FViewSelect <> nil) and (FViewSelect.Items.Count > 0) then
-  begin
-    if FViewSelect.ItemIndex < 0 then
-      FViewSelect.ItemIndex := EnsureRange(FViewMode, 0, FViewSelect.Items.Count - 1);
-  end;
-  if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex < 0) and
-     (FShapeSelect.Items.Count > 0) then
-    FShapeSelect.ItemIndex := 0;
-  if (FWidthSelect <> nil) and (FWidthSelect.ItemIndex < 0) and
-     (FWidthSelect.Items.Count > 3) then
-    FWidthSelect.ItemIndex := 3;
-  // Auch die Schriftart-Combo liegt auf der verschiebbaren Werkzeugleiste.
-  // Nach der Zweifensteransicht kann ihr geschlossenes OwnerDraw-Feld
-  // trotz gueltiger Auswahl leer bleiben. Die Auswahl ohne OnChange erneut
-  // an das Windows-Handle uebergeben und nur dieses Feld neu zeichnen.
-  if (FTextFontSelect <> nil) and (FTextFontSelect.Items.Count > 0) then
-  begin
-    if FTextFontSelect.ItemIndex < 0 then
-    begin
-      FTextFontSelect.ItemIndex := FTextFontSelect.Items.IndexOf('Arial');
-      if FTextFontSelect.ItemIndex < 0 then
-        FTextFontSelect.ItemIndex := 0;
-    end;
-    FTextFontSelect.Perform(CB_SETCURSEL, FTextFontSelect.ItemIndex, 0);
-    FTextFontSelect.Invalidate;
-  end;
-  if FViewSelect <> nil then FViewSelect.Invalidate;
-  if FShapeSelect <> nil then FShapeSelect.Invalidate;
-  if FWidthSelect <> nil then FWidthSelect.Invalidate;
 end;
 
 procedure TFreePDF64PDFiumView.SetMergedToolbarTrailingControls(
@@ -6620,6 +6703,7 @@ begin
     Dlg.Top := PDFWindow.Top + (PDFWindow.Height - Dlg.Height) div 2;
     if Dlg.Left < Screen.WorkAreaLeft then Dlg.Left := Screen.WorkAreaLeft;
     if Dlg.Top < Screen.WorkAreaTop then Dlg.Top := Screen.WorkAreaTop;
+    ApplyPDFDialogDesign(Dlg);
     Dlg.Show;
     if Assigned(FInfo) then FInfo.Font.Style := [fsBold];
   except
