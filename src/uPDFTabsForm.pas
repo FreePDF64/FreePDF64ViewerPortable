@@ -438,11 +438,58 @@ type
     SortColumn: Integer;
     SortAscending: Boolean;
     Entries: array of TWorkspaceEntry;
+    LastDateWidth, LastPDFWidth: Integer;
+    procedure ResizeColumns(Sender: TObject);
+    procedure CheckColumnWidths(Sender: TObject);
     procedure Refresh;
     procedure SearchChanged(Sender: TObject);
     procedure ColumnClicked(Sender: TObject; Column: TListColumn);
     procedure ShowContents(Sender: TObject);
   end;
+
+procedure TWorkspaceListController.ResizeColumns(Sender: TObject);
+var
+  AvailableWidth, NameWidth: Integer;
+begin
+  if (List = nil) or (List.Columns.Count < 3) then Exit;
+  // Die beiden rechten Spalten behalten ihre DPI-skalierten Breiten.
+  // Platz fuer die vertikale Scrollleiste einplanen, damit keine
+  // horizontale Scrollleiste durch Rundungsdifferenzen entsteht.
+  AvailableWidth := List.ClientWidth - GetSystemMetrics(SM_CXVSCROLL) - 4;
+  NameWidth := AvailableWidth - List.Columns[1].Width - List.Columns[2].Width;
+  if NameWidth < 80 then NameWidth := 80;
+  if List.Columns[0].Width <> NameWidth then
+    List.Columns[0].Width := NameWidth;
+end;
+
+procedure TWorkspaceListController.CheckColumnWidths(Sender: TObject);
+var
+  Ini: TIniFile;
+begin
+  if (List = nil) or (List.Columns.Count < 3) then Exit;
+  // Mindestbreiten auch nach manuellem Ziehen der Spaltentrenner erzwingen.
+  // Die Werte sind DPI-skaliert und lassen Ueberschriften und Daten lesbar.
+  if List.Columns[1].Width < MulDiv(150, List.CurrentPPI, 96) then
+    List.Columns[1].Width := MulDiv(150, List.CurrentPPI, 96);
+  if List.Columns[2].Width < MulDiv(65, List.CurrentPPI, 96) then
+    List.Columns[2].Width := MulDiv(65, List.CurrentPPI, 96);
+  // Die Spalten 1 und 2 duerfen vom Benutzer ueber den Header veraendert
+  // werden. Bei Aenderung passt sich ausschliesslich die Namensspalte an.
+  if (LastDateWidth <> List.Columns[1].Width) or
+     (LastPDFWidth <> List.Columns[2].Width) then
+  begin
+    LastDateWidth := List.Columns[1].Width;
+    LastPDFWidth := List.Columns[2].Width;
+    ResizeColumns(List);
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      Ini.WriteInteger('Arbeitsbereiche', 'DateColumnWidth', LastDateWidth);
+      Ini.WriteInteger('Arbeitsbereiche', 'PDFColumnWidth', LastPDFWidth);
+    finally
+      Ini.Free;
+    end;
+  end;
+end;
 
 procedure TWorkspaceListController.Refresh;
 var
@@ -1980,11 +2027,14 @@ var
   List: TListView;
   Bar, Header, SearchBar: TPanel;
   SearchBox: TEdit;
+  ColumnTimer: TTimer;
   Controller: TWorkspaceListController;
   BContents: TButton;
   HeaderTitle, HeaderHint: TLabel;
   BOpen, BReplace, BRename, BDelete, BClose: TButton;
   UIUnit, ButtonH, ButtonY, Gap, LeftPos, CloseWidth: Integer;
+  SavedWidth, SavedHeight: Integer;
+  WorkArea: TRect;
   SR: TSearchRec;
   Ini: TIniFile;
   Name, Path, NewName: string;
@@ -2102,12 +2152,31 @@ begin
     Form.BorderStyle := bsSizeable;
     UIUnit := Self.CurrentPPI;
     if UIUnit < 96 then UIUnit := 96;
-    Form.ClientWidth := MulDiv(780, UIUnit, 96);
-    Form.ClientHeight := MulDiv(490, UIUnit, 96);
-    Form.Constraints.MinWidth := MulDiv(600, UIUnit, 96);
+    // Die zuletzt gewaehlte Dialoggroesse aus der portablen Viewer-INI laden.
+    // Bei fehlenden Eintraegen gelten die bisherigen Standardabmessungen.
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      SavedWidth := Ini.ReadInteger('Arbeitsbereiche', 'WindowWidth',
+        MulDiv(780, UIUnit, 96));
+      SavedHeight := Ini.ReadInteger('Arbeitsbereiche', 'WindowHeight',
+        MulDiv(490, UIUnit, 96));
+    finally
+      Ini.Free;
+    end;
+    Form.Constraints.MinWidth := MulDiv(700, UIUnit, 96);
     Form.Constraints.MinHeight := MulDiv(350, UIUnit, 96);
-    Form.Left := Self.Left + (Self.Width - Form.Width) div 2;
-    Form.Top := Self.Top + (Self.Height - Form.Height) div 2;
+    WorkArea := Screen.MonitorFromWindow(Self.Handle).WorkareaRect;
+    Form.ClientWidth := EnsureRange(SavedWidth, Form.Constraints.MinWidth,
+      Max(Form.Constraints.MinWidth, WorkArea.Right - WorkArea.Left -
+        MulDiv(48, UIUnit, 96)));
+    Form.ClientHeight := EnsureRange(SavedHeight, Form.Constraints.MinHeight,
+      Max(Form.Constraints.MinHeight, WorkArea.Bottom - WorkArea.Top -
+        MulDiv(80, UIUnit, 96)));
+    // Bei jeder Oeffnung mittig zum Viewer, nicht zur letzten Dialogposition.
+    Form.Left := EnsureRange(Self.Left + (Self.Width - Form.Width) div 2,
+      WorkArea.Left, Max(WorkArea.Left, WorkArea.Right - Form.Width));
+    Form.Top := EnsureRange(Self.Top + (Self.Height - Form.Height) div 2,
+      WorkArea.Top, Max(WorkArea.Top, WorkArea.Bottom - Form.Height));
     Form.Font.Name := 'Segoe UI';
     Form.Font.Size := 10;
     case FDesignIndex of
@@ -2191,6 +2260,35 @@ begin
     List.Columns[1].Width := MulDiv(205, UIUnit, 96);
     List.Columns.Add.Caption := Tr('PDFs');
     List.Columns[2].Width := MulDiv(85, UIUnit, 96);
+    // Die zuletzt vom Benutzer gewaehlten Breiten aus der Viewer-INI laden.
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      List.Columns[1].Width := Ini.ReadInteger('Arbeitsbereiche',
+        'DateColumnWidth', List.Columns[1].Width);
+      List.Columns[2].Width := Ini.ReadInteger('Arbeitsbereiche',
+        'PDFColumnWidth', List.Columns[2].Width);
+    finally
+      Ini.Free;
+    end;
+    // Ungueltige oder uebermaessige Werte auf sinnvolle Grenzen setzen.
+    if List.Columns[1].Width > MulDiv(600, UIUnit, 96) then
+      List.Columns[1].Width := MulDiv(205, UIUnit, 96);
+    if List.Columns[2].Width > MulDiv(350, UIUnit, 96) then
+      List.Columns[2].Width := MulDiv(85, UIUnit, 96);
+    if List.Columns[1].Width < MulDiv(150, UIUnit, 96) then
+      List.Columns[1].Width := MulDiv(150, UIUnit, 96);
+    if List.Columns[2].Width < MulDiv(65, UIUnit, 96) then
+      List.Columns[2].Width := MulDiv(65, UIUnit, 96);
+    Controller.LastDateWidth := List.Columns[1].Width;
+    Controller.LastPDFWidth := List.Columns[2].Width;
+    List.OnResize := Controller.ResizeColumns;
+    Controller.ResizeColumns(List);
+    // TListView bietet kein in allen Delphi-Versionen einheitliches
+    // Ereignis fuer die manuelle Spaltenbreitenaenderung.
+    ColumnTimer := TTimer.Create(Form);
+    ColumnTimer.Interval := 150;
+    ColumnTimer.OnTimer := Controller.CheckColumnWidths;
+    ColumnTimer.Enabled := True;
     BContents := TPDFDesignButton.Create(Form);
     BContents.Parent := SearchBar;
     TPDFDesignButton(BContents).SetDesign(FDesignIndex);
@@ -2213,7 +2311,7 @@ begin
     BOpen := TPDFDesignButton.Create(Form);
     BOpen.Parent := Bar;
     TPDFDesignButton(BOpen).SetDesign(FDesignIndex);
-    BOpen.SetBounds(LeftPos, ButtonY, MulDiv(115, UIUnit, 96), ButtonH);
+    BOpen.SetBounds(LeftPos, ButtonY, MulDiv(95, UIUnit, 96), ButtonH);
     BOpen.Caption := Tr('Öffnen'); BOpen.ModalResult := mrOk;
     BOpen.Default := True;
     // Doppelklick nutzt dieselbe Öffnen-Aktion wie der Button.
@@ -2225,14 +2323,14 @@ begin
     BReplace.Parent := Bar;
     TPDFDesignButton(BReplace).SetDesign(FDesignIndex);
     BReplace.SetBounds(BOpen.Left + BOpen.Width + Gap, ButtonY,
-      MulDiv(175, UIUnit, 96), ButtonH);
+      MulDiv(155, UIUnit, 96), ButtonH);
     BReplace.Caption := Tr('Alle schließen + öffnen');
     BReplace.ModalResult := mrYes;
     BRename := TPDFDesignButton.Create(Form);
     BRename.Parent := Bar;
     TPDFDesignButton(BRename).SetDesign(FDesignIndex);
     BRename.SetBounds(BReplace.Left + BReplace.Width + Gap, ButtonY,
-      MulDiv(130, UIUnit, 96), ButtonH);
+      MulDiv(95, UIUnit, 96), ButtonH);
     BRename.Caption := Tr('Umbenennen'); BRename.ModalResult := mrRetry;
     BDelete := TPDFDesignButton.Create(Form);
     BDelete.Parent := Bar;
@@ -2243,7 +2341,7 @@ begin
     BClose := TPDFDesignButton.Create(Form);
     BClose.Parent := Bar;
     TPDFDesignButton(BClose).SetDesign(FDesignIndex);
-    CloseWidth := MulDiv(130, UIUnit, 96);
+    CloseWidth := MulDiv(110, UIUnit, 96);
     BClose.SetBounds(Bar.ClientWidth - MulDiv(20, UIUnit, 96) - CloseWidth,
       ButtonY, CloseWidth, ButtonH);
     BClose.Anchors := [akRight, akTop];
@@ -2303,6 +2401,18 @@ begin
       else Break;
     until False;
   finally
+    if (Controller <> nil) and (List <> nil) and (List.Columns.Count >= 3) then
+    begin
+      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      try
+        Ini.WriteInteger('Arbeitsbereiche', 'DateColumnWidth', List.Columns[1].Width);
+        Ini.WriteInteger('Arbeitsbereiche', 'PDFColumnWidth', List.Columns[2].Width);
+        Ini.WriteInteger('Arbeitsbereiche', 'WindowWidth', Form.ClientWidth);
+        Ini.WriteInteger('Arbeitsbereiche', 'WindowHeight', Form.ClientHeight);
+      finally
+        Ini.Free;
+      end;
+    end;
     Form.Free;
     Controller.Free;
   end;
