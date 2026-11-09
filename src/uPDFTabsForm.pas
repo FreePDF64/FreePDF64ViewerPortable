@@ -513,8 +513,41 @@ begin
 end;
 
 procedure TWorkspaceListController.SearchChanged(Sender: TObject);
+var
+  I: Integer;
+  Item: TListItem;
+  Filter, SelectedFile: string;
 begin
-  Refresh;
+  // Nur die sichtbaren Einträge filtern. Der vollständige Datenbestand
+  // in Entries bleibt bei Eingabe und Löschen des Suchtexts erhalten.
+  Filter := AnsiLowerCase(Trim(Search.Text));
+  SelectedFile := '';
+  if (List.Selected <> nil) and (List.Selected.SubItems.Count > 2) then
+    SelectedFile := List.Selected.SubItems[2];
+  List.Items.BeginUpdate;
+  try
+    List.Items.Clear;
+    for I := 0 to High(Entries) do
+    begin
+      if (Filter <> '') and
+         (Pos(Filter, AnsiLowerCase(Entries[I].DisplayName)) = 0) then
+        Continue;
+      Item := List.Items.Add;
+      Item.Caption := Entries[I].DisplayName;
+      if Entries[I].SavedAt > 0 then
+        Item.SubItems.Add(FormatDateTime('dd.mm.yyyy hh:nn', Entries[I].SavedAt))
+      else
+        Item.SubItems.Add('–');
+      Item.SubItems.Add(IntToStr(Entries[I].PDFCount));
+      Item.SubItems.Add(Entries[I].FilePath);
+      if SameText(Entries[I].FilePath, SelectedFile) then
+        List.Selected := Item;
+    end;
+    if (List.Selected = nil) and (List.Items.Count > 0) then
+      List.Selected := List.Items[0];
+  finally
+    List.Items.EndUpdate;
+  end;
 end;
 
 function CompareWorkspaceListItems(Item1, Item2: TListItem; Data: Integer): Integer;
@@ -2712,11 +2745,16 @@ begin
       AddSection('Manage tabs',
         'Click × on a tab, use the middle mouse button, or press Ctrl+W to close a PDF. Unsaved changes trigger a confirmation.');
       AddSection('Named PDF workspaces',
-        'Use Workspaces > Save workspace to create any number of named workspaces. Each stores open PDFs in tab order and their page numbers. '
-        + 'Open workspace from the Workspaces menu or the start-page button to see names, save dates and PDF counts. The most recently saved workspace appears first and is selected automatically. '
-        + 'Double-click or press Enter to open it, or use Open. Close all and open closes existing PDFs after checking for unsaved changes, then loads the selected workspace. Workspaces can also be renamed or deleted. '
-        + 'Already open PDFs remain open and duplicates are not opened again. Missing files are reported. Workspaces are local INI files in the Workspaces folder beside the EXE; PDF files themselves are unchanged. '
-        + 'The page, zoom, scroll position and last active tab are saved for each PDF.');
+        'Use Workspaces > Manage workspaces ... to manage saved workspaces, or Workspaces > Save workspace ... to save the current PDF collection. '
+        + 'The workspace button opens management with the left mouse button and saves a workspace with the right mouse button. '
+        + 'The management window is centered over the viewer and shows each workspace name, save date and PDF count. '
+        + 'Use the search field to filter workspaces by name. Click the Name, Saved on or PDFs column header to sort; click again to reverse the order. '
+        + 'The last selected sort column and direction are stored in FreePDFViewer.ini and restored the next time the window opens. '
+        + 'Use Show contents ... to inspect the saved PDF file paths without opening the workspace. '
+        + 'Double-click a workspace or press Enter to open it, or use Open. Close all and open closes existing PDFs after checking for unsaved changes, then loads the selected workspace. '
+        + 'Workspaces can also be renamed or deleted. Already open PDFs remain open and duplicates are not opened again. Missing files are reported. '
+        + 'Workspaces are stored as local INI files in the workspace folder beside the EXE; the PDF files themselves are not modified. '
+        + 'Each workspace stores the PDFs in tab order, their page, zoom and scroll positions, and the last active tab.');
       AddSection('Split view and thumbnails',
         'Select two PDF tabs with Ctrl+Click, then choose Split view to display them side by side. '
         + 'Drag the divider to adjust the pane widths. Click inside a PDF or press Tab to change the active pane; '
@@ -2878,15 +2916,18 @@ begin
       AddSection('Tabs verwalten',
         'Das × im Tab, die mittlere Maustaste oder Strg+W schließen ein PDF. Bei ungespeicherten Änderungen erscheint eine Rückfrage.');
       AddSection('Benannte PDF-Arbeitsbereiche',
-        'Unter „Arbeitsbereiche > Arbeitsbereich speichern“ können Sie beliebig viele benannte Arbeitsbereiche anlegen. ' +
-        'Jeder enthält die geöffneten PDFs in Tab-Reihenfolge und die jeweilige Seitenzahl. ' +
-        'Über „Arbeitsbereiche > Arbeitsbereich öffnen“ oder den Button auf der Startseite sehen Sie eine Liste ' +
-        'mit Namen, Speicherdatum und PDF-Anzahl. Die Liste zeigt den zuletzt gespeicherten Arbeitsbereich zuerst, ' +
-        'markiert ihn automatisch und ist bei vielen Einträgen scrollbar. Ein Doppelklick oder Enter öffnet den markierten Arbeitsbereich; alternativ verwenden Sie „Öffnen“. Mit „Alle schließen + öffnen“ werden nach Prüfung ungespeicherter Änderungen alle bisher geöffneten PDFs geschlossen und nur der gewählte Arbeitsbereich geladen. Umbenennen und Löschen sind ebenfalls möglich. ' +
-        'Bereits geöffnete PDFs bleiben beim Öffnen erhalten; doppelte Dateien werden nicht erneut geöffnet. ' +
-        'Fehlende Dateien werden gemeldet. Arbeitsbereiche liegen als lokale INI-Dateien im Ordner „Arbeitsbereiche“ ' +
-        'neben der EXE; PDF-Dateien selbst bleiben unverändert. ' +
-        'Je PDF werden Seite, Zoomstufe und Scrollposition sowie der zuletzt aktive Tab gespeichert.');
+        'Über „Arbeitsbereiche > Arbeitsbereiche verwalten ...“ verwalten Sie Ihre gespeicherten Arbeitsbereiche. '
+        + 'Mit „Arbeitsbereiche > Arbeitsbereich speichern ...“ speichern Sie die aktuelle PDF-Sammlung. '
+        + 'Das Arbeitsbereiche-Symbol öffnet die Verwaltung mit der linken Maustaste und speichert einen Arbeitsbereich mit der rechten Maustaste. '
+        + 'Das Verwaltungsfenster erscheint mittig über dem Viewer und zeigt Name, Speicherdatum und PDF-Anzahl. '
+        + 'Über das Suchfeld filtern Sie Arbeitsbereiche nach ihrem Namen. Klicken Sie auf die Spaltenüberschriften „Name“, „Gespeichert am“ oder „PDFs“, um zu sortieren; ein weiterer Klick kehrt die Reihenfolge um. '
+        + 'Die zuletzt gewählte Sortierspalte und Sortierrichtung werden in der FreePDFViewer.ini gespeichert und beim nächsten Öffnen wiederhergestellt. '
+        + 'Mit „Inhalt anzeigen ...“ sehen Sie die gespeicherten PDF-Dateipfade, ohne den Arbeitsbereich zu öffnen. '
+        + 'Ein Doppelklick oder Enter öffnet den markierten Arbeitsbereich; alternativ verwenden Sie „Öffnen“. '
+        + 'Mit „Alle schließen + öffnen“ werden nach Prüfung ungespeicherter Änderungen die bisher geöffneten PDFs geschlossen und nur der gewählte Arbeitsbereich geladen. '
+        + 'Umbenennen und Löschen sind ebenfalls möglich. Bereits geöffnete PDFs bleiben beim normalen Öffnen erhalten; doppelte Dateien werden nicht erneut geöffnet. Fehlende Dateien werden gemeldet. '
+        + 'Arbeitsbereiche liegen als lokale INI-Dateien im Arbeitsbereichsordner neben der EXE; die PDF-Dateien selbst bleiben unverändert. '
+        + 'Gespeichert werden die PDFs in Tab-Reihenfolge, je PDF Seite, Zoomstufe und Scrollposition sowie der zuletzt aktive Tab.');
       AddSection('Zweifensteransicht und Miniaturen',
         'Mit Strg+Klick zwei PDF-Registerkarten auswählen und über „Ansicht teilen“ nebeneinander anzeigen. '
         + 'Den Mitteltrenner mit der Maus verschieben, um die Fensterbreiten anzupassen. '

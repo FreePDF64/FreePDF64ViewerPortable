@@ -153,6 +153,7 @@ type
     FThumbDropTarget: Integer;
     FThumbMenu: TPopupMenu;
     FOutlineMenu: TPopupMenu;
+    FSelectionMenu: TPopupMenu;
     FOutlineExpandItem, FOutlineCollapseItem: TMenuItem;
     FInsertBeforeItem, FInsertAfterItem: TMenuItem;
     FOutlineHeader: TPanel;
@@ -468,7 +469,9 @@ type
     procedure GlobalShowMatch(const ATerm: string; const AMatch: TPDFTextMatch);
     procedure NextSearchMatch(ADirection: Integer);
     procedure SelectAllText;
+    function SelectedText: string;
     procedure CopySelectedText;
+    procedure SelectionMenuClick(Sender: TObject);
     function ConfirmUnsaved: Boolean;
     function HasUnsavedChanges: Boolean;
     function SaveUnsavedChanges: Boolean;
@@ -7632,9 +7635,10 @@ begin
   RefreshSelectedPages;
 end;
 
-procedure TFreePDF64PDFiumView.CopySelectedText;
+function TFreePDF64PDFiumView.SelectedText: string;
 var A, B, I, StartChar, EndChar: Integer; S, Part: string;
 begin
+  Result := '';
   if (FSelAnchorPage < 0) or (FSelFocusPage < 0) then Exit;
   A := Min(FSelAnchorPage, FSelFocusPage);
   B := Max(FSelAnchorPage, FSelFocusPage);
@@ -7660,7 +7664,41 @@ begin
     if I > A then S := S + sLineBreak;
     S := S + Part;
   end;
-  Clipboard.AsText := S;
+  Result := S;
+end;
+
+procedure TFreePDF64PDFiumView.CopySelectedText;
+var S: string;
+begin
+  S := SelectedText;
+  if S <> '' then Clipboard.AsText := S;
+end;
+
+procedure TFreePDF64PDFiumView.SelectionMenuClick(Sender: TObject);
+var
+  S, URL, TargetLanguage: string;
+begin
+  if not (Sender is TMenuItem) then Exit;
+  if TMenuItem(Sender).Tag = 1 then
+  begin
+    CopySelectedText;
+    Exit;
+  end;
+  S := SelectedText;
+  if Trim(S) = '' then Exit;
+  case TMenuItem(Sender).Tag of
+    2:
+      begin
+        if SameText(PDFLanguage, 'en') then TargetLanguage := 'en'
+        else TargetLanguage := 'de';
+        URL := 'https://translate.google.com/?sl=auto&tl=' +
+          TargetLanguage + '&text=' + TNetEncoding.URL.Encode(S) + '&op=translate';
+      end;
+    3: URL := 'https://www.google.com/search?q=' + TNetEncoding.URL.Encode(S);
+  else
+    Exit;
+  end;
+  ShellExecute(0, 'open', PChar(URL), nil, nil, SW_SHOWNORMAL);
 end;
 
 function TFreePDF64PDFiumView.LinkAtImagePoint(Sender: TObject;
@@ -8074,6 +8112,40 @@ begin
   if (Sender is TPDFiumImage) and (FCore <> nil) then
   begin
     Img := TPDFiumImage(Sender);
+    // Rechtsklick auf eine vorhandene PDF-Textauswahl: Markierung erhalten.
+    // Kommentarmenü hat Vorrang, falls auf eine Notiz geklickt wurde.
+    if (Button = mbRight) and
+       (FSelAnchorPage >= 0) and (FSelFocusPage >= 0) and
+       (Trim(SelectedText) <> '') and
+       not NoteAtPoint(Img, X, Y, FNoteSelected) then
+    begin
+      if FSelectionMenu = nil then
+      begin
+        FSelectionMenu := TPopupMenu.Create(Self);
+        FSelectionMenu.AutoPopup := False;
+      end;
+      FSelectionMenu.Items.Clear;
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := ToolbarHint('Kopieren (Strg+C)', 'Copy (Ctrl+C)');
+      NoteItem.Tag := 1;
+      NoteItem.OnClick := SelectionMenuClick;
+      FSelectionMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := '-';
+      FSelectionMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := ToolbarHint('Mit Google übersetzen', 'Translate with Google');
+      NoteItem.Tag := 2;
+      NoteItem.OnClick := SelectionMenuClick;
+      FSelectionMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FSelectionMenu);
+      NoteItem.Caption := ToolbarHint('Mit Google suchen', 'Search with Google');
+      NoteItem.Tag := 3;
+      NoteItem.OnClick := SelectionMenuClick;
+      FSelectionMenu.Items.Add(NoteItem);
+      FSelectionMenu.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
+      Exit;
+    end;
     if (Button = mbRight) and NoteAtPoint(Img, X, Y, FNoteSelected) then
     begin
       if not CanModifyComments then Exit;
