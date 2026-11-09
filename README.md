@@ -248,7 +248,7 @@ The **split view** is particularly useful for comparing document versions, contr
 
 *Saved workspaces at a glance: sorted by save date, with the PDF count and options to open, rename, or delete each workspace.*
 
-## See FreePDF64-Viewer Portable in with the "Classic Blue" design
+## See FreePDF64-Viewer Portable in action with the "Classic Blue" design
 
 ![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/Mainwindow.png)
 
