@@ -27,7 +27,7 @@ Version **3.1.1** erweitert die Formularunterstützung des Viewers:
 - **AcroForm-Bearbeitung:** Textfelder, Checkboxen, Optionsfelder und weitere unterstützte Formularfelder ausfüllen und die Änderungen speichern.
 - **Statische XFA-Formulare:** Unterstützte statische XFA-Formulare bearbeiten und speichern. Beim Speichern werden die bearbeiteten Formularwerte mit den XFA-XML-Datensätzen synchronisiert.
 - **Verbesserte Tastaturbedienung:** Formularfelder mit **TAB** und **Umschalt+TAB** durchlaufen; die Bearbeitung und Übernahme der Werte bleibt erhalten.
-- **Anpassbare Benutzeroberfläche (Designs):** Es stehen nur Verfügung: Standard, Modern Hell, Windows Klassik, Klassisch Blau.
+- **Anpassbare Benutzeroberfläche (Designs):** Es stehen zur Verfügung: Standard, Modern Hell, Windows Klassik, Klassisch Blau.
 - **Updatefunktion**
 
 > **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
