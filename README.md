@@ -27,7 +27,7 @@ Version **3.1.1** erweitert die Formularunterstützung des Viewers:
 - **AcroForm-Bearbeitung:** Textfelder, Checkboxen, Optionsfelder und weitere unterstützte Formularfelder ausfüllen und die Änderungen speichern.
 - **Statische XFA-Formulare:** Unterstützte statische XFA-Formulare bearbeiten und speichern. Beim Speichern werden die bearbeiteten Formularwerte mit den XFA-XML-Datensätzen synchronisiert.
 - **Verbesserte Tastaturbedienung:** Formularfelder mit **TAB** und **Umschalt+TAB** durchlaufen; die Bearbeitung und Übernahme der Werte bleibt erhalten.
-- **Anpassbare Benutzeroberfläche (Designs):** Es stehen nur Verfügung: Standard, Modern Hell, Windows Klassik, Klassisch Blau.
+- **Anpassbare Benutzeroberfläche (Designs):** Es stehen zur Verfügung: Standard, Modern Hell, Windows Klassik, Klassisch Blau.
 - **Updatefunktion**
 
 > **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
@@ -77,7 +77,7 @@ Die **Zweifensteransicht** eignet sich besonders für den Vergleich zweier Dokum
 
 *Gespeicherte Arbeitsbereiche auf einen Blick: nach Speicherdatum sortiert, mit PDF-Anzahl und den Aktionen Öffnen, Umbenennen und Löschen.*
 
-## So sieht FreePDF64-Viewer Portable aus
+## So sieht FreePDF64-Viewer Portable aus 
 
 ![FreePDF64ViewerPortable mit mehreren geöffneten PDF-Dateien und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
 
@@ -248,7 +248,7 @@ The **split view** is particularly useful for comparing document versions, contr
 
 *Saved workspaces at a glance: sorted by save date, with the PDF count and options to open, rename, or delete each workspace.*
 
-## See FreePDF64-Viewer Portable in action
+## See FreePDF64-Viewer Portable in action with the "Classic Blue" design
 
 ![FreePDF64ViewerPortable with several open PDF files and page thumbnails](images/Mainwindow.png)
 
