@@ -1004,9 +1004,14 @@ begin
     // Die Grafik fuellt die Schaltflaeche als zentriertes Symbol aus.
     // Dadurch bleibt sie auch nach einem DPI-/Toolbar-Realign mittig.
     Img.Align := alClient;
+    Img.AlignWithMargins := True;
+    Img.Margins.SetBounds(MulDiv(5, AButton.CurrentPPI, 96),
+      MulDiv(5, AButton.CurrentPPI, 96),
+      MulDiv(5, AButton.CurrentPPI, 96),
+      MulDiv(5, AButton.CurrentPPI, 96));
     Img.Center := True;
     Img.Proportional := True;
-    Img.Stretch := False;
+    Img.Stretch := True;
     Img.Transparent := True;
     Img.Picture.Assign(Png);
     Img.Hint := AButton.Hint;
@@ -1512,35 +1517,43 @@ end;
 procedure TPDFiumSaveButton.UpdateSaveGlyph;
 var
   B: TBitmap;
-  X, Y: Integer;
+  Dpi, S, X, Y, LineW: Integer;
+  function P(N: Integer): Integer;
+  begin
+    Result := MulDiv(N, Dpi, 96);
+  end;
 begin
+  Dpi := Max(96, CurrentPPI);
+  S := P(28);
   B := TBitmap.Create;
   try
-    B.SetSize(24, 22);
     B.PixelFormat := pf24bit;
+    B.SetSize(S, S);
+    B.Canvas.Brush.Color := clFuchsia;
+    B.Canvas.FillRect(Rect(0, 0, S, S));
     B.TransparentColor := clFuchsia;
+    B.TransparentMode := tmFixed;
     B.Transparent := True;
-    B.Canvas.Brush.Color := clFuchsia;
-    B.Canvas.FillRect(Rect(0, 0, B.Width, B.Height));
-    X := 3;
-    Y := 2;
-    // Kontur-Icon statt massiver schwarzer Flaeche: wie die Nachbarsymbole.
+    X := P(3);
+    Y := P(3);
+    LineW := Max(1, P(2));
     B.Canvas.Pen.Color := clBlack;
-    B.Canvas.Pen.Width := 1;
-    B.Canvas.Brush.Color := clFuchsia;
-    B.Canvas.Rectangle(X, Y, X + 17, Y + 18);
-    B.Canvas.Brush.Color := clFuchsia;
-    B.Canvas.Rectangle(X + 3, Y + 2, X + 13, Y + 8);
-    B.Canvas.MoveTo(X + 10, Y + 2);
-    B.Canvas.LineTo(X + 10, Y + 8);
-    B.Canvas.Rectangle(X + 3, Y + 10, X + 14, Y + 16);
+    B.Canvas.Pen.Width := LineW;
+    B.Canvas.Brush.Style := bsClear;
+    // Dieselbe transparente Konturzeichnung wie bei den anderen Icons.
+    B.Canvas.Rectangle(X, Y, X + P(22), Y + P(22));
+    B.Canvas.Rectangle(X + P(4), Y + P(2), X + P(17), Y + P(9));
+    B.Canvas.MoveTo(X + P(12), Y + P(2));
+    B.Canvas.LineTo(X + P(12), Y + P(9));
+    B.Canvas.Rectangle(X + P(4), Y + P(13), X + P(18), Y + P(21));
     if FHighlighted then
     begin
-      // Schwarzer Statuspunkt fuer ungespeicherte Aenderungen.
+      B.Canvas.Brush.Style := bsSolid;
       B.Canvas.Brush.Color := clBlack;
-      B.Canvas.Ellipse(18, 0, 24, 6);
+      B.Canvas.Ellipse(P(22), 0, P(28), P(6));
     end;
     Glyph.Assign(B);
+    NumGlyphs := 1;
   finally
     B.Free;
   end;
@@ -1697,7 +1710,7 @@ var
   S: Integer;
   function P(V: Integer): Integer;
   begin
-    Result := MulDiv(V, S, 32);
+    Result := MulDiv(V - 2, S, 28);
   end;
   procedure Line(X1, Y1, X2, Y2: Integer);
   begin
@@ -1705,7 +1718,7 @@ var
     B.Canvas.LineTo(P(X2), P(Y2));
   end;
 begin
-  S := MulDiv(20, CurrentPPI, 96);
+  S := MulDiv(28, CurrentPPI, 96);
   if S < 14 then S := 14;
   B := TBitmap.Create;
   try
@@ -2694,7 +2707,7 @@ var
       if C is TPDFDesignButton then
         begin
         TPDFDesignButton(C).ParentFont := False;
-        if ADesign <> 0 then
+        if (ADesign <> 0) and (C.Parent <> FEditBar) then
           TPDFDesignButton(C).Font.Style := [fsBold]
         else
           TPDFDesignButton(C).Font.Style := [];
@@ -2736,8 +2749,9 @@ begin
   FEditBar.ParentColor := False;
   FEditBar.ParentBackground := False;
   FEditBar.Color := BackColor;
-  if ADesign <> 0 then FEditBar.Font.Style := [fsBold]
-  else FEditBar.Font.Style := [];
+  // Die Bearbeitungsleiste besitzt besonders kompakte Steuerelemente.
+  // Fett gesetzte Schriften werden in Nicht-Standard-Designs abgeschnitten.
+  FEditBar.Font.Style := [];
   FStatus.ParentFont := False;
   FPageTotal.ParentFont := False;
   FZoomStatus.ParentFont := False;
@@ -2800,6 +2814,14 @@ begin
     FViewSelect.Font.Color := TextColor;
     if ADesign <> 0 then FViewSelect.Font.Style := [fsBold]
     else FViewSelect.Font.Style := [];
+    // OwnerDraw verwendet sonst die alte Standard-Zeilenhoehe. Bei 4K
+    // wird die fette Schrift dadurch im geschlossenen Feld abgeschnitten.
+    if ADesign <> 0 then
+    begin
+      FViewSelect.Canvas.Font.Assign(FViewSelect.Font);
+      FViewSelect.ItemHeight := FViewSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FViewSelect.CurrentPPI, 96);
+    end;
   end;
   if FFlowSelect <> nil then
   begin
@@ -2822,6 +2844,12 @@ begin
     FShapeSelect.Font.Color := TextColor;
     if ADesign <> 0 then FShapeSelect.Font.Style := [fsBold]
     else FShapeSelect.Font.Style := [];
+    if ADesign <> 0 then
+    begin
+      FShapeSelect.Canvas.Font.Assign(FShapeSelect.Font);
+      FShapeSelect.ItemHeight := FShapeSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FShapeSelect.CurrentPPI, 96);
+    end;
   end;
   if FWidthSelect <> nil then
   begin
@@ -2833,6 +2861,12 @@ begin
     FWidthSelect.Font.Color := TextColor;
     if ADesign <> 0 then FWidthSelect.Font.Style := [fsBold]
     else FWidthSelect.Font.Style := [];
+    if ADesign <> 0 then
+    begin
+      FWidthSelect.Canvas.Font.Assign(FWidthSelect.Font);
+      FWidthSelect.ItemHeight := FWidthSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FWidthSelect.CurrentPPI, 96);
+    end;
   end;
   if FTextFontSelect <> nil then
   begin
@@ -2844,6 +2878,12 @@ begin
     FTextFontSelect.Font.Color := TextColor;
     if ADesign <> 0 then FTextFontSelect.Font.Style := [fsBold]
     else FTextFontSelect.Font.Style := [];
+    if ADesign <> 0 then
+    begin
+      FTextFontSelect.Canvas.Font.Assign(FTextFontSelect.Font);
+      FTextFontSelect.ItemHeight := FTextFontSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FTextFontSelect.CurrentPPI, 96);
+    end;
   end;
   if FTextSizeSelect <> nil then
   begin
@@ -3810,40 +3850,51 @@ end;
 procedure TFreePDF64PDFiumView.UpdateTwoPageIcon;
 var
   B: TBitmap;
-  X, Y, W, H: Integer;
+  IconSize, Dpi, X, Y, W, H, PenW, Gap: Integer;
   procedure DrawPage(AX: Integer);
   begin
-    B.Canvas.Brush.Color := clWhite;
+    B.Canvas.Brush.Style := bsClear;
     B.Canvas.Pen.Color := clBlack;
-    B.Canvas.Pen.Width := 1;
+    B.Canvas.Pen.Width := PenW;
     B.Canvas.Rectangle(AX, Y, AX + W, Y + H);
   end;
 begin
   if (FTwoPageIcon = nil) or (FTwoPageButton = nil) then Exit;
+  Dpi := Max(96, CurrentPPI);
+  IconSize := MulDiv(24, Dpi, 96);
   B := TBitmap.Create;
   try
-    B.SetSize(24, 24);
+    // Direkt in Zielaufloesung zeichnen: kein StretchDraw und keine
+    // weissen Raender/Pixel durch die Transparenzmaske.
     B.PixelFormat := pf24bit;
-    B.Canvas.Brush.Color := clBtnFace;
-    B.Canvas.FillRect(Rect(0, 0, 24, 24));
-    H := 16;
-    Y := (24 - H) div 2;
+    B.SetSize(IconSize, IconSize);
+    B.Canvas.Brush.Color := clFuchsia;
+    B.Canvas.FillRect(Rect(0, 0, IconSize, IconSize));
+    B.TransparentColor := clFuchsia;
+    B.TransparentMode := tmFixed;
+    B.Transparent := True;
+    PenW := Max(1, MulDiv(2, Dpi, 96));
+    H := MulDiv(17, Dpi, 96);
+    Y := (IconSize - H) div 2;
     if FTwoPage then
     begin
-      W := 8;
-      X := (24 - (W * 2 + 3)) div 2;
+      W := MulDiv(8, Dpi, 96);
+      Gap := MulDiv(3, Dpi, 96);
+      X := (IconSize - (W * 2 + Gap)) div 2;
       DrawPage(X);
-      DrawPage(X + W + 3);
+      DrawPage(X + W + Gap);
     end
     else
     begin
-      W := 11;
-      X := (24 - W) div 2;
+      W := MulDiv(13, Dpi, 96);
+      X := (IconSize - W) div 2;
       DrawPage(X);
     end;
     FTwoPageIcon.Picture.Bitmap.Assign(B);
-    FTwoPageIcon.Left := (FTwoPageButton.Width - 24) div 2;
-    FTwoPageIcon.Top := (FTwoPageButton.Height - 24) div 2;
+    FTwoPageIcon.Transparent := True;
+    FTwoPageIcon.Stretch := False;
+    FTwoPageIcon.SetBounds((FTwoPageButton.Width - IconSize) div 2,
+      (FTwoPageButton.Height - IconSize) div 2, IconSize, IconSize);
   finally
     B.Free;
   end;
@@ -6235,9 +6286,13 @@ begin
   PlaceControl(FFitSeparator, Px(2), Px(22));
   PlaceButton(FFit, 38);
   PlaceControl(FViewSelect, Px(130), EditH);
-  // Das native Dropdown sitzt optisch etwas hoeher als die Buttons;
-  // daher in der gemeinsamen Leiste leicht nach unten versetzen.
-  FViewSelect.Top := FViewSelect.Top + Px(4);
+  // Standard: bisherigen optischen Versatz des nativen Dropdowns erhalten.
+  // Andere Designs: OwnerDraw-Feld ohne Zusatzversatz exakt zur
+  // Mittellinie der beiden benachbarten Buttons ausrichten.
+  if FViewSelect.Style = csDropDownList then
+    FViewSelect.Top := FViewSelect.Top + Px(4)
+  else
+    FViewSelect.Top := FFit.Top + (FFit.Height - FViewSelect.Height) div 2;
   PlaceControl(FPageModeSeparator, Px(2), Px(22));
   PlaceButton(FTwoPageButton, 32);
   PlaceControl(FFlowSeparator, Px(2), Px(22));

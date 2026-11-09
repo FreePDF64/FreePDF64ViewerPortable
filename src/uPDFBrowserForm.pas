@@ -206,36 +206,43 @@ end;
 procedure SetSearchGlyph(AButton: TBitBtn; AAllPDFs: Boolean);
 var
   B: TBitmap;
+  IconSize, Dpi: Integer;
+  function P(N: Integer): Integer;
+  begin
+    Result := MulDiv(N, IconSize, 22);
+  end;
 begin
+  // Bei 4K/hoher DPI groessere Symbole, bei WQHD die bisherige Groesse.
+  Dpi := AButton.CurrentPPI;
+  if Dpi >= 192 then IconSize := MulDiv(30, Dpi, 96)
+  else IconSize := 22;
   B := TBitmap.Create;
   try
-    B.SetSize(22, 22);
+    B.SetSize(IconSize, IconSize);
     B.PixelFormat := pf24bit;
     B.Transparent := True;
     B.TransparentColor := clFuchsia;
     B.Canvas.Brush.Color := clFuchsia;
-    B.Canvas.FillRect(Rect(0, 0, 22, 22));
+    B.Canvas.FillRect(Rect(0, 0, IconSize, IconSize));
     B.Canvas.Pen.Color := clBlack;
-    B.Canvas.Pen.Width := 2;
+    B.Canvas.Pen.Width := Max(1, P(2));
     B.Canvas.Brush.Style := bsClear;
     if AAllPDFs then
     begin
-      // Zwei Dokumentseiten mit einer kleinen Lupe im Vordergrund.
-      B.Canvas.Pen.Width := 1;
-      B.Canvas.Rectangle(2, 2, 12, 15);
-      B.Canvas.Rectangle(5, 5, 15, 18);
-      B.Canvas.Pen.Width := 2;
-      B.Canvas.Ellipse(11, 9, 18, 16);
-      B.Canvas.MoveTo(17, 16);
-      B.Canvas.LineTo(21, 20);
+      B.Canvas.Pen.Width := Max(1, P(1));
+      B.Canvas.Rectangle(P(2), P(2), P(12), P(15));
+      B.Canvas.Rectangle(P(5), P(5), P(15), P(18));
+      B.Canvas.Pen.Width := Max(1, P(2));
+      B.Canvas.Ellipse(P(11), P(9), P(18), P(16));
+      B.Canvas.MoveTo(P(17), P(16));
+      B.Canvas.LineTo(P(21), P(20));
     end
     else
     begin
-      B.Canvas.Ellipse(3, 2, 15, 14);
-      B.Canvas.MoveTo(13, 13);
-      B.Canvas.LineTo(20, 20);
+      B.Canvas.Ellipse(P(3), P(2), P(15), P(14));
+      B.Canvas.MoveTo(P(13), P(13));
+      B.Canvas.LineTo(P(20), P(20));
     end;
-    // Original-Bitmap ohne StretchDraw verwenden: scharfe, schwarze Linien.
     AButton.Glyph.Assign(B);
     AButton.NumGlyphs := 1;
     AButton.Layout := blGlyphTop;
@@ -249,46 +256,53 @@ end;
 procedure SetAttachmentGlyph(AButton: TBitBtn; AHasAttachments: Boolean);
 var
   B: TBitmap;
+  Dpi: Integer;
+  function P(N: Integer): Integer;
+  begin
+    Result := MulDiv(N, Dpi, 96);
+  end;
 begin
+  Dpi := AButton.CurrentPPI;
+  if Dpi < 96 then Dpi := 96;
   B := TBitmap.Create;
   try
-    B.SetSize(22, 22);
+    B.SetSize(P(24), P(24));
     B.PixelFormat := pf24bit;
     B.Transparent := True;
     B.TransparentColor := clFuchsia;
+    B.TransparentMode := tmFixed;
     B.Canvas.Brush.Color := clFuchsia;
-    B.Canvas.FillRect(Rect(0, 0, 22, 22));
+    B.Canvas.FillRect(Rect(0, 0, P(24), P(24)));
     B.Canvas.Brush.Style := bsClear;
+    SetViewportOrgEx(B.Canvas.Handle, P(1), P(1), nil);
     B.Canvas.Pen.Color := clBlack;
-    B.Canvas.Pen.Width := 2;
+    B.Canvas.Pen.Width := Max(1, P(2));
     // Schwarz-weisse Bueroklammer, ohne Schriftzeichen oder Emoji.
-    B.Canvas.MoveTo(8, 6);
-    B.Canvas.LineTo(13, 2);
-    B.Canvas.LineTo(18, 2);
-    B.Canvas.LineTo(20, 5);
-    B.Canvas.LineTo(20, 9);
-    B.Canvas.LineTo(11, 19);
-    B.Canvas.LineTo(7, 19);
-    B.Canvas.LineTo(4, 16);
-    B.Canvas.LineTo(4, 12);
-    B.Canvas.LineTo(13, 4);
-    B.Canvas.LineTo(16, 7);
-    B.Canvas.LineTo(8, 15);
+    B.Canvas.MoveTo(P(8), P(6));
+    B.Canvas.LineTo(P(13), P(2));
+    B.Canvas.LineTo(P(18), P(2));
+    B.Canvas.LineTo(P(20), P(5));
+    B.Canvas.LineTo(P(20), P(9));
+    B.Canvas.LineTo(P(11), P(19));
+    B.Canvas.LineTo(P(7), P(19));
+    B.Canvas.LineTo(P(4), P(16));
+    B.Canvas.LineTo(P(4), P(12));
+    B.Canvas.LineTo(P(13), P(4));
+    B.Canvas.LineTo(P(16), P(7));
+    B.Canvas.LineTo(P(8), P(15));
     if AHasAttachments then
     begin
       // Freigestelltes Sternchen: nicht mit den Linien der Klammer ueberlagern.
       B.Canvas.Brush.Style := bsSolid;
-      B.Canvas.Brush.Color := clWhite;
-      B.Canvas.Pen.Color := clWhite;
-      B.Canvas.Rectangle(12, 0, 22, 11);
+      // Keine weisse Flaeche: Statusmarkierung direkt auf transparentem Grund.
       B.Canvas.Pen.Color := clBlack;
-      B.Canvas.Pen.Width := 2;
-      B.Canvas.MoveTo(17, 1);
-      B.Canvas.LineTo(17, 9);
-      B.Canvas.MoveTo(13, 3);
-      B.Canvas.LineTo(21, 7);
-      B.Canvas.MoveTo(13, 7);
-      B.Canvas.LineTo(21, 3);
+      B.Canvas.Pen.Width := Max(1, P(2));
+      B.Canvas.MoveTo(P(17), P(1));
+      B.Canvas.LineTo(P(17), P(9));
+      B.Canvas.MoveTo(P(13), P(3));
+      B.Canvas.LineTo(P(21), P(7));
+      B.Canvas.MoveTo(P(13), P(7));
+      B.Canvas.LineTo(P(21), P(3));
     end;
     AButton.Glyph.Assign(B);
     AButton.NumGlyphs := 1;
@@ -846,8 +860,8 @@ begin
     'Show PDF attachments');
   FAttachmentsButton.Left := 278;
   FAttachmentsButton.Top := 6;
-  FAttachmentsButton.Width := ScalePx(38);
-  FAttachmentsButton.Height := 28;
+  FAttachmentsButton.Width := ScalePx(34);
+  FAttachmentsButton.Height := ScalePx(28);
   FAttachmentsButton.OnClick := ToggleAttachmentsClick;
 
   // Dezenter vertikaler Trennstrich zwischen Suche und PDF-Werkzeugen.
@@ -1530,6 +1544,11 @@ begin
         C.Height := ScalePx(28);
     end;
   end;
+  // Anlagen-Button hat exakt dieselbe DPI-Geometrie wie die
+  // benachbarten PDFium-Symbolbuttons, auch nach einem Parent-Wechsel.
+  if FAttachmentsButton <> nil then
+    FAttachmentsButton.SetBounds(FAttachmentsButton.Left,
+      FAttachmentsButton.Top, ScalePx(34), ScalePx(28));
   // Einheitliche, DPI-abhaengige Hoehe der Symbol-Buttons.
   // Keine Veraenderung der Glyph-Groessen oder Schrift beim Umschalten.
   for I := 0 to FToolbar.ControlCount - 1 do
@@ -1973,6 +1992,10 @@ begin
     36 + 36 + 38 + 48 + 2 + 38 + 116 + 2 + 32 + 2 +
     32 + 2 + 52 + 34 + 34 + 40);
   Inc(RightRequired, 24 * Gap + 2 * Margin);
+  // Anlagen-Button vor der Breitenberechnung in beiden Modi normieren.
+  if FAttachmentsButton <> nil then
+    FAttachmentsButton.SetBounds(FAttachmentsButton.Left,
+      FAttachmentsButton.Top, Px(34), Px(28));
   // Die bisherige Browser-Endgruppe wird im Einzeilenmodus hinter die
   // PDF-Navigationsgruppe verschoben und deshalb hier mit reserviert.
   if FAttachmentSeparator <> nil then
