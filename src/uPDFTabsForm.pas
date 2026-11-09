@@ -2222,7 +2222,8 @@ begin
     SearchBox := TEdit.Create(Form);
     SearchBox.Parent := SearchBar;
     SearchBox.SetBounds(MulDiv(18, UIUnit, 96), MulDiv(7, UIUnit, 96),
-      MulDiv(470, UIUnit, 96), MulDiv(29, UIUnit, 96));
+      SearchBar.ClientWidth - MulDiv(18 + 245 + 18 + 10, UIUnit, 96),
+      MulDiv(29, UIUnit, 96));
     SearchBox.Anchors := [akLeft, akTop, akRight];
     SearchBox.TextHint := Tr('Arbeitsbereich suchen ...');
     Controller := TWorkspaceListController.Create;
@@ -2293,9 +2294,10 @@ begin
     BContents.Parent := SearchBar;
     TPDFDesignButton(BContents).SetDesign(FDesignIndex);
     BContents.Caption := Tr('Inhalt anzeigen ...');
-    BContents.SetBounds(MulDiv(510, UIUnit, 96), MulDiv(5, UIUnit, 96),
-      MulDiv(245, UIUnit, 96), MulDiv(34, UIUnit, 96));
     BContents.Anchors := [akRight, akTop];
+    BContents.SetBounds(SearchBar.ClientWidth - MulDiv(245 + 18, UIUnit, 96),
+      MulDiv(5, UIUnit, 96), MulDiv(245, UIUnit, 96),
+      MulDiv(34, UIUnit, 96));
     BContents.OnClick := Controller.ShowContents;
     Bar := TPanel.Create(Form);
     Bar.Parent := Form;
