@@ -6702,10 +6702,17 @@ begin
   FTabs.Invalidate;
 end;
 
+// Nur echte PDF-Register duerfen an der Zweifensteransicht teilnehmen.
+function IsSplitPDFTab(const ATab: TTabSheet): Boolean;
+begin
+  Result := (ATab <> nil) and SameText(ExtractFileExt(ATab.Hint), '.pdf');
+end;
+
 procedure TPDFTabsForm.StartSplit(ALeft, ARight: TTabSheet);
 var L, R: TPDFBrowserForm;
 begin
   if (ALeft = nil) or (ARight = nil) or (ALeft = ARight) then Exit;
+  if not IsSplitPDFTab(ALeft) or not IsSplitPDFTab(ARight) then Exit;
   StopSplit;
   L := PDFInTab(ALeft);
   R := PDFInTab(ARight);
@@ -7027,7 +7034,9 @@ begin
         (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) and
         (FSplitAnchorTab <> FSplitSelectedTab) and
         (FSplitAnchorTab.PageControl = FTabs) and
-        (FSplitSelectedTab.PageControl = FTabs));
+        (FSplitSelectedTab.PageControl = FTabs) and
+        IsSplitPDFTab(FSplitAnchorTab) and
+        IsSplitPDFTab(FSplitSelectedTab));
       
     end;
   end;
@@ -7103,6 +7112,7 @@ var
   OldTab, LeftTab, RightTab: TTabSheet;
   WasRight: Boolean;
 begin
+  if not IsSplitPDFTab(ANewTab) then Exit;
   if (FSplitHost = nil) or (ANewTab = nil) or
      (ANewTab.PageControl <> FTabs) then Exit;
   WasRight := FSplitActiveRight;
@@ -7126,7 +7136,9 @@ begin
   else if (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) and
           (FSplitAnchorTab.PageControl = FTabs) and
           (FSplitSelectedTab.PageControl = FTabs) and
-          (FSplitAnchorTab <> FSplitSelectedTab) then
+          (FSplitAnchorTab <> FSplitSelectedTab) and
+          IsSplitPDFTab(FSplitAnchorTab) and
+          IsSplitPDFTab(FSplitSelectedTab) then
     StartSplit(FSplitAnchorTab, FSplitSelectedTab);
 end;
 
@@ -7476,6 +7488,12 @@ begin
          (FSplitShiftTab < FTabs.PageCount) and
          (FSplitAnchorTab <> FTabs.Pages[FSplitShiftTab]) then
       begin
+        if not IsSplitPDFTab(FSplitAnchorTab) or
+           not IsSplitPDFTab(FTabs.Pages[FSplitShiftTab]) then
+        begin
+          FSplitShiftTab := -1;
+          Exit;
+        end;
         FSplitSelectedTab := FTabs.Pages[FSplitShiftTab];
         UpdateSplitMenuState;
         FTabs.Invalidate;
@@ -7778,6 +7796,13 @@ begin
           Msg.Result := 0;
           Exit;
         end;
+      end;
+      // Grafiken niemals fuer eine Teilung markieren oder einsetzen.
+      if not IsSplitPDFTab(FTabs.Pages[TargetIndex]) or
+         ((FSplitHost = nil) and not IsSplitPDFTab(FTabs.ActivePage)) then
+      begin
+        Msg.Result := 0;
+        Exit;
       end;
       // In einer bestehenden Teilung ersetzt Strg+Klick das aktive PDF.
       if FSplitHost <> nil then
@@ -8534,6 +8559,15 @@ begin
        (FTabs.ActivePage <> FSplitLastSelectedTab) then
     begin
       Tab := FTabs.ActivePage;
+      if not IsSplitPDFTab(FSplitLastSelectedTab) or
+         not IsSplitPDFTab(Tab) then
+      begin
+        FSplitLastSelectedTab := Tab;
+        FSplitAnchorTab := nil;
+        FSplitSelectedTab := nil;
+        UpdateSplitMenuState;
+        Exit;
+      end;
       FSplitAnchorTab := FSplitLastSelectedTab;
       FSplitSelectedTab := Tab;
       UpdateSplitMenuState;
@@ -9595,6 +9629,10 @@ begin
     if ssShift in Shift then
     begin
       FSplitShiftTab := FTabs.IndexOfTabAt(X, Y);
+      if not IsSplitPDFTab(FSplitAnchorTab) or
+         (FSplitShiftTab < 0) or
+         not IsSplitPDFTab(FTabs.Pages[FSplitShiftTab]) then
+        FSplitShiftTab := -1;
       FSplitAnchorTab := FTabs.ActivePage;
       FDragTabIndex := -1;
       Exit;
