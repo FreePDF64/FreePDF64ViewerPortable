@@ -12,6 +12,29 @@ uses Winapi.Windows, System.SysUtils, System.Math, Vcl.Controls, Vcl.StdCtrls,
   Vcl.ExtCtrls, Vcl.Dialogs, Vcl.Graphics, uPDFLanguage, uPDFTabsForm;
 
 type
+  // OnMouseWheel ist bei einigen VCL-Steuerelementen protected.
+  // Abgeleitete Klassen machen das Ereignis fuer die Zuweisung zugaenglich.
+  TMergeWheelPanel = class(TPanel)
+  public
+    property OnMouseWheel;
+  end;
+  TMergeWheelCheckBox = class(TCheckBox)
+  public
+    property OnMouseWheel;
+  end;
+  TMergeWheelLabel = class(TLabel)
+  public
+    property OnMouseWheel;
+  end;
+  TMergeWheelEdit = class(TEdit)
+  public
+    property OnMouseWheel;
+  end;
+  TMergeWheelScrollBox = class(TScrollBox)
+  public
+    property OnMouseWheel;
+  end;
+
   TMergeEntry = class
     FileName: string;
     Pages: string;
@@ -93,7 +116,7 @@ begin
   for I := 0 to Entries.Count - 1 do
   begin
     Entry := TMergeEntry(Entries[I]);
-    Panel := TPanel.Create(Rows);
+    Panel := TMergeWheelPanel.Create(Rows);
     Panel.Parent := Rows;
     Panel.SetBounds(0, RowTop, Rows.ClientWidth - Px(22), Px(34));
     Panel.BevelOuter := bvNone;
@@ -101,13 +124,15 @@ begin
     Panel.ParentBackground := False;
     Panel.Tag := I;
     Panel.OnClick := SelectRow;
-    Check := TCheckBox.Create(Panel);
+    TMergeWheelPanel(Panel).OnMouseWheel := RowsMouseWheel;
+    Check := TMergeWheelCheckBox.Create(Panel);
     Check.Parent := Panel;
     Check.SetBounds(Px(4), Px(5), Px(22), Px(22));
     Check.Checked := Entry.Selected;
     Check.Tag := I;
     Check.OnClick := CheckChanged;
-    NameLabel := TLabel.Create(Panel);
+    TMergeWheelCheckBox(Check).OnMouseWheel := RowsMouseWheel;
+    NameLabel := TMergeWheelLabel.Create(Panel);
     NameLabel.Parent := Panel;
     // Keine automatische Breitenberechnung anhand des langen Dateipfads:
     // die gesamte Spalte bis kurz vor dem Seitenfeld verwenden.
@@ -122,16 +147,24 @@ begin
     NameLabel.ShowHint := True;
     NameLabel.Tag := I;
     NameLabel.OnClick := SelectRow;
-    Edit := TEdit.Create(Panel);
+    TMergeWheelLabel(NameLabel).OnMouseWheel := RowsMouseWheel;
+    Edit := TMergeWheelEdit.Create(Panel);
     Edit.Parent := Panel;
     Edit.ParentFont := True;
-    Edit.SetBounds(Px(420), Px(3), Px(130), Px(29));
+    // Genuegend Abstand zum rechten Rand: keine Abschneidung beim Scrollen.
+    // Einheitliche Breite auch bei hoher DPI und VCL-Autoskalierung.
+    Edit.AutoSize := False;
+    Edit.Anchors := [akLeft, akTop];
+    Edit.SetBounds(Px(420), Px(3), Px(118), Px(29));
+    Edit.Constraints.MinWidth := Px(118);
+    Edit.Constraints.MaxWidth := Px(118);
     Edit.Text := Entry.Pages;
     Edit.Hint := Tr('Alle oder z. B. 1-3, 8, 12-15');
     Edit.ShowHint := True;
     Edit.Tag := I;
     Edit.OnEnter := SelectRow;
     Edit.OnChange := PagesChanged;
+    TMergeWheelEdit(Edit).OnMouseWheel := RowsMouseWheel;
     // Kompakte Zeilen: Hoehe nach realer Edit-Hoehe, ohne
     // die Schrift nochmals mit DPI zu multiplizieren.
     RowHeight := Max(Px(32), Max(Edit.Height, NameLabel.Height) + Px(3));
@@ -383,11 +416,13 @@ begin
     PageHeader.Parent := Dialog;
     PageHeader.SetBounds(Px(436), Px(60), Px(130), Px(30));
     PageHeader.Caption := Tr('Seiten');
-    Dialog.Rows := TScrollBox.Create(Dialog);
+    Dialog.Rows := TMergeWheelScrollBox.Create(Dialog);
     Dialog.Rows.Parent := Dialog;
     Dialog.Rows.SetBounds(Px(16), Px(98), Px(575), Px(310));
     Dialog.Rows.VertScrollBar.Tracking := True;
-    Dialog.Rows.OnMouseWheel := Dialog.RowsMouseWheel;
+    // Keine horizontale Verschiebung bzw. Abschneidung der Seitenfelder.
+    Dialog.Rows.HorzScrollBar.Visible := False;
+    TMergeWheelScrollBox(Dialog.Rows).OnMouseWheel := Dialog.RowsMouseWheel;
     Dialog.OnMouseWheel := Dialog.RowsMouseWheel;
     Dialog.FSelectedRowIndex := 0;
     for I := 0 to AFiles.Count - 1 do

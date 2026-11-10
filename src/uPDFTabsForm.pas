@@ -5956,7 +5956,7 @@ begin
   for I := 0 to FTabs.PageCount - 1 do
   begin
     FileName := FTabs.Pages[I].Hint;
-    if (FileName <> '') and FileExists(FileName) then
+    if SameText(ExtractFileExt(FileName), '.pdf') and FileExists(FileName) then
       AFiles.Add(FileName);
   end;
 end;
