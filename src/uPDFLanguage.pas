@@ -270,6 +270,9 @@ begin
   AddPair('PDF öffnen oder eine PDF-Datei hierher ziehen (Strg+O)', 'Open a PDF or drag a PDF file here (Ctrl+O)');
   AddPair('Arbeitsbereich öffnen ...', 'Open workspace...');
   AddPair('Zuletzt geöffnete PDF-Dateien', 'Recently opened PDF files');
+  AddPair('Zuletzt geöffnete Dateien', 'Recently opened files');
+  AddPair('Diese Datei ist nicht mehr vorhanden:', 'This file no longer exists:');
+  AddPair('Möchten Sie den Verlauf der zuletzt geöffneten Dateien löschen?', 'Clear the recently opened file history?');
   AddPair('Verlauf löschen', 'Clear history');
   AddPair('Alle geöffneten PDFs durchsuchen', 'Search all open PDFs');
   AddPair('Fundstellen mit Doppelklick öffnen – das Suchfenster schließt sich automatisch.', 'Double-click a result to open it; the search window will close automatically.');

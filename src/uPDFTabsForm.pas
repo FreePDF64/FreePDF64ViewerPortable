@@ -6,7 +6,7 @@ uses
   uPDFLanguage,
   System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
-  Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, System.IniFiles, System.Win.Registry, Math,
+  Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.IniFiles, System.Win.Registry, Math,
   uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
 
 type
@@ -4597,7 +4597,7 @@ begin
   FRecentTitle.Font.Name := 'Segoe UI';
   FRecentTitle.Font.Size := 12;
   FRecentTitle.Font.Style := [fsBold];
-  FRecentTitle.Caption := Tr('Zuletzt geöffnete PDF-Dateien');
+  FRecentTitle.Caption := Tr('Zuletzt geöffnete Dateien');
 
   FRecentScroll := TRecentPDFScrollBox.Create(Self);
   FRecentScroll.Parent := FWelcomePanel;
@@ -4958,7 +4958,13 @@ var
 begin
   S := Trim(AFileName);
   if (S = '') or IsFreePDFTempAttachment(S) or
-     not SameText(ExtractFileExt(S), '.pdf') then Exit;
+     not (SameText(ExtractFileExt(S), '.pdf') or
+          SameText(ExtractFileExt(S), '.jpg') or
+          SameText(ExtractFileExt(S), '.jpeg') or
+          SameText(ExtractFileExt(S), '.png') or
+          SameText(ExtractFileExt(S), '.bmp') or
+          SameText(ExtractFileExt(S), '.tif') or
+          SameText(ExtractFileExt(S), '.tiff')) then Exit;
   S := ExpandFileName(S);
   for I := FRecentPDFs.Count - 1 downto 0 do
     if SameText(FRecentPDFs[I], S) then FRecentPDFs.Delete(I);
@@ -4999,6 +5005,26 @@ begin
   end;
 end;
 
+// TIFF-Vorschau ueber Windows GDI+ (wie in uPDFBrowserForm), ohne WICImage.
+type
+  TRecentGDIStartupInput = record
+    GdiplusVersion: Cardinal;
+    DebugEventCallback: Pointer;
+    SuppressBackgroundThread: LongBool;
+    SuppressExternalCodecs: LongBool;
+  end;
+function RecentGDIStartup(out Token: NativeUInt; const Input: TRecentGDIStartupInput;
+  Output: Pointer): Integer; stdcall; external 'gdiplus.dll' name 'GdiplusStartup';
+procedure RecentGDIShutdown(Token: NativeUInt); stdcall;
+  external 'gdiplus.dll' name 'GdiplusShutdown';
+function RecentGDILoadImage(Filename: PWideChar; out Image: Pointer): Integer;
+  stdcall; external 'gdiplus.dll' name 'GdipLoadImageFromFile';
+function RecentGDIDisposeImage(Image: Pointer): Integer; stdcall;
+  external 'gdiplus.dll' name 'GdipDisposeImage';
+function RecentGDICreateHBitmap(Image: Pointer; out Bitmap: HBITMAP;
+  Background: Cardinal): Integer; stdcall;
+  external 'gdiplus.dll' name 'GdipCreateHBITMAPFromBitmap';
+
 procedure TPDFTabsForm.LoadRecentThumbnail(const AFileName: string; AImage: TImage);
 var
   Doc: TFreePDF64PDFiumCore;
@@ -5007,6 +5033,11 @@ var
   Hash: UInt64;
   I: Integer;
   Key: string;
+  Picture: TPicture;
+  Token: NativeUInt;
+  GImage: Pointer;
+  HB: HBITMAP;
+  Input: TRecentGDIStartupInput;
 begin
   if (AImage = nil) or not FileExists(AFileName) then Exit;
   // Pfad und Änderungsdatum bilden den Cache-Schlüssel. Bei Änderungen
@@ -5025,6 +5056,69 @@ begin
     except
       // Beschädigten Cache-Eintrag neu erstellen.
     end;
+  end;
+  // Grafikvorschauen ohne PDFium erzeugen; TIFF (auch mehrseitig) zeigt
+  // die erste Seite. Derselbe BMP-Cache bleibt fuer alle Dateitypen nutzbar.
+  if not SameText(ExtractFileExt(AFileName), '.pdf') then
+  begin
+    Bmp := TBitmap.Create;
+    Picture := TPicture.Create;
+    Token := 0;
+    GImage := nil;
+    HB := 0;
+    try
+      try
+        if SameText(ExtractFileExt(AFileName), '.tif') or
+           SameText(ExtractFileExt(AFileName), '.tiff') then
+        begin
+          FillChar(Input, SizeOf(Input), 0);
+          Input.GdiplusVersion := 1;
+          if RecentGDIStartup(Token, Input, nil) <> 0 then
+            raise Exception.Create('GDI+ initialization failed');
+          if (RecentGDILoadImage(PWideChar(AFileName), GImage) <> 0) or
+             (GImage = nil) then
+            raise Exception.Create('TIFF image could not be loaded');
+          if (RecentGDICreateHBitmap(GImage, HB, $FFFFFFFF) <> 0) or
+             (HB = 0) then
+            raise Exception.Create('TIFF bitmap could not be created');
+          Bmp.Handle := HB;
+          HB := 0;
+          Picture.Assign(Bmp);
+        end
+        else
+          Picture.LoadFromFile(AFileName);
+        // Direkt in eine kleine Bitmap rendern, ohne eine zweite
+        // Bitmap in Originalaufloesung anzulegen.
+        Bmp.PixelFormat := pf24bit;
+        Bmp.SetSize(240, 320);
+        Bmp.Canvas.Brush.Color := clWhite;
+        Bmp.Canvas.FillRect(Rect(0, 0, 240, 320));
+        if (Picture.Width > 0) and (Picture.Height > 0) then
+        begin
+          if Int64(Picture.Width) * 320 > Int64(Picture.Height) * 240 then
+            Bmp.Canvas.StretchDraw(Rect(0, (320 - MulDiv(Picture.Height, 240, Picture.Width)) div 2,
+              240, (320 + MulDiv(Picture.Height, 240, Picture.Width)) div 2), Picture.Graphic)
+          else
+            Bmp.Canvas.StretchDraw(Rect((240 - MulDiv(Picture.Width, 320, Picture.Height)) div 2, 0,
+              (240 + MulDiv(Picture.Width, 320, Picture.Height)) div 2, 320), Picture.Graphic);
+        end;
+        AImage.Picture.Bitmap.Assign(Bmp);
+        try
+          ForceDirectories(CacheDir);
+          AImage.Picture.Bitmap.SaveToFile(CacheFile);
+        except
+        end;
+      except
+        // Nicht lesbare Grafiken ohne Vorschau belassen.
+      end;
+    finally
+      if HB <> 0 then DeleteObject(HB);
+      if GImage <> nil then RecentGDIDisposeImage(GImage);
+      if Token <> 0 then RecentGDIShutdown(Token);
+      Picture.Free;
+      Bmp.Free;
+    end;
+    Exit;
   end;
   Doc := nil;
   Bmp := TBitmap.Create;
@@ -5149,7 +5243,10 @@ begin
       Thumb.OnClick := RecentPDFClick;
       Thumb.OnContextPopup := RecentPDFContext;
       LoadRecentThumbnail(FileName, Thumb);
-      PageTotal := RecentPDFPageCount(FileName);
+      if SameText(ExtractFileExt(FileName), '.pdf') then
+        PageTotal := RecentPDFPageCount(FileName)
+      else
+        PageTotal := 0;
       if FileExists(FileName) then Thumb.Cursor := crHandPoint;
       Link := TLabel.Create(Self);
       Link.Parent := Row;
@@ -5235,7 +5332,7 @@ begin
   S := FRecentPDFs[I];
   if not FileExists(S) then
   begin
-    PDFModernMessageDlg(Tr('Diese PDF-Datei ist nicht mehr vorhanden:') + sLineBreak + S,
+    PDFModernMessageDlg(Tr('Diese Datei ist nicht mehr vorhanden:') + sLineBreak + S,
       mtInformation, [mbOK], 0);
     RefreshRecentPDFList;
     Exit;
@@ -5292,7 +5389,7 @@ end;
 procedure TPDFTabsForm.RecentPDFClear(Sender: TObject);
 begin
   if FRecentPDFs.Count = 0 then Exit;
-  if PDFModernMessageDlg(Tr('Möchten Sie den Verlauf der zuletzt geöffneten PDF-Dateien löschen?'),
+  if PDFModernMessageDlg(Tr('Möchten Sie den Verlauf der zuletzt geöffneten Dateien löschen?'),
     mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
   FRecentPDFs.Clear;
   SaveRecentPDFs;
@@ -9369,9 +9466,9 @@ begin
   if (FTabs = nil) or (FTabs.PageCount = 0) or FTabCloseInProgress then Exit;
 
   if SameText(PDFLanguage, 'en') then
-    Question := 'Close all open PDF tabs and return to the home page?'
+    Question := 'Do you want to close all open tabs and return to the start page?'
   else
-    Question := 'Möchten Sie alle geöffneten PDF-Registerkarten schließen ' +
+    Question := 'Möchten Sie alle geöffneten Registerkarten schließen ' +
       'und zur Startseite zurückkehren?';
 
   if PDFModernMessageDlg(Question, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
