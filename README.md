@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable 3.1.1
+# FreePDF64-Viewer Portable 3.1.2
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -18,9 +18,9 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Grafik-Viewer f�
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
-## Neu in Version 3.1.1: JavaScript-V8 und statische XFA-Formulare
+## Neu in Version 3.1.2: JavaScript-V8 und statische XFA-Formulare
 
-Version **3.1.1** erweitert die Formularunterstützung des Viewers:
+Version **3.1.2** erweitert die Formularunterstützung des Viewers:
 
 - **PDFium mit V8-JavaScript:** Unterstützte JavaScript-Aktionen in interaktiven PDF-Formularen können ausgeführt werden.
 - **Automatische Formularberechnungen:** Abhängige Werte werden nach Eingaben und Änderungen an unterstützten Checkboxen und Optionsfeldern aktualisiert – auch über mehrere PDF-Seiten hinweg.
@@ -209,9 +209,9 @@ A free, standalone, portable PDF and image viewer for Windows with tabs, cross-d
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
-## New in version 3.1.1: V8 JavaScript and static XFA forms
+## New in version 3.1.2: V8 JavaScript and static XFA forms
 
-Version **3.1.1** expands the viewer's PDF form capabilities:
+Version **3.1.2** expands the viewer's PDF form capabilities:
 
 - **PDFium with V8 JavaScript:** Run supported JavaScript actions in interactive PDF forms.
 - **Automatic form calculations:** Update dependent values after text input and changes to supported checkboxes and radio buttons, including calculations across PDF pages.
