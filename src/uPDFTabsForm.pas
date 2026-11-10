@@ -806,6 +806,9 @@ begin
     if AConfirm then AcceptButton.ModalResult := mrYes
     else AcceptButton.ModalResult := mrOk;
     AcceptButton.Default := True;
+    // ESC schliesst reine Hinweisdialoge wie ein Klick auf OK.
+    // Bei Eingabe- und Bestaetigungsdialogen bleibt Abbrechen/Nein erhalten.
+    AcceptButton.Cancel := not (AConfirm or AInput);
     TPDFDesignButton(AcceptButton).SetDesign(ADesign);
 
     if AConfirm or AInput then
@@ -1703,8 +1706,8 @@ begin
     Dialog.FileName := '';
     with Dialog.FileTypes.Add do
     begin
-      DisplayName := 'PDF-Dateien (*.pdf)';
-      FileMask := '*.pdf';
+      DisplayName := 'PDF- und Bilddateien (*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff)';
+      FileMask := '*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff';
     end;
     with Dialog.FileTypes.Add do
     begin
@@ -2208,7 +2211,7 @@ begin
       MulDiv(710, UIUnit, 96), MulDiv(23, UIUnit, 96));
     if FDesignIndex = 0 then HeaderHint.Font.Color := clGray
     else HeaderHint.Font.Color := ForeColor;
-    HeaderHint.Caption := Tr('Gespeicherte PDF-Sammlungen öffnen und verwalten');
+    HeaderHint.Caption := Tr('Gespeicherte PDF- und Grafik-Sammlungen öffnen und verwalten');
     HeaderHint.AutoSize := True;
     HeaderTitle.AutoSize := True;
     Header.Height := HeaderHint.Top + HeaderHint.Height + MulDiv(16, UIUnit, 96);
@@ -2841,9 +2844,26 @@ begin
     begin
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
-        'Four themes are available: Standard, Modern Light, Windows Classic and Classic Blue. '
+        'Five themes are available: Standard, Modern Light, Modern Dark, Windows Classic and Classic Blue. '
         + 'Toolbars, buttons and controls use colors matching the selected theme. '
         + 'Select a theme under Options → Theme.');
+      AddSection('Images and multipage TIFF files', '');
+      AddSection('Open image files',
+        'Open JPG, JPEG, PNG, BMP, TIF and TIFF files alongside PDFs. Each file appears in its own tab. '
+        + 'Switching between image and PDF tabs does not require reopening the files.');
+      AddSection('Image toolbar and zoom',
+        'Use the image toolbar to zoom in or out, show the image at 100%, fit the entire image to the viewing area, '
+        + 'or fit it to the available width. Fit to page centers the image in the viewing area. '
+        + 'Hold Ctrl and turn the mouse wheel to zoom; without Ctrl, the wheel scrolls normally.');
+      AddSection('Rotate, save and print images',
+        'Rotate images 90 degrees left or right using the toolbar. A changed image is indicated by an orange Save button. '
+        + 'Zooming, scrolling and fitting do not mark an image as changed. '
+        + 'Use Save as to save a supported single-page image; cancelling keeps the change indicator. '
+        + 'Printing is available from the image toolbar.');
+      AddSection('Multipage TIFF navigation',
+        'Open a multipage TIFF and use the previous/next arrow buttons and page counter to navigate its pages. '
+        + 'Zoom and rotation are available for TIFF pages. '
+        + 'Use Save as to export all pages as a new multipage TIFF, including individual page rotations. The original file is preserved.');
       AddSection('Opening and organizing PDFs', '');
       AddSection('Open PDF files',
         'Use File → Open PDF…, Ctrl+O, or drag and drop. Each PDF opens in its own tab.');
@@ -3007,9 +3027,28 @@ begin
     begin
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
       AddSection('Design auswählen',
-        'Vier Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik und Klassisch Blau. '
+        'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Modern Dunkel, Windows Klassik und Klassisch Blau. '
         + 'Symbolleisten, Schaltflächen und Bedienelemente werden farblich an das gewählte Design angepasst. '
         + 'Wählen Sie das gewünschte Design unter Optionen → Design.');
+      AddSection('Grafiken und mehrseitige TIFF-Dateien', '');
+      AddSection('Grafikdateien öffnen',
+        'JPG-, JPEG-, PNG-, BMP-, TIF- und TIFF-Dateien können zusammen mit PDFs geöffnet werden. '
+        + 'Jede Datei erhält eine eigene Registerkarte. Beim Wechsel zwischen Grafik- und PDF-Registerkarten '
+        + 'müssen die Dateien nicht erneut geöffnet werden.');
+      AddSection('Grafik-Symbolleiste und Zoom',
+        'Über die Grafik-Symbolleiste können Sie vergrößern, verkleinern, 100 % wählen, die ganze Grafik '
+        + 'an den Anzeigebereich oder an dessen Breite anpassen. Beim Einpassen wird die Grafik zentriert. '
+        + 'Mit Strg + Mausrad zoomen Sie die Grafik; ohne Strg wird wie gewohnt gescrollt.');
+      AddSection('Grafiken drehen, speichern und drucken',
+        'Mit den Symbolen drehen Sie Grafiken um 90° nach links oder rechts. Nach einer Änderung '
+        + 'wird der Speichern-Button orange. Zoomen, Scrollen und Einpassen gelten nicht als Änderung. '
+        + 'Einzelne Grafiken lassen sich über „Speichern unter ...“ sichern; bei Abbruch bleibt die '
+        + 'Änderungsanzeige bestehen. Die Grafik-Symbolleiste bietet auch eine Druckfunktion.');
+      AddSection('Mehrseitige TIFF-Dateien',
+        'Bei mehrseitigen TIFFs wechseln Sie mit den Pfeilschaltflächen zwischen den Seiten; '
+        + 'die Seitenanzeige zeigt die aktuelle Position. Zoomen und Drehen sind auch hier möglich. '
+        + 'Über „Speichern unter ...“ werden alle Seiten einschließlich ihrer individuellen Drehungen '
+        + 'als neue mehrseitige TIFF-Datei gespeichert. Das Original bleibt unverändert.');
       AddSection('PDFs öffnen und organisieren', '');
       AddSection('PDF-Dateien öffnen',
         'Über „Datei → PDF öffnen …“, Strg+O oder per Drag&Drop. Mehrere PDFs werden in eigenen Tabs geöffnet.');
@@ -4220,7 +4259,7 @@ begin
   FFileMenu.Caption := Tr('Datei');
   FHelpMainMenu.Items.Add(FFileMenu);
   HelpItem := TMenuItem.Create(FHelpMainMenu);
-  HelpItem.Caption := Tr('PDF öffnen ...');
+  HelpItem.Caption := Tr('PDFs und Grafiken öffnen ...');
   HelpItem.ShortCut := ShortCut(Ord('O'), [ssCtrl]);
   HelpItem.OnClick := OpenPDFClick;
   FFileMenu.Add(HelpItem);
@@ -4530,17 +4569,17 @@ begin
   FWelcomeHint.Font.Size := 11;
   FWelcomeHint.Font.Name := 'Segoe UI';
   FWelcomeHint.Font.Color := RGB(94, 108, 126);
-  FWelcomeHint.Caption := Tr('PDF öffnen oder eine PDF-Datei hierher ziehen (Strg+O)');
+  FWelcomeHint.Caption := Tr('PDFs und Grafiken öffnen oder hierher ziehen (Strg+O)');
 
   FWelcomeOpenButton := TButton.Create(Self);
   FWelcomeOpenButton.Parent := FWelcomePanel;
   FWelcomeOpenButton.PopupMenu := FTabContextMenu;
-  FWelcomeOpenButton.Caption := Tr('PDF öffnen ...');
+  FWelcomeOpenButton.Caption := Tr('PDFs und Grafiken öffnen ...');
   FWelcomeOpenButton.Width := MulDiv(260, Dpi, 96);
   FWelcomeOpenButton.Height := MulDiv(44, Dpi, 96);
   FWelcomeOpenButton.Font.Name := 'Segoe UI';
   FWelcomeOpenButton.Font.Style := [fsBold];
-  FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDF-Dateien öffnen (Strg+O)');
+  FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Grafiken öffnen (Strg+O)');
   FWelcomeOpenButton.ShowHint := True;
   FWelcomeOpenButton.OnClick := OpenPDFClick;
   FWelcomeWorkspaceButton := TButton.Create(Self);
@@ -5393,7 +5432,13 @@ begin
       if Len > 0 then
         DragQueryFile(Msg.Drop, I, PChar(FileName), Len + 1);
       SetLength(FileName, Len);
-      if SameText(ExtractFileExt(FileName), '.pdf') and FileExists(FileName) then
+      if (SameText(ExtractFileExt(FileName), '.pdf') or
+          SameText(ExtractFileExt(FileName), '.jpg') or
+          SameText(ExtractFileExt(FileName), '.jpeg') or
+          SameText(ExtractFileExt(FileName), '.png') or
+          SameText(ExtractFileExt(FileName), '.bmp') or
+          SameText(ExtractFileExt(FileName), '.tif') or
+          SameText(ExtractFileExt(FileName), '.tiff')) and FileExists(FileName) then
       begin
         PDF := TPDFBrowserForm.Create(nil);
       PDF.OnGlobalSearch := GlobalSearchClick;
@@ -7330,6 +7375,20 @@ begin
     end;
 end;
 
+// Grafiktyp anhand der Registerkarten-Metadaten bestimmen.
+// Nicht die PDFFileName-Eigenschaft einer eventuell gerade wechselnden
+// BrowserForm abfragen (Fehlerpfad LoadSelectedPDF/IsBasicImage).
+function IsImageTabFile(const ATab: TTabSheet): Boolean;
+var
+  Ext: string;
+begin
+  Result := False;
+  if ATab = nil then Exit;
+  Ext := LowerCase(ExtractFileExt(ATab.Hint));
+  Result := (Ext = '.jpg') or (Ext = '.jpeg') or
+    (Ext = '.png') or (Ext = '.bmp') or (Ext = '.tif') or (Ext = '.tiff');
+end;
+
 procedure TPDFTabsForm.LoadSelectedPDF;
 var
   I: Integer;
@@ -7341,6 +7400,12 @@ begin
   for I := 0 to Tab.ControlCount - 1 do
     if Tab.Controls[I] is TPDFBrowserForm then
     begin
+      if IsImageTabFile(Tab) then
+      begin
+        if not TPDFBrowserForm(Tab.Controls[I]).Visible then
+          TPDFBrowserForm(Tab.Controls[I]).Show;
+        Exit;
+      end;
       // Ein bisher inaktiver Tab kann noch unsichtbar sein. Der
       // Ladetimer wartet auf einen sichtbaren PDF-Browser.
       TPDFBrowserForm(Tab.Controls[I]).Show;
@@ -8137,6 +8202,8 @@ var
   R: TRect;
   ScreenPos: TPoint;
   WorkArea: TRect;
+  GraphicTab: TPDFBrowserForm;
+  C: Integer;
 begin
   if not FTabPreviewEnabled or (FTabs = nil) or
      (FTabPreviewIndex < 0) or (FTabPreviewIndex >= FTabs.PageCount) then
@@ -8158,13 +8225,34 @@ begin
     HideTabPreview;
     Exit;
   end;
-  // Same cache key as the existing recent-PDF thumbnail implementation.
+  // Grafikregisterkarten nutzen das bereits angezeigte Bild (inkl. TIFF-Seite
+  // und Drehung), ohne PDFium zu starten oder die Originaldatei neu zu laden.
+  GraphicTab := nil;
+  for C := 0 to FTabs.Pages[FTabPreviewIndex].ControlCount - 1 do
+    if FTabs.Pages[FTabPreviewIndex].Controls[C] is TPDFBrowserForm then
+    begin
+      GraphicTab := TPDFBrowserForm(FTabs.Pages[FTabPreviewIndex].Controls[C]);
+      Break;
+    end;
+  if (GraphicTab <> nil) and not GraphicTab.IsBasicImage then GraphicTab := nil;
   Key := 'TabPreviewAspectV2:' + LowerCase(FileName) + ':' + IntToStr(FileAge(FileName));
+  if GraphicTab <> nil then
+    Key := Key + ':Graphic:' + GraphicTab.GraphicPreviewKey;
   Hash := UInt64($CBF29CE484222325);
   for I := 1 to Length(Key) do
     Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
   CacheDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'Thumbnails';
   CacheFile := IncludeTrailingPathDelimiter(CacheDir) + IntToHex(Hash, 16) + '.bmp';
+  if (GraphicTab <> nil) and not FileExists(CacheFile) then
+  begin
+    // Nur einmal bei Bedarf eine maximal 200x200 grosse Vorschau erzeugen.
+    // VCL-Grafikobjekte duerfen nicht aus dem PDF-Renderthread gelesen werden.
+    try
+      if not GraphicTab.SaveGraphicPreview(CacheFile) then Exit;
+    except
+      Exit; // Vorschau optional; niemals die Anzeige unterbrechen.
+    end;
+  end;
   if not FileExists(CacheFile) then
   begin
     if FTabPreviewRequested <> FileName then
@@ -8371,6 +8459,12 @@ begin
   // Kein erzwungenes Realign beim normalen Registerwechsel.
   // RefitPDFOnTabActivation prueft die Viewport-Groesse selbst.
   PDF := PDFInTab(FTabs.ActivePage);
+  if IsImageTabFile(FTabs.ActivePage) then
+  begin
+    FTabFitPendingPage := nil;
+    FTabFitRetryCount := 0;
+    Exit;
+  end;
   if (PDF = nil) or not PDF.PDFNavigationSucceeded then
   begin
     // Ein neu aktivierter Tab kann nach 75 ms noch asynchron laden.
@@ -8400,6 +8494,34 @@ begin
   // oder Anzeige eines bislang ungeladenen PDF-Viewers.
   if FAddingPDF then Exit;
   
+  // Grafikregister sind eigenstaendige Bildansichten. Beim Wechsel keine
+  // PDF-spezifischen Aktualisierungen, Ladeauftraege oder Refit-Timer ausfuehren.
+  // Die vorhandene TImage-Instanz bleibt dabei im jeweiligen Tab erhalten.
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) and
+     IsImageTabFile(FTabs.ActivePage) then
+  begin
+    if FActivationTimer <> nil then FActivationTimer.Enabled := False;
+    FDeferredActivePDF := nil;
+    if FTabFitTimer <> nil then FTabFitTimer.Enabled := False;
+    FTabFitPendingPage := nil;
+    FTabFitRetryCount := 0;
+    for TabIndex := 0 to FTabs.PageCount - 1 do
+    begin
+      Tab := FTabs.Pages[TabIndex];
+      if Tab <> FTabs.ActivePage then
+        for ControlIndex := 0 to Tab.ControlCount - 1 do
+          if Tab.Controls[ControlIndex] is TPDFBrowserForm then
+            TPDFBrowserForm(Tab.Controls[ControlIndex]).HideLoadingHintForInactiveTab;
+    end;
+    if (PDFInTab(FTabs.ActivePage) <> nil) and
+       not PDFInTab(FTabs.ActivePage).Visible then
+      PDFInTab(FTabs.ActivePage).Show;
+    FSplitLastSelectedTab := FTabs.ActivePage;
+    UpdateSplitMenuState;
+    UpdateWelcomeView;
+    Exit;
+  end;
+
   // Fallback fuer native Windows-Tabcontrols: Der Reiterwechsel kann
   // stattfinden, ohne dass FTabs.WindowProc ein WM_LBUTTONDOWN sieht.
   // OnChange wird jedoch nach der nativen Auswahl ausgeloest.

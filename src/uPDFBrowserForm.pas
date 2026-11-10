@@ -5,8 +5,11 @@ uses
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Classes, System.SyncObjs,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.ExtCtrls, Vcl.Dialogs, uPDFModernDialogs,
-  Vcl.StdCtrls, Vcl.Buttons, Vcl.ComCtrls, Math, IniFiles, System.NetEncoding, Vcl.Imaging.pngimage, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, Menus;
+  Vcl.StdCtrls, Vcl.Buttons, Vcl.ComCtrls, Vcl.Printers, Math, IniFiles, System.NetEncoding, Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, Menus;
 type
+  TPixelRow = array[0..(MaxInt div 4) - 1] of Cardinal;
+  PPixelRow = ^TPixelRow;
+
   TPDFBackgroundLoad = class
   public
     Thread: TThread;
@@ -37,6 +40,22 @@ type
     procedure CMDialogKey(var Message: TCMDialogKey); message CM_DIALOGKEY;
   private
     FPDFiumView: TFreePDF64PDFiumView;
+    // M81: einfache Bildansicht ohne PDFium oder neue Grafik-Symbolleiste.
+    FImageScroll: TScrollBox;
+    FImageDisplay: TImage;
+    FImageZoom: Double;
+    FImageFitMode: Integer; // 0=manuell, 1=ganze Grafik, 2=Breite
+    FImageModified: Boolean; // Nur echte Bildaenderungen (Drehen), kein Zoom
+    FImagePreviewRevision: Cardinal; // Cache-Version fuer Registerkartenvorschau
+    FImageButtons: array[0..8] of TSpeedButton;
+    FImageZoomLabel: TLabel; // Berechneter Grafikzoom, nur Anzeige
+    FTIFFImage: Pointer;
+    FTIFFGDIPlusToken: NativeUInt;
+    FTIFFPageCount, FTIFFPageIndex: Cardinal;
+    FTIFFPageGuid: TGUID;
+    FTIFFRotations: array of Integer; // 0..3 clockwise quarter-turns per page
+    FTIFFPrevButton, FTIFFNextButton: TSpeedButton;
+    FTIFFPageLabel: TLabel;
     FBackgroundLoad: TPDFBackgroundLoad;
     FLoadingHintWnd: HWND;
     FLoadingHintFont: HFONT;
@@ -79,6 +98,14 @@ type
     FTabbedPDFMode: Boolean;
     FStandalonePDFMode: Boolean;
     FStandaloneHintShown: Boolean;
+    procedure ShowBasicImage;
+    procedure UpdateImageSaveIndicator;
+    procedure ImageMouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+    procedure CloseTIFFImage;
+    procedure ShowTIFFPage(AIndex: Cardinal);
+    procedure SaveMultipageTIFF(const AFileName: string);
+    procedure TIFFPageButtonClick(Sender: TObject);
     procedure UpdateUnifiedToolbar;
     procedure FinishBackgroundLoad;
     procedure SetLoadingHint(AVisible: Boolean);
@@ -96,6 +123,9 @@ type
     procedure SetSearchTerm(const AValue: string);
     procedure ToggleAttachmentsClick(Sender: TObject);
     procedure PageNavigationTimerTimer(Sender: TObject);
+    procedure ImageToolClick(Sender: TObject);
+    procedure UpdateImageLayout;
+    procedure CreateImageTools;
   public
     FAttachmentsButton: TBitBtn;
     FAttachmentSeparator: TBevel;
@@ -106,6 +136,9 @@ type
     OnSaveWorkspace: TNotifyEvent;
     AttachmentWindowHandle: HWND;
     PDFFileName: string;
+    function IsBasicImage: Boolean;
+    function GraphicPreviewKey: string;
+    function SaveGraphicPreview(const ACacheFile: string): Boolean;
     destructor Destroy; override;
     function IsShortCut(var Message: TWMKey): Boolean; override;
     procedure ApplyToolbarDesign(ADesign: Integer);
@@ -166,6 +199,61 @@ type
 implementation
 
 uses uPDFPortableAttachments;
+
+type
+  TGDIPlusStartupInput = record
+    GdiplusVersion: Cardinal;
+    DebugEventCallback: Pointer;
+    SuppressBackgroundThread: LongBool;
+    SuppressExternalCodecs: LongBool;
+  end;
+function GdiplusStartup(out Token: NativeUInt; const Input: TGDIPlusStartupInput;
+  Output: Pointer): Integer; stdcall; external 'gdiplus.dll';
+procedure GdiplusShutdown(Token: NativeUInt); stdcall; external 'gdiplus.dll';
+function GdipLoadImageFromFile(Filename: PWideChar; out Image: Pointer): Integer;
+  stdcall; external 'gdiplus.dll';
+function GdipDisposeImage(Image: Pointer): Integer; stdcall; external 'gdiplus.dll';
+function GdipImageGetFrameCount(Image: Pointer; const DimensionID: TGUID;
+  out Count: Cardinal): Integer; stdcall; external 'gdiplus.dll';
+function GdipImageSelectActiveFrame(Image: Pointer; const DimensionID: TGUID;
+  FrameIndex: Cardinal): Integer; stdcall; external 'gdiplus.dll';
+function GdipCreateHBITMAPFromBitmap(Bitmap: Pointer; out HBitmap: HBITMAP;
+  Background: Cardinal): Integer; stdcall; external 'gdiplus.dll';
+function GdipCreateBitmapFromHBITMAP(HBitmap: HBITMAP; HPalette: HPALETTE;
+  out Bitmap: Pointer): Integer; stdcall; external 'gdiplus.dll';
+function GdipImageRotateFlip(Image: Pointer; RotateFlipType: Integer): Integer;
+  stdcall; external 'gdiplus.dll';
+function GdipSaveImageToFile(Image: Pointer; Filename: PWideChar;
+  const ClsidEncoder: TGUID; EncoderParams: Pointer): Integer;
+  stdcall; external 'gdiplus.dll';
+function GdipSaveAddImage(Image, NewImage: Pointer; EncoderParams: Pointer): Integer;
+  stdcall; external 'gdiplus.dll';
+function GdipSaveAdd(Image: Pointer; EncoderParams: Pointer): Integer;
+  stdcall; external 'gdiplus.dll';
+
+type
+  TTIFFEncoderParameter = record
+    Guid: TGUID;
+    NumberOfValues: Cardinal;
+    ValueType: Cardinal;
+    Value: Pointer;
+  end;
+  TTIFFEncoderParameters = record
+    Count: Cardinal;
+    Parameter: TTIFFEncoderParameter;
+  end;
+
+procedure SetTIFFSaveFlag(var Params: TTIFFEncoderParameters;
+  var FlagValue: Cardinal; AFlag: Cardinal);
+begin
+  FlagValue := AFlag;
+  Params.Count := 1;
+  Params.Parameter.Guid := StringToGUID('{292266FC-AC40-47BF-8CFC-A85B89A655DE}');
+  Params.Parameter.NumberOfValues := 1;
+  Params.Parameter.ValueType := 4; // EncoderParameterValueTypeLong
+  Params.Parameter.Value := @FlagValue;
+end;
+
 
 type
   TEditDesignAccess = class(TCustomEdit);
@@ -407,6 +495,7 @@ begin
   // Der Worker benutzt ausschliesslich seinen eigenen Ladeauftrag.
   // Beim Schliessen muss er fertig sein, bevor dessen Speicher frei wird.
   FreeAndNil(FBackgroundLoad);
+  CloseTIFFImage;
   // PDFium vor dem Zerstoeren des Formular-Handles freigeben.
   // Sonst koennen PDFium-Kindcontrols beim Aufraeumen einen bereits
   // ungueltigen Parent-Handle anfordern (EInvalidOperation).
@@ -653,7 +742,7 @@ procedure TPDFBrowserForm.RefreshLanguage;
 begin
   TranslatePDFControls(Self);
   if FOpenPDFButton <> nil then
-    FOpenPDFButton.Hint := ToolbarHintBrowser('PDF öffnen ... (Strg+O)', 'Open PDF... (Ctrl+O)');
+    FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Grafiken öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
   if FWorkspacesButton <> nil then
   begin
     FWorkspacesButton.Caption := '';
@@ -670,6 +759,20 @@ begin
   SetAttachmentIndicator(FHasPDFEmbeddedAttachments);
   if FPDFiumView <> nil then
     FPDFiumView.RefreshLanguage;
+  if FImageButtons[0] <> nil then
+  begin
+    FImageButtons[0].Hint := ToolbarHintBrowser('Grafik verkleinern', 'Zoom image out');
+    FImageButtons[1].Hint := ToolbarHintBrowser('Grafik vergrößern', 'Zoom image in');
+    FImageButtons[2].Hint := ToolbarHintBrowser('Grafik 90° nach links drehen', 'Rotate image 90° left');
+    FImageButtons[3].Hint := ToolbarHintBrowser('Grafik 90° nach rechts drehen', 'Rotate image 90° right');
+    FImageButtons[4].Hint := ToolbarHintBrowser('Ganze Grafik', 'Fit image');
+    FImageButtons[5].Hint := ToolbarHintBrowser('Grafikbreite anpassen', 'Fit image width');
+    FImageButtons[6].Hint := ToolbarHintBrowser('Originalgröße (100 %)', 'Actual size (100%)');
+    FImageButtons[7].Hint := ToolbarHintBrowser('Grafik speichern unter ...', 'Save image as...');
+    FImageButtons[8].Hint := ToolbarHintBrowser('Grafik drucken ...', 'Print image...');
+    if FImageZoomLabel <> nil then
+      FImageZoomLabel.Hint := ToolbarHintBrowser('Aktueller Grafikzoom', 'Current image zoom');
+  end;
 end;
 
 procedure TPDFBrowserForm.ShowDocumentProperties;
@@ -680,6 +783,7 @@ end;
 
 procedure TPDFBrowserForm.RefitPDFOnTabActivation;
 begin
+  if IsBasicImage then Exit;
   if (FPDFiumView <> nil) and FNavigationSucceeded then
     FPDFiumView.RefitOnTabActivation;
 end;
@@ -781,9 +885,11 @@ begin
   FOpenPDFButton.Parent := FToolbar;
   FOpenPDFButton.Caption := '📂';
   FOpenPDFButton.Font.Name := 'Segoe UI Emoji';
+  // Emoji-Schrift bei 4K nicht proportional zur riesigen Schaltflaeche skalieren.
+  FOpenPDFButton.Font.Size := 10;
   FOpenPDFButton.Width := ScalePx(32);
   FOpenPDFButton.Height := 28;
-  FOpenPDFButton.Hint := ToolbarHintBrowser('PDF öffnen ... (Strg+O)', 'Open PDF... (Ctrl+O)');
+  FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Grafiken öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
   FOpenPDFButton.ShowHint := True;
   FOpenPDFButton.OnClick := OpenPDFToolbarClick;
 
@@ -1098,7 +1204,15 @@ end;
 
 procedure TPDFBrowserForm.RequestPDFLoad;
 begin
+  // Grafikregister besitzen keinen PDFium-Ladeauftrag.
   if FClosing or (csDestroying in ComponentState) then Exit;
+  if IsBasicImage then
+  begin
+    // Grafik-Symbolleiste auch beim Ladeauftrag initialisieren.
+    if TimerPDF <> nil then TimerPDF.Enabled := False;
+    ShowBasicImage;
+    Exit;
+  end;
   // Nach Abbruch/Fehler nicht durch Tabwechsel oder Timer erneut laden.
   // Ein explizites OpenSavedPDF setzt FNavigationDone wieder zurueck.
   if FNavigationDone and not FNavigationSucceeded then Exit;
@@ -1120,6 +1234,15 @@ end;
 
 procedure TPDFBrowserForm.RequestPDFLoadFast;
 begin
+  // Beim Zurueckschalten auf eine bereits geladene PDF keinen zweiten
+  // asynchronen Ladevorgang und keinen neuen Timer ausloesen.
+  if FClosing or (csDestroying in ComponentState) then Exit;
+  if IsBasicImage then
+  begin
+    if FImageButtons[0] = nil then ShowBasicImage;
+    Exit;
+  end;
+  if FNavigationSucceeded then Exit;
   // Beim aktiven Tabwechsel ist die VCL-Tabumschaltung bereits erfolgt.
   // Die kurze Wartezeit des normalen Erststarts ist hier unnoetig.
   // Das Laden selbst bleibt asynchron; keine Blockade des UI-Threads.
@@ -1136,7 +1259,7 @@ procedure TPDFBrowserForm.RefreshActiveTabPDF;
 var
   LoadJob: TPDFBackgroundLoad;
 begin
-  if FClosing or (FPDFiumView = nil) then Exit;
+  if FClosing or IsBasicImage or (FPDFiumView = nil) then Exit;
   if FPDFLoadInProgress then
   begin
     FinishBackgroundLoad;
@@ -1329,8 +1452,853 @@ begin
   if FPDFiumView <> nil then FPDFiumView.ToggleMarker;
 end;
 
+function TPDFBrowserForm.IsBasicImage: Boolean;
+var
+  Ext, FilePath: string;
+begin
+  // In einem Register ist der unveraenderliche Dateipfad im Tab gespeichert.
+  // Bei einem schnellen Wechsel PDF <-> Grafik nicht die gerade wechselnde
+  // BrowserForm-Dateinamenreferenz fuer die Typpruefung dereferenzieren.
+  if (Parent is TTabSheet) and (TTabSheet(Parent).Hint <> '') then
+    FilePath := TTabSheet(Parent).Hint
+  else
+    FilePath := PDFFileName;
+  Ext := LowerCase(ExtractFileExt(FilePath));
+  Result := (Ext = '.jpg') or (Ext = '.jpeg') or
+    (Ext = '.png') or (Ext = '.bmp') or
+    (Ext = '.tif') or (Ext = '.tiff');
+end;
+
+procedure SetCrispImageGlyph(AButton: TSpeedButton; AKind: Integer;
+  AColor: TColor = clBlack);
+var
+  B: TBitmap;
+  S, C, R, Stroke: Integer;
+  Step, Steps, CX, CY, Rad, PX, PY, Direction: Integer;
+  Angle: Double;
+  Arrow: array[0..2] of TPoint;
+
+begin
+  S := Max(16, MulDiv(20, Max(96, AButton.CurrentPPI), 96));
+  B := TBitmap.Create;
+  try
+    B.PixelFormat := pf24bit;
+    B.SetSize(S, S);
+    B.Canvas.Brush.Color := clFuchsia;
+    B.Canvas.FillRect(Rect(0, 0, S, S));
+    B.Canvas.Pen.Color := AColor;
+    Stroke := Max(2, MulDiv(2, Max(96, AButton.CurrentPPI), 96));
+    B.Canvas.Pen.Width := Stroke;
+    B.Canvas.Pen.Style := psSolid;
+    B.Canvas.Brush.Style := bsClear;
+    C := S div 2;
+    if AKind >= 4 then
+    begin
+      // Einfache monochrome Piktogramme fuer die Grafik-Werkzeuge.
+      B.Canvas.Pen.Width := Max(1, MulDiv(2, Max(96, AButton.CurrentPPI), 96));
+      case AKind of
+        4: begin // Ganze Seite: Dokument mit vier Eckmarkierungen
+          B.Canvas.Rectangle(S div 4, S div 6, 3*S div 4, 5*S div 6);
+          B.Canvas.MoveTo(S div 3, S div 3);
+          B.Canvas.LineTo(2*S div 3, S div 3);
+          B.Canvas.MoveTo(S div 3, 2*S div 3);
+          B.Canvas.LineTo(2*S div 3, 2*S div 3);
+        end;
+        5: begin // Seitenbreite: horizontale Doppelpfeile
+          B.Canvas.MoveTo(S div 5, S div 2);
+          B.Canvas.LineTo(4*S div 5, S div 2);
+          B.Canvas.MoveTo(S div 5, S div 2);
+          B.Canvas.LineTo(S div 3, S div 3);
+          B.Canvas.MoveTo(S div 5, S div 2);
+          B.Canvas.LineTo(S div 3, 2*S div 3);
+          B.Canvas.MoveTo(4*S div 5, S div 2);
+          B.Canvas.LineTo(2*S div 3, S div 3);
+          B.Canvas.MoveTo(4*S div 5, S div 2);
+          B.Canvas.LineTo(2*S div 3, 2*S div 3);
+        end;
+        6: begin // Originalgroesse: 100%
+          B.Canvas.Font.Name := 'Segoe UI';
+          B.Canvas.Font.Color := AColor;
+          B.Canvas.Font.Style := [fsBold];
+          B.Canvas.Font.Height := -Max(9, S div 2);
+          while (B.Canvas.TextWidth('100%') > S - 2) and
+                (B.Canvas.Font.Height < -7) do
+            B.Canvas.Font.Height := B.Canvas.Font.Height + 1;
+          B.Canvas.TextOut(Max(0, (S-B.Canvas.TextWidth('100%')) div 2),
+            Max(0, (S-B.Canvas.TextHeight('100%')) div 2), '100%');
+        end;
+        7: begin // Speichern: Diskette
+          B.Canvas.Rectangle(S div 5, S div 6, 4*S div 5, 5*S div 6);
+          B.Canvas.Rectangle(S div 3, S div 6, 2*S div 3, S div 2);
+          B.Canvas.Rectangle(S div 3, 2*S div 3, 2*S div 3, 5*S div 6);
+        end;
+        8: begin // Drucken: Drucker
+          B.Canvas.Rectangle(S div 4, S div 6, 3*S div 4, S div 2);
+          B.Canvas.Rectangle(S div 6, S div 2, 5*S div 6, 3*S div 4);
+          B.Canvas.Rectangle(S div 4, 2*S div 3, 3*S div 4, 5*S div 6);
+        end;
+      end;
+    end
+    else if AKind < 2 then
+    begin
+      // Lupe: ein Kreis, ein Griff und ein Plus/Minus, ohne doppelte Konturen.
+      R := Max(4, S div 3);
+      B.Canvas.Ellipse(C-R-2, C-R-2, C+R-1, C+R-1);
+      B.Canvas.MoveTo(C+R-2, C+R-2);
+      B.Canvas.LineTo(S-2, S-2);
+      B.Canvas.MoveTo(C-R div 2-2, C-2);
+      B.Canvas.LineTo(C+R div 2-1, C-2);
+      if AKind = 1 then
+      begin
+        B.Canvas.MoveTo(C-2, C-R div 2-2);
+        B.Canvas.LineTo(C-2, C+R div 2-1);
+      end;
+    end
+    else
+    begin
+      // Eigenes Vektor-Drehsymbol: Kreisbogen mit Pfeilspitze.
+      // Keine vertikalen Begrenzungslinien, keine Pixelmasken.
+      // Links = gegen den Uhrzeigersinn; rechts = im Uhrzeigersinn.
+      CX := S div 2;
+      CY := S div 2;
+      Rad := Max(5, S * 31 div 100);
+      Steps := Max(24, S * 2);
+      B.Canvas.Pen.Width := Max(2, S div 10);
+      Direction := 1;
+      if AKind = 3 then Direction := -1;
+      // Der Bogen laeuft von unten ueber die Aussenseite nach oben.
+      // Oben endet er jeweils mit einer gut sichtbaren Pfeilspitze.
+      for Step := 0 to Steps do
+      begin
+        Angle := (0.72 + 1.72 * Step / Steps) * Pi;
+        if Direction < 0 then Angle := Pi - Angle;
+        PX := CX + Round(Rad * Cos(Angle));
+        PY := CY - Round(Rad * Sin(Angle));
+        if Step = 0 then B.Canvas.MoveTo(PX, PY)
+        else B.Canvas.LineTo(PX, PY);
+      end;
+      // Dreieckige Pfeilspitze am Bogenende, ohne geraden Randstrich.
+      Angle := 2.44 * Pi;
+      if Direction < 0 then Angle := Pi - Angle;
+      PX := CX + Round(Rad * Cos(Angle));
+      PY := CY - Round(Rad * Sin(Angle));
+      Arrow[0] := Point(PX, PY);
+      Arrow[1] := Point(PX + Direction * Max(4, S div 4), PY - Max(2, S div 10));
+      Arrow[2] := Point(PX + Direction * Max(2, S div 10), PY + Max(4, S div 4));
+      B.Canvas.Brush.Style := bsSolid;
+      B.Canvas.Brush.Color := AColor;
+      B.Canvas.Pen.Width := 1;
+      B.Canvas.Polygon(Arrow);
+
+    end;
+    B.TransparentColor := clFuchsia;
+    B.Transparent := True;
+    AButton.Glyph.Assign(B);
+    AButton.NumGlyphs := 1;
+    AButton.Caption := '';
+    AButton.Margin := -1;
+    AButton.Spacing := 0;
+  finally
+    B.Free;
+  end;
+end;
+
+
+procedure SetTIFFArrowGlyph(AButton: TSpeedButton; AForward: Boolean;
+  AColor: TColor; APPI: Integer);
+var
+  B: TBitmap;
+  S, C, R: Integer;
+  P: array[0..2] of TPoint;
+begin
+  if AButton = nil then Exit;
+  S := Max(16, MulDiv(18, APPI, 96));
+  B := TBitmap.Create;
+  try
+    B.SetSize(S, S);
+    B.PixelFormat := pf24bit;
+    B.Transparent := True;
+    B.TransparentColor := clFuchsia;
+    B.Canvas.Brush.Color := clFuchsia;
+    B.Canvas.FillRect(Rect(0, 0, S, S));
+    C := S div 2;
+    R := Max(3, S div 4);
+    if AForward then
+    begin
+      P[0] := Point(C - R div 2, C - R);
+      P[1] := Point(C + R div 2, C);
+      P[2] := Point(C - R div 2, C + R);
+    end
+    else
+    begin
+      P[0] := Point(C + R div 2, C - R);
+      P[1] := Point(C - R div 2, C);
+      P[2] := Point(C + R div 2, C + R);
+    end;
+    B.Canvas.Pen.Color := AColor;
+    B.Canvas.Brush.Color := AColor;
+    B.Canvas.Polygon(P);
+    AButton.Caption := '';
+    AButton.Glyph.Assign(B);
+    AButton.NumGlyphs := 1;
+    AButton.Margin := -1;
+    AButton.Spacing := 0;
+  finally
+    B.Free;
+  end;
+end;
+
+procedure TPDFBrowserForm.UpdateImageSaveIndicator;
+begin
+  if FImageButtons[7] = nil then Exit;
+  // Dieselbe orange Warnfarbe fuer ungespeicherte Aenderungen wie bei PDFs.
+  // Nur die Diskette neu zeichnen, nicht die gesamte Symbolleiste.
+  if FImageModified then
+    SetCrispImageGlyph(FImageButtons[7], 7, TColor($0080A5FF))
+  else
+    SetCrispImageGlyph(FImageButtons[7], 7, FImageButtons[7].Font.Color);
+end;
+
+procedure TPDFBrowserForm.CreateImageTools;
+var
+  I: Integer;
+begin
+  if FImageButtons[0] <> nil then Exit;
+  for I := 0 to High(FImageButtons) do
+  begin
+    FImageButtons[I] := TSpeedButton.Create(Self);
+    FImageButtons[I].Parent := FToolbar;
+    FImageButtons[I].Tag := I;
+    case I of
+      0: SetCrispImageGlyph(FImageButtons[I], 0);
+      1: SetCrispImageGlyph(FImageButtons[I], 1);
+      2: SetCrispImageGlyph(FImageButtons[I], 2);
+      3: SetCrispImageGlyph(FImageButtons[I], 3);
+      4: SetCrispImageGlyph(FImageButtons[I], 4);
+      5: SetCrispImageGlyph(FImageButtons[I], 5);
+      6: begin
+           FImageButtons[I].Caption := '100 %';
+           FImageButtons[I].Font.Style := [fsBold];
+           FImageButtons[I].Font.Size := 9;
+         end;
+      7: SetCrispImageGlyph(FImageButtons[I], 7);
+      8: SetCrispImageGlyph(FImageButtons[I], 8);
+    end;
+    FImageButtons[I].Width := MulDiv(IfThen(I = 6, 48, 34), CurrentPPI, 96);
+    FImageButtons[I].Height := MulDiv(28, CurrentPPI, 96);
+    FImageButtons[I].ShowHint := True;
+    FImageButtons[I].OnClick := ImageToolClick;
+  end;
+  FImageZoomLabel := TLabel.Create(Self);
+  FImageZoomLabel.Parent := FToolbar;
+  FImageZoomLabel.AutoSize := False;
+  FImageZoomLabel.Alignment := taCenter;
+  FImageZoomLabel.Layout := tlCenter;
+  FImageZoomLabel.Width := MulDiv(45, CurrentPPI, 96);
+  FImageZoomLabel.Height := MulDiv(28, CurrentPPI, 96);
+  FImageZoomLabel.Caption := '100 %';
+  FImageZoomLabel.ShowHint := True;
+  FImageZoomLabel.Font.Size := 9;
+  RefreshLanguage;
+  // Bereits gewähltes Design auch auf nachträglich erzeugte Bildbuttons anwenden.
+  FToolbarDesignApplied := False;
+  ApplyToolbarDesign(FToolbarDesignIndex);
+  UpdateImageSaveIndicator;
+end;
+
+procedure TPDFBrowserForm.UpdateImageLayout;
+var
+  W, H: Integer;
+  Factor: Double;
+begin
+  if (FImageDisplay = nil) or (FImageScroll = nil) or
+     (FImageDisplay.Picture.Graphic = nil) then Exit;
+  W := FImageDisplay.Picture.Width;
+  H := FImageDisplay.Picture.Height;
+  if (W < 1) or (H < 1) then Exit;
+  Factor := FImageZoom;
+  if FImageFitMode = 1 then
+    Factor := Min(FImageScroll.ClientWidth / W, FImageScroll.ClientHeight / H)
+  else if FImageFitMode = 2 then
+    Factor := FImageScroll.ClientWidth / W;
+  Factor := EnsureRange(Factor, 0.01, 16.0);
+  FImageDisplay.AutoSize := False;
+  FImageDisplay.Stretch := True;
+  FImageDisplay.Proportional := False;
+  // Kleinere Grafiken innerhalb der sichtbaren Flaeche zentrieren.
+  // Bei groesseren Grafiken bleibt der Ursprung 0,0, damit die
+  // Scrollbars unveraendert zum Navigieren verwendet werden koennen.
+  W := Max(1, Round(W * Factor));
+  H := Max(1, Round(H * Factor));
+  FImageDisplay.SetBounds(
+    Max(0, (FImageScroll.ClientWidth - W) div 2),
+    Max(0, (FImageScroll.ClientHeight - H) div 2), W, H);
+  if FImageZoomLabel <> nil then
+    FImageZoomLabel.Caption := FormatFloat('0.#', Factor * 100) + ' %';
+end;
+
+procedure TPDFBrowserForm.ImageToolClick(Sender: TObject);
+var
+  Mode, X, Y, W, H, DestY: Integer;
+  Src, Dst: TBitmap;
+  SourceRows: array of PCardinal;
+  DestPixels: PCardinal;
+
+  SaveDlg: TSaveDialog;
+  Ext: string;
+  Png: TPngImage;
+  Jpg: TJPEGImage;
+  PrintDlg: TPrintDialog;
+  PrintBmp: TBitmap;
+  PrintScale: Double;
+  PrintRect: TRect;
+begin
+  if not IsBasicImage or (FImageDisplay = nil) then Exit;
+  Mode := (Sender as TSpeedButton).Tag;
+  case Mode of
+    0: begin FImageFitMode := 0; FImageZoom := Max(0.05, FImageZoom / 1.25); end;
+    1: begin FImageFitMode := 0; FImageZoom := Min(16, FImageZoom * 1.25); end;
+    6: begin FImageFitMode := 0; FImageZoom := 1.0; end;
+    4: FImageFitMode := 1;
+    5: FImageFitMode := 2;
+    7: begin
+      if FTIFFPageCount > 1 then
+      begin
+        SaveDlg := TSaveDialog.Create(Self);
+        try
+          SaveDlg.Filter := 'Mehrseitiges TIFF (*.tif;*.tiff)|*.tif;*.tiff';
+          SaveDlg.DefaultExt := 'tif';
+          SaveDlg.FileName := ChangeFileExt(ExtractFileName(PDFFileName), '_bearbeitet.tif');
+          if SaveDlg.Execute then
+          begin
+            SaveMultipageTIFF(SaveDlg.FileName);
+            FImageModified := False;
+            UpdateImageSaveIndicator;
+          end;
+        finally
+          SaveDlg.Free;
+        end;
+        Exit;
+      end;
+      SaveDlg := TSaveDialog.Create(Self);
+      try
+        SaveDlg.Filter := 'PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|Bitmap (*.bmp)|*.bmp';
+        SaveDlg.DefaultExt := 'png';
+        SaveDlg.FileName := ChangeFileExt(ExtractFileName(PDFFileName), '.png');
+        if SaveDlg.Execute then
+        begin
+          Ext := LowerCase(ExtractFileExt(SaveDlg.FileName));
+          if Ext = '.bmp' then
+            FImageDisplay.Picture.Bitmap.SaveToFile(SaveDlg.FileName)
+          else if (Ext = '.jpg') or (Ext = '.jpeg') then
+          begin
+            Jpg := TJPEGImage.Create;
+            try
+              Jpg.Assign(FImageDisplay.Picture.Graphic);
+              Jpg.SaveToFile(SaveDlg.FileName);
+            finally Jpg.Free; end;
+          end
+          else
+          begin
+            Png := TPngImage.Create;
+            try
+              Png.Assign(FImageDisplay.Picture.Graphic);
+              Png.SaveToFile(ChangeFileExt(SaveDlg.FileName, '.png'));
+            finally Png.Free; end;
+          end;
+          // Nur nach erfolgreich abgeschlossenem Speichern zuruecksetzen.
+          FImageModified := False;
+          UpdateImageSaveIndicator;
+        end;
+      finally SaveDlg.Free; end;
+    end;
+    2, 3: begin
+      Src := TBitmap.Create;
+      Dst := TBitmap.Create;
+      try
+        Src.Assign(FImageDisplay.Picture.Graphic);
+        Src.PixelFormat := pf32bit;
+        W := Src.Width; H := Src.Height;
+        Dst.PixelFormat := pf32bit;
+        Dst.SetSize(H, W);
+        // Zeilenadressen einmal ermitteln: ScanLine innerhalb der inneren
+        // Pixelschleife war bei grossen Grafiken extrem teuer.
+        SetLength(SourceRows, H);
+        for Y := 0 to H - 1 do
+          SourceRows[Y] := Src.ScanLine[Y];
+        // Jede Zielzeile zusammenhaengend schreiben. Die Bildausrichtung
+        // bleibt identisch zur bisherigen Drehfunktion (Mode 2/3).
+        for X := 0 to W - 1 do
+        begin
+          if Mode = 3 then
+            DestY := X
+          else
+            DestY := W - 1 - X;
+          DestPixels := Dst.ScanLine[DestY];
+          if Mode = 3 then
+          begin
+            for Y := 0 to H - 1 do
+              PPixelRow(DestPixels)^[H - 1 - Y] :=
+                PPixelRow(SourceRows[Y])^[X];
+          end
+          else
+          begin
+            for Y := 0 to H - 1 do
+              PPixelRow(DestPixels)^[Y] :=
+                PPixelRow(SourceRows[Y])^[X];
+          end;
+        end;
+        FImageDisplay.Picture.Assign(Dst);
+        Inc(FImagePreviewRevision);
+        if (FTIFFPageCount > 1) and (FTIFFPageIndex < Cardinal(Length(FTIFFRotations))) then
+        begin
+          if Mode = 3 then
+            FTIFFRotations[FTIFFPageIndex] := (FTIFFRotations[FTIFFPageIndex] + 1) mod 4
+          else
+            FTIFFRotations[FTIFFPageIndex] := (FTIFFRotations[FTIFFPageIndex] + 3) mod 4;
+        end;
+        FImageModified := True;
+        UpdateImageSaveIndicator;
+      finally
+        Dst.Free; Src.Free;
+      end;
+    end;
+    8: begin
+      PrintDlg := TPrintDialog.Create(Self);
+      try
+        if not PrintDlg.Execute then Exit;
+        PrintBmp := TBitmap.Create;
+        try
+          PrintBmp.Assign(FImageDisplay.Picture.Graphic);
+          PrintScale := Min(Printer.PageWidth / Max(1, PrintBmp.Width),
+                            Printer.PageHeight / Max(1, PrintBmp.Height));
+          PrintRect := Rect(
+            (Printer.PageWidth - Round(PrintBmp.Width * PrintScale)) div 2,
+            (Printer.PageHeight - Round(PrintBmp.Height * PrintScale)) div 2,
+            (Printer.PageWidth + Round(PrintBmp.Width * PrintScale)) div 2,
+            (Printer.PageHeight + Round(PrintBmp.Height * PrintScale)) div 2);
+          Printer.BeginDoc;
+          try
+            Printer.Canvas.StretchDraw(PrintRect, PrintBmp);
+            Printer.EndDoc;
+          except
+            Printer.Abort;
+            raise;
+          end;
+        finally PrintBmp.Free; end;
+      finally PrintDlg.Free; end;
+    end;
+  end;
+  UpdateImageLayout;
+end;
+
+procedure TPDFBrowserForm.ImageMouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+var
+  Steps: Integer;
+begin
+  if (not (ssCtrl in Shift)) or (FImageDisplay = nil) then Exit;
+  Steps := Abs(WheelDelta) div WHEEL_DELTA;
+  if Steps = 0 then Steps := 1;
+  FImageFitMode := 0;
+  while Steps > 0 do
+  begin
+    if WheelDelta > 0 then FImageZoom := Min(16.0, FImageZoom * 1.25)
+    else FImageZoom := Max(0.05, FImageZoom / 1.25);
+    Dec(Steps);
+  end;
+  UpdateImageLayout;
+  Handled := True;
+end;
+
+procedure TPDFBrowserForm.CloseTIFFImage;
+begin
+  if FTIFFImage <> nil then
+  begin
+    GdipDisposeImage(FTIFFImage);
+    FTIFFImage := nil;
+  end;
+  if FTIFFGDIPlusToken <> 0 then
+  begin
+    GdiplusShutdown(FTIFFGDIPlusToken);
+    FTIFFGDIPlusToken := 0;
+  end;
+  FTIFFPageCount := 0;
+  FTIFFPageIndex := 0;
+  SetLength(FTIFFRotations, 0);
+end;
+
+procedure TPDFBrowserForm.SaveMultipageTIFF(const AFileName: string);
+var
+  Page, SavedPage: Cardinal;
+  HB: HBITMAP;
+  Frame, FirstFrame: Pointer;
+  Params: TTIFFEncoderParameters;
+  FlagValue: Cardinal;
+  Encoder: TGUID;
+  Status: Integer;
+  TargetName: string;
+begin
+  if (FTIFFImage = nil) or (FTIFFPageCount < 2) then Exit;
+  if SameText(ExpandFileName(AFileName), ExpandFileName(PDFFileName)) then
+    raise Exception.Create(ToolbarHintBrowser(
+      'Bitte einen anderen Dateinamen wählen. Das Original bleibt geschützt.',
+      'Please choose a different filename. The original is protected.'));
+  TargetName := AFileName;
+  if not (SameText(ExtractFileExt(TargetName), '.tif') or
+          SameText(ExtractFileExt(TargetName), '.tiff')) then
+    TargetName := ChangeFileExt(TargetName, '.tif');
+  if FileExists(TargetName) then
+    raise Exception.Create(ToolbarHintBrowser(
+      'Die Zieldatei existiert bereits. Bitte einen anderen Namen wählen.',
+      'The destination already exists. Please choose another filename.'));
+  Encoder := StringToGUID('{557CF405-1A04-11D3-9A73-0000F81EF32E}');
+  SavedPage := FTIFFPageIndex;
+  FirstFrame := nil;
+  try
+    try
+      for Page := 0 to FTIFFPageCount - 1 do
+    begin
+      if GdipImageSelectActiveFrame(FTIFFImage, FTIFFPageGuid, Page) <> 0 then
+        raise Exception.Create('TIFF: SelectActiveFrame failed');
+      HB := 0;
+      if (GdipCreateHBITMAPFromBitmap(FTIFFImage, HB, $FFFFFFFF) <> 0) or (HB = 0) then
+        raise Exception.Create('TIFF: bitmap conversion failed');
+      Frame := nil;
+      try
+        Status := GdipCreateBitmapFromHBITMAP(HB, 0, Frame);
+      finally
+        DeleteObject(HB);
+      end;
+      if (Status <> 0) or (Frame = nil) then
+        raise Exception.Create('TIFF: bitmap creation failed');
+      try
+        if (Page < Cardinal(Length(FTIFFRotations))) and (FTIFFRotations[Page] <> 0) then
+        begin
+          // GDI+ RotateFlipType: 1=90°, 2=180°, 3=270° clockwise.
+          Status := GdipImageRotateFlip(Frame, FTIFFRotations[Page]);
+          if Status <> 0 then raise Exception.Create('TIFF: rotation failed');
+        end;
+        if Page = 0 then
+        begin
+          SetTIFFSaveFlag(Params, FlagValue, 18); // MultiFrame
+          Status := GdipSaveImageToFile(Frame, PWideChar(TargetName), Encoder, @Params);
+          if Status <> 0 then raise Exception.CreateFmt('TIFF: save failed (%d)', [Status]);
+          FirstFrame := Frame;
+          Frame := nil; // keep first image alive until Flush
+        end
+        else
+        begin
+          SetTIFFSaveFlag(Params, FlagValue, 23); // FrameDimensionPage
+          Status := GdipSaveAddImage(FirstFrame, Frame, @Params);
+          if Status <> 0 then raise Exception.CreateFmt('TIFF: add page failed (%d)', [Status]);
+        end;
+      finally
+        if Frame <> nil then GdipDisposeImage(Frame);
+      end;
+    end;
+    SetTIFFSaveFlag(Params, FlagValue, 20); // Flush
+    Status := GdipSaveAdd(FirstFrame, @Params);
+    if Status <> 0 then raise Exception.CreateFmt('TIFF: finalize failed (%d)', [Status]);
+    except
+      if FileExists(TargetName) then Winapi.Windows.DeleteFile(PChar(TargetName));
+      raise;
+    end;
+  finally
+    if FirstFrame <> nil then GdipDisposeImage(FirstFrame);
+    GdipImageSelectActiveFrame(FTIFFImage, FTIFFPageGuid, SavedPage);
+  end;
+end;
+
+procedure TPDFBrowserForm.ShowTIFFPage(AIndex: Cardinal);
+var
+  HB, RotatedHB: HBITMAP;
+  B: TBitmap;
+  Frame: Pointer;
+begin
+  if (FTIFFImage = nil) or (AIndex >= FTIFFPageCount) then Exit;
+  if GdipImageSelectActiveFrame(FTIFFImage, FTIFFPageGuid, AIndex) <> 0 then Exit;
+  HB := 0;
+  if (GdipCreateHBITMAPFromBitmap(FTIFFImage, HB, $FFFFFFFF) <> 0) or (HB = 0) then Exit;
+  B := TBitmap.Create;
+  try
+    B.Handle := HB;
+    FImageDisplay.Picture.Assign(B);
+  finally
+    B.Free;
+  end;
+  if (AIndex < Cardinal(Length(FTIFFRotations))) and (FTIFFRotations[AIndex] <> 0) then
+  begin
+    // Rotation für diese Seite auch nach einem Seitenwechsel anzeigen.
+    GdipImageSelectActiveFrame(FTIFFImage, FTIFFPageGuid, AIndex);
+    // Die bereits optimierte Bitmap-Drehung wird nicht erneut aufgerufen;
+    // die Seite wird direkt per GDI+ gedreht und als Bitmap angezeigt.
+    HB := 0;
+    if GdipCreateHBITMAPFromBitmap(FTIFFImage, HB, $FFFFFFFF) = 0 then
+    begin
+      Frame := nil;
+      try
+        if GdipCreateBitmapFromHBITMAP(HB, 0, Frame) = 0 then
+        begin
+          GdipImageRotateFlip(Frame, FTIFFRotations[AIndex]);
+          RotatedHB := 0;
+          if GdipCreateHBITMAPFromBitmap(Frame, RotatedHB, $FFFFFFFF) = 0 then
+          begin
+            B := TBitmap.Create;
+            try
+              B.Handle := RotatedHB;
+              FImageDisplay.Picture.Assign(B);
+            finally B.Free; end;
+          end;
+        end;
+      finally
+        if Frame <> nil then GdipDisposeImage(Frame);
+        DeleteObject(HB);
+      end;
+    end;
+  end;
+  FTIFFPageIndex := AIndex;
+  Inc(FImagePreviewRevision);
+  if FTIFFPageLabel <> nil then
+    FTIFFPageLabel.Caption := Format('%d / %d', [AIndex + 1, FTIFFPageCount]);
+  if FTIFFPrevButton <> nil then FTIFFPrevButton.Enabled := AIndex > 0;
+  if FTIFFNextButton <> nil then FTIFFNextButton.Enabled := AIndex + 1 < FTIFFPageCount;
+  UpdateImageLayout;
+end;
+
+procedure TPDFBrowserForm.TIFFPageButtonClick(Sender: TObject);
+begin
+  if (FTIFFImage = nil) or (FTIFFPageCount < 2) then Exit;
+  if Sender = FTIFFPrevButton then
+  begin
+    if FTIFFPageIndex > 0 then ShowTIFFPage(FTIFFPageIndex - 1);
+  end
+  else if FTIFFPageIndex + 1 < FTIFFPageCount then
+    ShowTIFFPage(FTIFFPageIndex + 1);
+end;
+
+function TPDFBrowserForm.GraphicPreviewKey: string;
+begin
+  Result := IntToStr(FTIFFPageIndex) + ':' + IntToStr(FImagePreviewRevision);
+end;
+
+function TPDFBrowserForm.SaveGraphicPreview(const ACacheFile: string): Boolean;
+var
+  Source, Thumb: TBitmap;
+  W, H: Integer;
+  TempFile, Ext, ImageFile: string;
+  Input: TGDIPlusStartupInput;
+  Token: NativeUInt;
+  GImage: Pointer;
+  HB: HBITMAP;
+  Pic: TPicture;
+begin
+  Result := False;
+  if not IsBasicImage then Exit;
+  Source := TBitmap.Create;
+  Thumb := TBitmap.Create;
+  try
+    if (FImageDisplay <> nil) and (FImageDisplay.Picture.Graphic <> nil) and
+       (FImageDisplay.Picture.Width > 0) and (FImageDisplay.Picture.Height > 0) then
+      Source.Assign(FImageDisplay.Picture.Graphic)
+    else
+    begin
+      // Inaktive Registerkarten sind absichtlich noch nicht initialisiert.
+      // Die Vorschau daher direkt aus der Datei lesen, ohne Tab-Aktivierung.
+      ImageFile := PDFFileName;
+      if (Parent is TTabSheet) and (TTabSheet(Parent).Hint <> '') then
+        ImageFile := TTabSheet(Parent).Hint;
+      Ext := LowerCase(ExtractFileExt(ImageFile));
+      if (Ext = '.tif') or (Ext = '.tiff') then
+      begin
+        FillChar(Input, SizeOf(Input), 0);
+        Input.GdiplusVersion := 1;
+        Token := 0;
+        if GdiplusStartup(Token, Input, nil) <> 0 then Exit;
+        try
+          GImage := nil;
+          if GdipLoadImageFromFile(PWideChar(ImageFile), GImage) <> 0 then Exit;
+          try
+            HB := 0;
+            if (GdipCreateHBITMAPFromBitmap(GImage, HB, $FFFFFFFF) <> 0) or
+               (HB = 0) then Exit;
+            // TBitmap übernimmt das Handle und gibt es wieder frei.
+            Source.Handle := HB;
+          finally
+            GdipDisposeImage(GImage);
+          end;
+        finally
+          GdiplusShutdown(Token);
+        end;
+      end
+      else
+      begin
+        Pic := TPicture.Create;
+        try
+          Pic.LoadFromFile(ImageFile);
+          Source.Assign(Pic.Graphic);
+        finally
+          Pic.Free;
+        end;
+      end;
+    end;
+    W := Source.Width;
+    H := Source.Height;
+    if (W <= 0) or (H <= 0) then Exit;
+    if W >= H then
+    begin
+      H := Max(1, MulDiv(H, 200, W));
+      W := 200;
+    end
+    else
+    begin
+      W := Max(1, MulDiv(W, 200, H));
+      H := 200;
+    end;
+    Thumb.PixelFormat := pf24bit;
+    Thumb.SetSize(W, H);
+    SetStretchBltMode(Thumb.Canvas.Handle, HALFTONE);
+    SetBrushOrgEx(Thumb.Canvas.Handle, 0, 0, nil);
+    Thumb.Canvas.StretchDraw(Rect(0, 0, W, H), Source);
+    ForceDirectories(ExtractFilePath(ACacheFile));
+    TempFile := ACacheFile + '.' + IntToStr(GetCurrentThreadId) + '.tmp.bmp';
+    Thumb.SaveToFile(TempFile);
+    if FileExists(ACacheFile) then Winapi.Windows.DeleteFile(PChar(ACacheFile));
+    Result := RenameFile(TempFile, ACacheFile);
+    if not Result then Winapi.Windows.DeleteFile(PChar(TempFile));
+  finally
+    Thumb.Free;
+    Source.Free;
+  end;
+end;
+
+procedure TPDFBrowserForm.ShowBasicImage;
+var
+  ButtonIndex: Integer;
+  Input: TGDIPlusStartupInput;
+  Ext: string;
+begin
+  if FImageScroll = nil then
+  begin
+    FImageScroll := TScrollBox.Create(Self);
+    FImageScroll.Parent := Self;
+    FImageScroll.Align := alClient;
+    FImageScroll.Color := clBtnShadow;
+    FImageScroll.DoubleBuffered := True;
+    FImageDisplay := TImage.Create(Self);
+    FImageDisplay.Parent := FImageScroll;
+    FImageDisplay.AutoSize := False;
+    FImageDisplay.Stretch := True;
+    // Mausrad-Ereignis wird vom Formular empfangen (VCL-Ereignisweitergabe).
+    OnMouseWheel := ImageMouseWheel;
+    FImageZoom := 1.0;
+    FImageFitMode := 1;
+    CreateImageTools;
+    FTIFFPrevButton := TSpeedButton.Create(Self);
+    FTIFFPrevButton.Parent := FToolbar;
+    FTIFFPrevButton.Caption := '';
+    FTIFFPrevButton.Margin := -1;
+    FTIFFPrevButton.Hint := ToolbarHintBrowser('Vorherige TIFF-Seite', 'Previous TIFF page');
+    FTIFFPrevButton.ShowHint := True;
+    FTIFFPrevButton.OnClick := TIFFPageButtonClick;
+    FTIFFPrevButton.SetBounds(0, 0, MulDiv(30, CurrentPPI, 96), MulDiv(28, CurrentPPI, 96));
+    FTIFFNextButton := TSpeedButton.Create(Self);
+    FTIFFNextButton.Parent := FToolbar;
+    FTIFFNextButton.Caption := '';
+    FTIFFNextButton.Margin := -1;
+    FTIFFNextButton.Hint := ToolbarHintBrowser('Nächste TIFF-Seite', 'Next TIFF page');
+    FTIFFNextButton.ShowHint := True;
+    FTIFFNextButton.OnClick := TIFFPageButtonClick;
+    FTIFFNextButton.SetBounds(0, 0, MulDiv(30, CurrentPPI, 96), MulDiv(28, CurrentPPI, 96));
+    FTIFFPageLabel := TLabel.Create(Self);
+    FTIFFPageLabel.Parent := FToolbar;
+    FTIFFPageLabel.AutoSize := False;
+    FTIFFPageLabel.Alignment := taCenter;
+    FTIFFPageLabel.Layout := tlCenter;
+    FTIFFPageLabel.SetBounds(0, 0, MulDiv(65, CurrentPPI, 96), MulDiv(28, CurrentPPI, 96));
+    FTIFFPrevButton.Visible := False;
+    FTIFFNextButton.Visible := False;
+    FTIFFPageLabel.Visible := False;
+    // Nachträglich angelegte TIFF-Buttons einmalig mit der Designpalette versehen.
+    FToolbarDesignApplied := False;
+    ApplyToolbarDesign(FToolbarDesignIndex);
+    // Bildregister: keine PDF-Such- oder Anlagenbuttons in der Bildleiste.
+    if FFindButton <> nil then FFindButton.Visible := False;
+    if FGlobalFindButton <> nil then FGlobalFindButton.Visible := False;
+    if FSearchCountLabel <> nil then FSearchCountLabel.Visible := False;
+    if FAttachmentsButton <> nil then FAttachmentsButton.Visible := False;
+  end;
+  if (FImageDisplay.Picture.Graphic = nil) or
+     (FImageDisplay.Picture.Width = 0) then
+  begin
+    Ext := LowerCase(ExtractFileExt(PDFFileName));
+    if (Ext = '.tif') or (Ext = '.tiff') then
+    begin
+      CloseTIFFImage;
+      FillChar(Input, SizeOf(Input), 0);
+      Input.GdiplusVersion := 1;
+      if GdiplusStartup(FTIFFGDIPlusToken, Input, nil) <> 0 then
+        raise Exception.Create('GDI+ konnte nicht initialisiert werden.');
+      try
+        if GdipLoadImageFromFile(PWideChar(PDFFileName), FTIFFImage) <> 0 then
+          raise Exception.Create('TIFF-Datei konnte nicht geöffnet werden.');
+        FTIFFPageGuid := StringToGUID('{7462DC86-6180-4C7E-8E3F-EE7333A7A483}');
+        if (GdipImageGetFrameCount(FTIFFImage, FTIFFPageGuid, FTIFFPageCount) <> 0) or
+           (FTIFFPageCount = 0) then
+          raise Exception.Create('TIFF-Seitenzahl konnte nicht gelesen werden.');
+        SetLength(FTIFFRotations, FTIFFPageCount);
+        ShowTIFFPage(0);
+      except
+        CloseTIFFImage;
+        raise;
+      end;
+    end
+    else FImageDisplay.Picture.LoadFromFile(PDFFileName);
+  end;
+  if FTIFFPrevButton <> nil then
+  begin
+    FTIFFPrevButton.Visible := FTIFFPageCount > 1;
+    FTIFFNextButton.Visible := FTIFFPageCount > 1;
+    FTIFFPageLabel.Visible := FTIFFPageCount > 1;
+  end;
+  UpdateImageLayout;
+  // Grafikregister besitzen keine PDFium-Symbolleiste. Die eigene Leiste
+  // muss daher unabhaengig vom PDFium-Layout sichtbar und oben bleiben.
+  if FToolbar <> nil then
+  begin
+    if FToolbar.Parent <> Self then FToolbar.Parent := Self;
+    FToolbar.Align := alTop;
+    FToolbar.Visible := True;
+    FToolbar.Height := Max(FToolbar.Height, MulDiv(36, CurrentPPI, 96));
+    FToolbar.BringToFront;
+  end;
+  if FImageButtons[0] <> nil then
+    for ButtonIndex := 0 to High(FImageButtons) do
+      FImageButtons[ButtonIndex].Visible := True;
+  // Die normale PDF-Leiste kann bereits als fertig angeordnet markiert sein.
+  // Beim ersten Anzeigen einer Grafik wurden die neuen Bildbuttons deshalb
+  // bisher nicht mehr positioniert.
+  FToolbarLayoutLocked := False;
+  ReflowNavigationToolbar;
+  if FImageScroll <> nil then FImageScroll.SendToBack;
+  if FToolbar <> nil then FToolbar.BringToFront;
+  if FOpenPDFButton <> nil then
+    FOpenPDFButton.Hint := ToolbarHintBrowser(
+      'PDFs und Grafiken öffnen ... (Strg+O)',
+      'Open PDFs and images... (Ctrl+O)');
+  FNavigationDone := True;
+  FNavigationSucceeded := True;
+  FLoadRequested := False;
+  TimerPDF.Enabled := False;
+end;
+
 procedure TPDFBrowserForm.FormShow(Sender: TObject);
 begin
+  if IsBasicImage then
+  begin
+    ShowBasicImage;
+    Exit;
+  end;
   // FormShow wird erst nach dem Einhaengen in den Tab aufgerufen.
   // Das Parent-HWND muss vor der PDFium-Kindfenstererzeugung existieren.
   if FPDFiumView = nil then
@@ -1374,6 +2342,11 @@ end;
 procedure TPDFBrowserForm.TimerPDFTimer(Sender: TObject);
 begin
 
+  if IsBasicImage then
+  begin
+    TimerPDF.Enabled := False;
+    Exit;
+  end;
   RefreshActiveTabPDF;
   // Das Lade-Popup ist ein eigenständiges Windows-Fenster. Bei einem
   // Tabwechsel darf es niemals über der Willkommensseite stehen bleiben.
@@ -1427,9 +2400,27 @@ var
   EditButton: TControl;
   C: TControl;
   OutlineSeparator: TPanel;
+  ImageSeparator1, ImageSeparator2: TPanel;
   function ScalePx(N: Integer): Integer;
   begin
     Result := MulDiv(N, CurrentPPI, 96);
+  end;
+  function GetImageSeparator(const AName: string): TPanel;
+  begin
+    Result := FindComponent(AName) as TPanel;
+    if Result = nil then
+    begin
+      Result := TPanel.Create(Self);
+      Result.Name := AName;
+      Result.Parent := FToolbar;
+      Result.BevelOuter := bvNone;
+      Result.ParentBackground := False;
+      Result.Color := clGray;
+      Result.Enabled := False;
+    end;
+    Result.Width := Max(1, ScalePx(1));
+    Result.Height := ScalePx(20);
+    Result.Visible := True;
   end;
   procedure NewRow;
   begin
@@ -1474,6 +2465,12 @@ var
         end;
     end;
     Inc(X, AControl.Width + Gap);
+  end;
+  procedure PutImageSeparator(ASeparator: TPanel);
+  begin
+    Inc(X, ScalePx(6));
+    Put(ASeparator);
+    Inc(X, ScalePx(6));
   end;
 begin
   // Die Symbolleiste erst bei endgueltiger Breite einmalig ausrichten.
@@ -1576,6 +2573,16 @@ begin
     Inc(Required, FAttachmentsButton.Width);
   if (FAttachmentSeparator <> nil) and FAttachmentSeparator.Visible and
      (FAttachmentSeparator.Parent = FToolbar) then Inc(Required, ScalePx(12));
+  if FImageButtons[0] <> nil then
+  begin
+    Inc(Required, 2 * (ScalePx(13) + Gap)); // zwei Grafik-Trennlinien
+    for I := 0 to High(FImageButtons) do
+      Inc(Required, FImageButtons[I].Width + Gap);
+    if FImageZoomLabel <> nil then
+      Inc(Required, FImageZoomLabel.Width + Gap);
+  end;
+  if (FTIFFPrevButton <> nil) and FTIFFPrevButton.Visible then
+    Inc(Required, FTIFFPrevButton.Width + FTIFFNextButton.Width + FTIFFPageLabel.Width + 3 * Gap);
   if (EditButton <> nil) and (EditButton.Parent = FToolbar) then
   begin
     // Auch beim erneuten Layout keine alte Mindestbreite von 52 px anwenden.
@@ -1585,7 +2592,7 @@ begin
   end;
   // Bei einer neu eingeblendeten Teilungsschaltflaeche darf die alte
   // Geometrie nicht stehenbleiben: sie wuerde den Oeffnen-Button ueberdecken.
-  if FToolbar.ClientWidth < Required then
+  if (FToolbar.ClientWidth < Required) and (FImageButtons[0] = nil) then
   begin
     if FToolbar.Parent <> Self then
       FToolbar.Width := Required + ScalePx(8);
@@ -1606,18 +2613,42 @@ begin
   Put(FOpenPDFButton);
   Put(FWorkspacesButton);
   Inc(X, ScalePx(8));
-  Put(FFindButton);
-  Put(FGlobalFindButton);
+  if FImageButtons[0] = nil then
+  begin
+    Put(FFindButton);
+    Put(FGlobalFindButton);
+  end;
+  if FImageButtons[0] <> nil then
+  begin
+    ImageSeparator1 := GetImageSeparator('ImageToolbarSeparatorBeforeZoom');
+    ImageSeparator2 := GetImageSeparator('ImageToolbarSeparatorAfterFit');
+    PutImageSeparator(ImageSeparator1);
+    for I := 0 to High(FImageButtons) do
+    begin
+      if I = 7 then PutImageSeparator(ImageSeparator2);
+      Put(FImageButtons[I]);
+      if (I = 1) and (FImageZoomLabel <> nil) then
+        Put(FImageZoomLabel);
+    end;
+    ImageSeparator1.BringToFront;
+    ImageSeparator2.BringToFront;
+  end;
+  if (FTIFFPrevButton <> nil) and FTIFFPrevButton.Visible then
+  begin
+    Put(FTIFFPrevButton);
+    Put(FTIFFPageLabel);
+    Put(FTIFFNextButton);
+  end;
   // Auch bei unsichtbarer Trefferanzeige den Platz beibehalten.
-  Put(FSearchCountLabel);
+  if FImageButtons[0] = nil then Put(FSearchCountLabel);
   if FAttachmentSeparator <> nil then
     FAttachmentSeparator.Visible := False;
-  if FAttachmentsButton.Parent = FToolbar then
+  if (FImageButtons[0] = nil) and (FAttachmentsButton.Parent = FToolbar) then
     Inc(X, ScalePx(2));
-  if FAttachmentsButton.Parent = FToolbar then
+  if (FImageButtons[0] = nil) and (FAttachmentsButton.Parent = FToolbar) then
     Put(FAttachmentsButton);
   // Markierungswerkzeuge im zweizeiligen Layout ebenfalls platzieren.
-  if (EditButton <> nil) and (EditButton.Parent = FToolbar) then
+  if (FImageButtons[0] = nil) and (EditButton <> nil) and (EditButton.Parent = FToolbar) then
     Put(EditButton);
   NewHeight := Y + RowHeight + ScalePx(1);
   // Nach Parent-Wechseln die Textzeile mit ihrer echten Font-Hoehe
@@ -1788,6 +2819,7 @@ end;
 procedure TPDFBrowserForm.ApplyToolbarDesign(ADesign: Integer);
 var
   BackColor, TextColor, FieldColor: TColor;
+  ImageButtonIndex: Integer;
   procedure PaintControls(AParent: TWinControl);
   var
     I: Integer;
@@ -1889,6 +2921,44 @@ begin
   begin
     if FOpenPDFButton <> nil then FOpenPDFButton.Font.Style := [];
     if FWorkspacesButton <> nil then FWorkspacesButton.Font.Style := [];
+  end;
+  // Die Bildsymbole nur beim echten Designwechsel neu einfärben.
+  if FImageButtons[0] <> nil then
+  begin
+    for ImageButtonIndex := 0 to High(FImageButtons) do
+    begin
+      FImageButtons[ImageButtonIndex].Flat := ADesign <> 0;
+      FImageButtons[ImageButtonIndex].Transparent := ADesign <> 0;
+      FImageButtons[ImageButtonIndex].Font.Color := TextColor;
+      if ImageButtonIndex = 6 then
+      begin
+        FImageButtons[ImageButtonIndex].Caption := '100 %';
+        FImageButtons[ImageButtonIndex].Font.Style := [fsBold];
+        FImageButtons[ImageButtonIndex].Font.Size := 9;
+      end
+      else
+        SetCrispImageGlyph(FImageButtons[ImageButtonIndex],
+          ImageButtonIndex, TextColor);
+    end;
+  end;
+  if FImageZoomLabel <> nil then
+  begin
+    FImageZoomLabel.Font.Color := TextColor;
+    FImageZoomLabel.Font.Style := [fsBold];
+    FImageZoomLabel.Font.Size := 9;
+    FImageZoomLabel.Transparent := True;
+  end;
+  UpdateImageSaveIndicator;
+  // TIFF-Pfeile als zentrierte DPI-Glyphen in der aktuellen Designfarbe.
+  // Nur bei der initialen Gestaltung oder einem echten Designwechsel zeichnen.
+  if FTIFFPrevButton <> nil then
+  begin
+    FTIFFPrevButton.Flat := ADesign <> 0;
+    FTIFFNextButton.Flat := ADesign <> 0;
+    FTIFFPrevButton.Transparent := ADesign <> 0;
+    FTIFFNextButton.Transparent := ADesign <> 0;
+    SetTIFFArrowGlyph(FTIFFPrevButton, False, TextColor, CurrentPPI);
+    SetTIFFArrowGlyph(FTIFFNextButton, True, TextColor, CurrentPPI);
   end;
   if FToolbar <> nil then
   begin
@@ -2092,6 +3162,7 @@ end;
 
 procedure TPDFBrowserForm.FormResize(Sender: TObject);
 begin
+  if FImageDisplay <> nil then UpdateImageLayout;
   UpdateUnifiedToolbar;
   ReflowNavigationToolbar;
   UpdateAttachmentWindowPosition;
