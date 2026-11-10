@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable 3.1.1
+# FreePDF64-Viewer Portable 3.1.2
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -12,15 +12,15 @@
 
 # Deutsch
 
-**Mehr als ein PDF-Reader: Zwei PDFs nebeneinander vergleichen, alle geöffneten Dokumente gemeinsam durchsuchen und PDF-Sammlungen als Arbeitsbereiche speichern.**
+**Mehr als ein PDF-Reader: PDFs und Grafiken in Registerkarten öffnen, zwei PDFs nebeneinander vergleichen, Dokumente gemeinsam durchsuchen und Arbeitsbereiche speichern.**
 
-Ein kostenloser, eigenständig nutzbarer und portabler PDF-Viewer für Windows mit Registerkarten, dokumentübergreifender Suche, interaktiven PDF-Formularen und integrierten PDF-Werkzeugen.
+Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Grafik-Viewer für Windows mit Registerkarten, dokumentübergreifender PDF-Suche, interaktiven PDF-Formularen und integrierten Werkzeugen.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
-## Neu in Version 3.1.1: JavaScript-V8 und statische XFA-Formulare
+## Neu in Version 3.1.2: JavaScript-V8 und statische XFA-Formulare
 
-Version **3.1.1** erweitert die Formularunterstützung des Viewers:
+Version **3.1.2** erweitert die Formularunterstützung des Viewers:
 
 - **PDFium mit V8-JavaScript:** Unterstützte JavaScript-Aktionen in interaktiven PDF-Formularen können ausgeführt werden.
 - **Automatische Formularberechnungen:** Abhängige Werte werden nach Eingaben und Änderungen an unterstützten Checkboxen und Optionsfeldern aktualisiert – auch über mehrere PDF-Seiten hinweg.
@@ -32,6 +32,20 @@ Version **3.1.1** erweitert die Formularunterstützung des Viewers:
 
 > **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
 
+## Neu: Grafiken und mehrseitige TIFF-Dateien anzeigen und bearbeiten
+
+Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien** direkt im Viewer öffnen. PDFs und Grafiken können gleichzeitig in eigenen Registerkarten geöffnet bleiben.
+
+- **Eigene Grafik-Symbolleiste:** Grafiken vergrößern und verkleinern, auf **100 %** zurücksetzen, an die ganze Ansicht oder die Breite anpassen sowie speichern und drucken.
+- **Zoom mit Strg + Mausrad:** Die Zoomstufe lässt sich auch mit der Maus ändern; die aktuelle Vergrößerung wird in Prozent angezeigt.
+- **Schnelles Drehen:** Grafiken um **90° nach links oder rechts** drehen, ohne die PDF-Funktionen zu beeinflussen.
+- **Mehrseitige TIFFs:** Zwischen den einzelnen Seiten navigieren, Seiten unabhängig voneinander drehen und die bearbeitete mehrseitige TIFF-Datei über **„Speichern unter …“** sichern.
+- **Änderungen erkennen:** Bei bearbeiteten Grafiken zeigt ein orangefarbenes Speichersymbol an, dass noch nicht gespeicherte Änderungen vorliegen.
+- **Registerkartenvorschau:** Beim Zeigen auf eine Grafik-Registerkarte erscheint ein kleines Vorschaubild – auch ohne die Registerkarte zuvor anzuklicken. Bei bereits geladenen Bildern berücksichtigt die Vorschau die aktuelle Drehung beziehungsweise TIFF-Seite.
+- **Gemeinsame Registerkartenverwaltung:** PDFs und Grafiken lassen sich nebeneinander geöffnet halten; **„PDFs zusammenführen …“** listet weiterhin ausschließlich PDF-Dateien auf.
+
+**Hinweis zu TIFF:** Beim Speichern mehrseitiger TIFF-Dateien werden die Bilddaten neu codiert. Die ursprüngliche Kompression und Metadaten bleiben daher nicht zwangsläufig unverändert erhalten.
+
 ## Das macht den Viewer besonders
 
 **Viele PDFs, zwei Ansichten, eine Suche, wiederverwendbare Arbeitsbereiche.** FreePDF64-Viewer Portable richtet sich an alle, die regelmäßig mit mehreren PDF-Dokumenten arbeiten und mehr benötigen als das bloße Anzeigen einzelner Dateien im Browser.
@@ -40,7 +54,7 @@ Version **3.1.1** erweitert die Formularunterstützung des Viewers:
 - 🔎 **Alle geöffneten PDFs gleichzeitig durchsuchen:** Die globale Volltextsuche durchsucht die Dokumente aller geöffneten Registerkarten. Treffer werden dokumentübergreifend aufgelistet; per Doppelklick springst du direkt zur Fundstelle – auch wenn das betreffende PDF zuvor noch nicht angezeigt wurde. Aufruf über **„Alle PDFs durchsuchen“** oder **Strg+Umschalt+F**.
 - 🗂️ **Arbeitsbereiche speichern und wieder öffnen:** Stelle häufig benötigte PDF-Gruppen zusammen, speichere sie unter einem eigenen Namen und rufe sie später wieder auf. Mehrere Arbeitsbereiche lassen sich verwalten, umbenennen und löschen. So wird aus einer einmaligen PDF-Sitzung ein wiederverwendbarer Dokumentenbestand.
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
-- 📑 **Mehrere Dokumente in einer einzigen Anwendung:** Registerkarten, Seitenvorschau und Inhaltsverzeichnis erleichtern den Überblick. Der Viewer kann weitere PDFs an die bereits laufende Instanz übergeben, statt für jede Datei ein eigenes Fenster zu öffnen.
+- 📑 **PDFs und Grafiken in einer Anwendung:** Registerkarten und Vorschauen erleichtern den Überblick. PDF-Dokumente und unterstützte Bilddateien lassen sich gleichzeitig öffnen.
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🧾 **Interaktive Formulare:** AcroForm- und unterstützte statische XFA-Formulare bearbeiten und speichern; unterstützte JavaScript-V8-Berechnungen werden aktualisiert.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
@@ -100,7 +114,9 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 ## Weitere Funktionen im Überblick
 
 - **Zweifensteransicht:** Zwei PDFs parallel anzeigen; **S** synchronisiert das Scrollen und **Z** den Zoom jeweils vom linken zum rechten Dokument. Beide Funktionen sind unabhängig schaltbar.
-- **Mehrere PDFs in einem Fenster:** Jedes Dokument erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
+- **PDFs und Grafiken in einem Fenster:** Jedes Dokument beziehungsweise Bild erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
+- **Grafikfunktionen:** JPG, JPEG, PNG, BMP und TIFF öffnen, zoomen, einpassen, um 90° drehen, speichern und drucken; mehrseitige TIFFs seitenweise navigieren und mit individuellen Drehungen speichern.
+- **Registerkartenvorschau für Grafiken:** Bildvorschau beim Überfahren der Registerkarte mit der Maus.
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
 - **Flexible PDF-Anzeige:** Vergrößerbare Seitenminiaturen, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi. Seiten lassen sich in der Miniaturansicht mit gedrückter linker Maustaste verschieben.
@@ -130,7 +146,7 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 
 1. Die Dateien des Viewers gemeinsam in einen Ordner entpacken. Benötigte Bibliotheken und Zusatzprogramme müssen dabei erhalten bleiben.
 2. **`FreePDF64ViewerPortable.exe`** starten.
-3. Über **Datei → PDF öffnen …**, **Strg+O** oder **Drag & Drop** eine oder mehrere PDF-Dateien öffnen.
+3. Über **Datei → PDF öffnen …**, **Strg+O** oder **Drag & Drop** PDF-Dateien öffnen. Unterstützte Grafikdateien können ebenfalls im Viewer geöffnet werden.
 4. Optional unter **Optionen** die PDF-Dateiverknüpfung für Windows einrichten.
 
 > **Hinweis zur Dateiverknüpfung:** Die Registrierung erfolgt für den aktuellen Windows-Benutzer. Unter Windows 10/11 muss der Viewer gegebenenfalls zusätzlich als Standard-App für `.pdf` ausgewählt werden.
@@ -141,6 +157,10 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 | --- | --- |
 | Zweifensteransicht | Zwei PDFs nebeneinander anzeigen; **S** = synchrones Scrollen, **Z** = synchroner Zoom (links → rechts) |
 | PDF-Datei öffnen | **Strg+O** oder **Datei → PDF öffnen …** |
+| Grafiken öffnen | JPG, JPEG, PNG, BMP oder TIFF im Viewer öffnen |
+| Grafik zoomen | Lupen-Schaltflächen, **Strg + Mausrad**, 100 %, ganze Seite oder Seitenbreite |
+| Grafik drehen | 90° nach links oder rechts über die Grafik-Symbolleiste |
+| Mehrseitige TIFFs | Seiten wechseln, einzeln drehen und über **Speichern unter …** als mehrseitige TIFF sichern |
 | Aktiven PDF-Tab schließen | **Strg+W** oder **×** am Tab |
 | Geöffnete Tabs suchen / Suche schließen | **Strg+Umschalt+A**, **Lupe** oder **Esc** zum Schließen |
 | Globale Volltextsuche über alle geöffneten PDFs | **Strg+Umschalt+F**, **Alle PDFs durchsuchen** oder **Bearbeiten** |
@@ -183,15 +203,15 @@ Copyright © 2026 FreePDF64
 
 # English
 
-**More than a PDF reader: Compare two PDFs side by side, search all open documents at once, and save PDF collections as workspaces.**
+**More than a PDF reader: Open PDFs and images in tabs, compare two PDFs side by side, search documents together, and save workspaces.**
 
-A free, standalone, portable PDF viewer for Windows with tabs, cross-document search, interactive PDF forms, and built-in PDF tools.
+A free, standalone, portable PDF and image viewer for Windows with tabs, cross-document PDF search, interactive PDF forms, and built-in tools.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
-## New in version 3.1.1: V8 JavaScript and static XFA forms
+## New in version 3.1.2: V8 JavaScript and static XFA forms
 
-Version **3.1.1** expands the viewer's PDF form capabilities:
+Version **3.1.2** expands the viewer's PDF form capabilities:
 
 - **PDFium with V8 JavaScript:** Run supported JavaScript actions in interactive PDF forms.
 - **Automatic form calculations:** Update dependent values after text input and changes to supported checkboxes and radio buttons, including calculations across PDF pages.
@@ -203,6 +223,20 @@ Version **3.1.1** expands the viewer's PDF form capabilities:
   
 > **Compatibility note:** Not all PDF JavaScript features or XFA forms are supported. In particular, support for **static XFA forms** does not imply full support for dynamic XFA layouts. Behavior depends on the structure of each document.
 
+## New: View and edit images and multipage TIFF files
+
+In addition to PDFs, the viewer can now open **JPG, JPEG, PNG, BMP, and single- or multipage TIFF files**. PDFs and images can remain open together in separate tabs.
+
+- **Dedicated image toolbar:** Zoom in and out, return to **100%**, fit the entire image or its width, and save or print images.
+- **Ctrl + mouse wheel zoom:** Adjust magnification with the mouse and see the current zoom percentage.
+- **Fast rotation:** Rotate images **90° left or right** without affecting PDF functions.
+- **Multipage TIFF support:** Navigate individual pages, rotate pages independently, and save the edited multipage TIFF using **Save As…**.
+- **Unsaved-change indicator:** The save icon turns orange when an image has unsaved edits.
+- **Tab previews:** Hover over an image tab to see a thumbnail, even before opening that tab for the first time. For loaded images, the preview reflects the current rotation or TIFF page.
+- **Shared tab management:** Keep PDFs and images open together; **Merge PDFs…** continues to list PDF files only.
+
+**TIFF note:** Saving a multipage TIFF re-encodes the image data. Original compression and metadata are not necessarily preserved exactly.
+
 ## What makes this viewer special
 
 **Many PDFs, two views, one search, reusable workspaces.** FreePDF64-Viewer Portable is designed for people who regularly work with multiple PDF documents and need more than simply viewing individual files in a browser.
@@ -211,7 +245,7 @@ Version **3.1.1** expands the viewer's PDF form capabilities:
 - 🔎 **Search all open PDFs at once:** The global full-text search scans the documents in all open tabs. Results are listed across documents; double-click a result to jump directly to the matching location—even if that PDF has not previously been displayed. Open it via **Search all PDFs** or **Ctrl+Shift+F**.
 - 🗂️ **Save and reopen workspaces:** Group frequently used PDFs, save the group under a custom name, and reopen it later. You can manage, rename, and delete multiple workspaces. Turn a one-time PDF session into a reusable collection of documents.
 - ⚡ **Fast startup and a responsive interface:** PDFs are loaded on demand or asynchronously so the main window becomes usable quickly. Searching embedded PDF attachments has also been moved to asynchronous processing. This is especially useful with large documents.
-- 📑 **Multiple documents in one application:** Tabs, page thumbnails, and the table of contents make it easier to navigate. The viewer can send additional PDFs to an already running instance instead of opening a separate window for each file.
+- 📑 **PDFs and images in one application:** Tabs and previews make navigation easier. Keep PDF documents and supported image files open at the same time.
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🧾 **Interactive PDF forms:** Edit and save AcroForm and supported static XFA forms, with supported V8 JavaScript calculations.
 - 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
@@ -271,7 +305,9 @@ These actions are available from the **thumbnail pane's context menu**.
 ## More features at a glance
 
 - **Split view:** Display two PDFs side by side; **S** synchronizes scrolling and **Z** synchronizes zoom from the left document to the right. Both options work independently.
-- **Multiple PDFs in one window:** Each document gets its own tab. Multiple PDF files selected in Windows File Explorer can also be opened in the viewer that is already running.
+- **PDFs and images in one window:** Each document or image gets its own tab. Multiple PDF files selected in Windows File Explorer can also be opened in the viewer that is already running.
+- **Image tools:** Open, zoom, fit, rotate 90°, save, and print JPG, JPEG, PNG, BMP, and TIFF files; navigate multipage TIFFs and save individual page rotations.
+- **Image tab previews:** Hover over an image tab to see a thumbnail.
 - **Single application instance:** Starting the program again activates the existing viewer instead of opening a second window.
 - **Easy tab management:** Close tabs using the small **×** or **Ctrl+W**; find open tabs using the **magnifying glass** or **Ctrl+Shift+A**. Close the search with the same shortcut or **Esc**.
 - **Flexible PDF viewing:** Resizable page thumbnails, table of contents, zoom, page navigation, and various page and viewing modes. Move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
@@ -301,7 +337,7 @@ These measures primarily improve startup time and usability. They do not mean th
 
 1. Extract all viewer files together into one folder. Keep any required libraries and auxiliary programs alongside them.
 2. Run **`FreePDF64ViewerPortable.exe`**.
-3. Open one or more PDF files via **File → Open PDF…**, **Ctrl+O**, or **drag and drop**.
+3. Open PDF files via **File → Open PDF…**, **Ctrl+O**, or **drag and drop**. Supported image files can also be opened in the viewer.
 4. Optionally, configure the PDF file association for Windows under **Options**.
 
 > **Note about file associations:** Registration applies to the current Windows user. On Windows 10/11, you may also need to select the viewer as the default app for `.pdf` files.
@@ -312,6 +348,10 @@ These measures primarily improve startup time and usability. They do not mean th
 | --- | --- |
 | Split view | View two PDFs side by side; **S** = synchronized scrolling, **Z** = synchronized zoom (left → right) |
 | Open a PDF file | **Ctrl+O** or **File → Open PDF…** |
+| Open images | Open JPG, JPEG, PNG, BMP, or TIFF files in the viewer |
+| Zoom an image | Magnifier buttons, **Ctrl + mouse wheel**, 100%, fit image, or fit width |
+| Rotate an image | Rotate 90° left or right using the image toolbar |
+| Multipage TIFF | Switch pages, rotate them individually, and save as a multipage TIFF via **Save As…** |
 | Close the active PDF tab | **Ctrl+W** or the tab’s **×** |
 | Find open tabs / close search | **Ctrl+Shift+A**, the **magnifying glass**, or **Esc** to close |
 | Full-text search across all open PDFs | **Ctrl+Shift+F**, **Search all PDFs**, or **Edit** |
