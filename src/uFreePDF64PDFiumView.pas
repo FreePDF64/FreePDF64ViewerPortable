@@ -3402,6 +3402,15 @@ end;
 procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 begin
+  // ESC beendet zuerst den aktiven Hyperlink-Einfuegemodus.
+  if (Key = VK_ESCAPE) and FLinkMode then
+  begin
+    FLinkMode := False;
+    Screen.Cursor := crDefault;
+    if FImage <> nil then FImage.Cursor := crDefault;
+    Key := 0;
+    Exit;
+  end;
   // ESC hebt die Mehrfachmarkierung der Miniaturseiten auf.
   if (Key = VK_ESCAPE) and (FThumbSelected.Count > 0) then
   begin
@@ -5213,6 +5222,20 @@ var
   Viewer: TFreePDF64PDFiumView;
   Direction: Integer;
 begin
+  // ESC im Hyperlink-Modus vor der normalen Dialogbehandlung abfangen.
+  if (Message.CharCode = VK_ESCAPE) and
+     (Owner is TFreePDF64PDFiumView) then
+  begin
+    Viewer := TFreePDF64PDFiumView(Owner);
+    if Viewer.FLinkMode then
+    begin
+      Viewer.FLinkMode := False;
+      Screen.Cursor := crDefault;
+      if Viewer.FImage <> nil then Viewer.FImage.Cursor := crDefault;
+      Message.Result := 1;
+      Exit;
+    end;
+  end;
   // ESC direkt im Miniatur-Scrollbereich abfangen, bevor das
   // uebergeordnete Formular die Taste als Schliessen interpretiert.
   if (Message.CharCode = VK_ESCAPE) and

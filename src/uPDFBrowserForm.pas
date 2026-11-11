@@ -2212,13 +2212,13 @@ begin
     ImagePopup.AutoPopup := True;
     FImageDisplay.PopupMenu := ImagePopup;
     // Eigenes Grafik-Kontextmenue, unabhaengig von PDF-Aktionen.
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach rechts drehen', 'Rotate image 90° right'); ContextItem.Tag := 3; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach links drehen', 'Rotate image 90° left'); ContextItem.Tag := 2; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik um 90° nach rechts drehen', 'Rotate image 90° right'); ContextItem.Tag := 3; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik um 90° nach links drehen', 'Rotate image 90° left'); ContextItem.Tag := 2; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Ganzes Bild anzeigen', 'Fit whole image'); ContextItem.Tag := 4; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Ganze Grafik anzeigen', 'Fit whole image'); ContextItem.Tag := 4; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild in Zwischenablage kopieren', 'Copy image to clipboard'); ContextItem.Tag := 20; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild speichern unter ...', 'Save image as ...'); ContextItem.Tag := 7; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik in Zwischenablage kopieren', 'Copy image to clipboard'); ContextItem.Tag := 20; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik speichern unter ...', 'Save image as ...'); ContextItem.Tag := 7; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     FImageScroll.PopupMenu := ImagePopup;
 
     // Mausrad-Ereignis wird vom Formular empfangen (VCL-Ereignisweitergabe).
