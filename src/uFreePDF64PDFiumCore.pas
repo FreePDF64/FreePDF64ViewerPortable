@@ -157,7 +157,18 @@ type
     function HighlightText(APageIndex, AStartChar, ACharCount: Integer; AColor: TColor): Boolean;
     function HighlightArea(APageIndex: Integer; AX1, AY1, AX2, AY2: Double; AColor: TColor): Boolean;
     procedure InsertText(APageIndex: Integer; AX, AY: Double;
-      const AText: string; AFontSize: Double; AColor: TColor; const AFontName: string = 'Arial');
+      const AText: string; AFontSize: Double; AColor: TColor; const AFontName: string = 'Arial';
+      AAlpha: Byte = 255; AAngleDegrees: Double = 0);
+    procedure AddTextWatermark(const AText: string; AAllPages: Boolean;
+      ACurrentPage: Integer; AFontSize: Double; AAlpha: Byte; AAngleDegrees: Double);
+    function InsertVisibleLinkText(APageIndex: Integer; AX, AY, AWidth: Double;
+      const AText: string; out ATextBounds: TPDFInkRect): Boolean;
+    function AddURILink(APageIndex: Integer; AX1, AY1, AX2, AY2: Double;
+      const AURI: string): Boolean;
+    function MoveLinkAtPoint(APageIndex: Integer; AX, AY, DX, DY: Double): Boolean;
+    procedure AddImageWatermark(const AFileName: string; AAllPages: Boolean;
+      ACurrentPage: Integer; AWidthPercent: Integer; AAlpha: Byte;
+      AAngleDegrees: Double);
     function UndoInsertedText(out APageIndex: Integer): Boolean;
     function RedoInsertedText(out APageIndex: Integer): Boolean;
     function CanUndoInsertedText: Boolean;
@@ -366,11 +377,20 @@ function FPDFText_LoadFont(Document: Pointer; Data: PByte; Size: Cardinal; FontT
 function FPDFPageObj_CreateTextObj(Document, Font: Pointer; FontSize: Single): Pointer; stdcall; external 'pdfium.dll';
 function FPDFText_SetText(TextObject: Pointer; Text: PWideChar): Integer; stdcall; external 'pdfium.dll';
 function FPDFPageObj_SetFillColor(PageObject: Pointer; R, G, B, A: Cardinal): Integer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_CreateNewPath(X, Y: Single): Pointer; stdcall; external 'pdfium.dll';
+function FPDFPath_LineTo(Path: Pointer; X, Y: Single): Integer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_SetStrokeColor(PageObject: Pointer; R, G, B, A: Cardinal): Integer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_SetStrokeWidth(PageObject: Pointer; Width: Single): Integer; stdcall; external 'pdfium.dll';
+function FPDFPath_SetDrawMode(Path: Pointer; FillMode: Integer; Stroke: Integer): Integer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_NewImageObj(Document: Pointer): Pointer; stdcall; external 'pdfium.dll';
+function FPDFImageObj_SetBitmap(Pages: PPointer; Count: Integer; ImageObject, Bitmap: Pointer): Integer; stdcall; external 'pdfium.dll';
 procedure FPDFPageObj_Transform(PageObject: Pointer; A, B, C, D, E, F: Double); stdcall; external 'pdfium.dll';
 procedure FPDFPage_InsertObject(Page, PageObject: Pointer); stdcall; external 'pdfium.dll';
 function FPDFPage_RemoveObject(Page, PageObject: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFPage_CountObjects(Page: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFPage_GetObject(Page: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_GetBounds(PageObject: Pointer; var Left, Bottom, Right, Top: Single): Integer; stdcall; external 'pdfium.dll';
+function FPDFPageObj_GetType(PageObject: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFPage_GenerateContent(Page: Pointer): Integer; stdcall; external 'pdfium.dll';
 procedure FPDFPageObj_Destroy(PageObject: Pointer); stdcall; external 'pdfium.dll';
 procedure FPDF_InitLibrary; stdcall; external 'pdfium.dll';
@@ -2625,6 +2645,186 @@ begin
   end;
 end;
 
+type
+  TSetURI = function(Annot: Pointer; URI: PAnsiChar): Integer; stdcall;
+
+function TFreePDF64PDFiumCore.InsertVisibleLinkText(APageIndex: Integer;
+  AX, AY, AWidth: Double; const AText: string;
+  out ATextBounds: TPDFInkRect): Boolean;
+var
+  Page, TextObj, LineObj: Pointer;
+  L, B, R, T: Single;
+begin
+  Result := False;
+  ATextBounds := Default(TPDFInkRect);
+  if Trim(AText) = '' then Exit;
+  // Der Text wird mit der bestehenden Unicode-/TrueType-Funktion eingefügt.
+  InsertText(APageIndex, AX, AY, AText, 12, clBlue, 'Arial', 255, 0);
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    // Die PDFium-Grenzen des tatsächlich eingefügten Textobjekts verwenden.
+    // Dadurch haben Unterstrich und Link-Hitbox exakt dieselbe Textbreite.
+    if FPDFPage_CountObjects(Page) < 1 then Exit;
+    TextObj := FPDFPage_GetObject(Page, FPDFPage_CountObjects(Page) - 1);
+    if (TextObj = nil) or
+       (FPDFPageObj_GetBounds(TextObj, L, B, R, T) = 0) or
+       (R <= L) then Exit;
+    ATextBounds.Left := L;
+    ATextBounds.Right := R;
+    ATextBounds.Bottom := B;
+    ATextBounds.Top := T;
+    LineObj := FPDFPageObj_CreateNewPath(L, AY - 2);
+    if LineObj = nil then Exit;
+    try
+      if (FPDFPath_LineTo(LineObj, R, AY - 2) = 0) or
+         (FPDFPageObj_SetStrokeColor(LineObj, 0, 0, 255, 255) = 0) or
+         (FPDFPageObj_SetStrokeWidth(LineObj, 0.7) = 0) or
+         (FPDFPath_SetDrawMode(LineObj, 0, 1) = 0) then Exit;
+      FPDFPage_InsertObject(Page, LineObj);
+      LineObj := nil;
+      if FPDFPage_GenerateContent(Page) = 0 then Exit;
+      FModified := True;
+      Result := True;
+    finally
+      if LineObj <> nil then FPDFPageObj_Destroy(LineObj);
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.AddURILink(APageIndex: Integer;
+  AX1, AY1, AX2, AY2: Double; const AURI: string): Boolean;
+var
+  P, A: Pointer;
+  R: TPDFInkRect;
+  U: AnsiString;
+  SetURI: TSetURI;
+  H: HMODULE;
+begin
+  Result := False;
+  H := GetModuleHandle('pdfium.dll');
+  if H = 0 then Exit;
+  SetURI := TSetURI(GetProcAddress(H, 'FPDFAnnot_SetURI'));
+  if not Assigned(SetURI) then
+    raise EPDFiumViewer.Create('Die verwendete PDFium-DLL unterstützt FPDFAnnot_SetURI nicht.');
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  if Trim(AURI) = '' then Exit;
+  U := AnsiString(AURI); // PDFium URI API requires 7-bit ASCII.
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    A := FPDFPage_CreateAnnot(P, 2); // FPDF_ANNOT_LINK
+    if A = nil then Exit;
+    try
+      R.Left := Min(AX1, AX2);
+      R.Right := Max(AX1, AX2);
+      R.Bottom := Min(AY1, AY2);
+      R.Top := Max(AY1, AY2);
+      Result := (R.Right - R.Left >= 2) and (R.Top - R.Bottom >= 2) and
+        (FPDFAnnot_SetRect(A, R) <> 0) and
+        (SetURI(A, PAnsiChar(U)) <> 0) and
+        (FPDFAnnot_SetBorder(A, 0, 0, 0) <> 0);
+    finally
+      FPDFPage_CloseAnnot(A);
+    end;
+    if Result then
+    begin
+      FModified := True;
+      InvalidateSearchCache;
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.MoveLinkAtPoint(APageIndex: Integer;
+  AX, AY, DX, DY: Double): Boolean;
+var
+  P, A, Obj, TextObj, UnderlineObj: Pointer;
+  I, J: Integer;
+  R: TPDFInkRect;
+  L, B, RR, T: Single;
+  TextLeft, TextRight: Double;
+  BestDistance, Distance: Double;
+begin
+  Result := False;
+  if (FDocument = nil) or (APageIndex < 0) or
+     (APageIndex >= FPageCount) or ((Abs(DX) + Abs(DY)) < 0.01) then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    // Only move an actual link annotation. Never move ordinary PDF text.
+    for I := FPDFPage_GetAnnotCount(P) - 1 downto 0 do
+    begin
+      A := FPDFPage_GetAnnot(P, I);
+      if A = nil then Continue;
+      try
+        if (FPDFAnnot_GetSubtype(A) <> 2) or
+           (FPDFAnnot_GetRect(A, R) = 0) or
+           (AX < R.Left) or (AX > R.Right) or
+           (AY < R.Bottom) or (AY > R.Top) then Continue;
+        // Locate the visible text and its underline inside this annotation.
+        // Reject links without a matching text object (including ordinary
+        // pre-existing invisible PDF links).
+        TextObj := nil;
+        UnderlineObj := nil;
+        BestDistance := 1.0E20;
+        TextLeft := 0;
+        TextRight := 0;
+        for J := 0 to FPDFPage_CountObjects(P) - 1 do
+        begin
+          Obj := FPDFPage_GetObject(P, J);
+          if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 1) or
+             (FPDFPageObj_GetBounds(Obj, L, B, RR, T) = 0) then Continue;
+          if (L < R.Left - 3) or (RR > R.Right + 3) or
+             (B < R.Bottom - 3) or (T > R.Top + 3) then Continue;
+          Distance := Abs(L - (R.Left + 1)) + Abs(RR - (R.Right - 1));
+          if Distance < BestDistance then
+          begin
+            BestDistance := Distance;
+            TextObj := Obj;
+            TextLeft := L;
+            TextRight := RR;
+          end;
+        end;
+        if (TextObj = nil) or (BestDistance > 12) then Exit;
+        for J := FPDFPage_CountObjects(P) - 1 downto 0 do
+        begin
+          Obj := FPDFPage_GetObject(P, J);
+          if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 2) or
+             (FPDFPageObj_GetBounds(Obj, L, B, RR, T) = 0) then Continue;
+          if (Abs(L - TextLeft) < 3) and (Abs(RR - TextRight) < 3) and
+             (B >= R.Bottom - 3) and (T <= R.Top + 3) and
+             ((T - B) < 3) then
+          begin
+            UnderlineObj := Obj;
+            Break;
+          end;
+        end;
+        if UnderlineObj = nil then Exit;
+        FPDFPageObj_Transform(TextObj, 1, 0, 0, 1, DX, DY);
+        FPDFPageObj_Transform(UnderlineObj, 1, 0, 0, 1, DX, DY);
+        R.Left := R.Left + DX;
+        R.Right := R.Right + DX;
+        R.Bottom := R.Bottom + DY;
+        R.Top := R.Top + DY;
+        if FPDFAnnot_SetRect(A, R) = 0 then Exit;
+        if FPDFPage_GenerateContent(P) = 0 then Exit;
+        FModified := True;
+        InvalidateSearchCache;
+        Result := True;
+        Exit;
+      finally
+        FPDFPage_CloseAnnot(A);
+      end;
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
 function TFreePDF64PDFiumCore.DevicePointToPage(APageIndex, AWidth, AHeight,
   X, Y: Integer; out AX, AY: Double): Boolean;
 var P: Pointer;
@@ -3039,7 +3239,8 @@ begin
 end;
 
 procedure TFreePDF64PDFiumCore.InsertText(APageIndex: Integer;
-  AX, AY: Double; const AText: string; AFontSize: Double; AColor: TColor; const AFontName: string);
+  AX, AY: Double; const AText: string; AFontSize: Double; AColor: TColor; const AFontName: string;
+  AAlpha: Byte; AAngleDegrees: Double);
 var
   Page, Font, Obj: Pointer;
   C: Cardinal;
@@ -3050,6 +3251,7 @@ var
   FontSize: DWORD;
   FontBytes: TBytes;
   FontSignature: DWORD;
+  AngleRad: Double;
 begin
   if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then
     raise EPDFiumViewer.Create('Keine gueltige PDF-Seite zum Einfuegen.');
@@ -3100,9 +3302,11 @@ begin
       if FPDFText_SetText(Obj, PWideChar(AText)) = 0 then
         raise EPDFiumViewer.Create('PDFium konnte den Text nicht uebernehmen.');
       C := ColorToRGB(AColor);
-      if FPDFPageObj_SetFillColor(Obj, GetRValue(C), GetGValue(C), GetBValue(C), 255) = 0 then
+      if FPDFPageObj_SetFillColor(Obj, GetRValue(C), GetGValue(C), GetBValue(C), AAlpha) = 0 then
         raise EPDFiumViewer.Create('PDFium konnte die Textfarbe nicht setzen.');
-      FPDFPageObj_Transform(Obj, 1, 0, 0, 1, AX, AY);
+      AngleRad := DegToRad(AAngleDegrees);
+      FPDFPageObj_Transform(Obj, Cos(AngleRad), Sin(AngleRad),
+        -Sin(AngleRad), Cos(AngleRad), AX, AY);
       FPDFPage_InsertObject(Page, Obj);
       Obj := nil; // Eigentum geht an die PDF-Seite ueber.
       if FPDFPage_GenerateContent(Page) = 0 then
@@ -3128,6 +3332,152 @@ begin
     end;
   finally
     FPDF_ClosePage(Page);
+  end;
+end;
+
+procedure TFreePDF64PDFiumCore.AddTextWatermark(const AText: string;
+  AAllPages: Boolean; ACurrentPage: Integer; AFontSize: Double;
+  AAlpha: Byte; AAngleDegrees: Double);
+var
+  I, FirstPage, LastPage: Integer;
+  W, H: Single;
+  TextWidth, AngleRad, OffsetX, OffsetY: Double;
+begin
+  if (FDocument = nil) or (FPageCount <= 0) then
+    raise EPDFiumViewer.Create('Keine PDF-Datei geladen.');
+  if Trim(AText) = '' then Exit;
+  if AAllPages then
+  begin
+    FirstPage := 0;
+    LastPage := FPageCount - 1;
+  end
+  else
+  begin
+    if (ACurrentPage < 0) or (ACurrentPage >= FPageCount) then
+      raise EPDFiumViewer.Create('Ungueltige PDF-Seite.');
+    FirstPage := ACurrentPage;
+    LastPage := ACurrentPage;
+  end;
+  AngleRad := DegToRad(AAngleDegrees);
+  for I := FirstPage to LastPage do
+  begin
+    if not PageSize(I, W, H) then
+      raise EPDFiumViewer.CreateFmt('Seitengroesse %d nicht lesbar.', [I + 1]);
+    // Naeherung der Textbreite; die Mitte bleibt bei jeder Seitengroesse gleich.
+    TextWidth := Length(AText) * AFontSize * 0.52;
+    OffsetX := (W - TextWidth * Cos(AngleRad)) / 2;
+    OffsetY := (H - TextWidth * Sin(AngleRad)) / 2;
+    InsertText(I, OffsetX, OffsetY, AText, AFontSize, clGray,
+      'Arial', AAlpha, AAngleDegrees);
+  end;
+end;
+
+procedure TFreePDF64PDFiumCore.AddImageWatermark(const AFileName: string;
+  AAllPages: Boolean; ACurrentPage, AWidthPercent: Integer; AAlpha: Byte;
+  AAngleDegrees: Double);
+var
+  Picture: TPicture;
+  Bmp: TBitmap;
+  PdfBmp, Page, Obj: Pointer;
+  Buffer: PByte;
+  Stride, X, Y, I, FirstPage, LastPage: Integer;
+  Src: PByte;
+  PageW, PageH: Single;
+  TargetW, TargetH, R, PX, PY, AngleRad: Double;
+  Pixel: PByte;
+begin
+  if (FDocument = nil) or (FPageCount = 0) then
+    raise EPDFiumViewer.Create('Keine PDF-Datei geladen.');
+  if not FileExists(AFileName) then
+    raise EPDFiumViewer.Create('Bilddatei nicht gefunden.');
+  Picture := TPicture.Create;
+  Bmp := TBitmap.Create;
+  PdfBmp := nil;
+  try
+    Picture.LoadFromFile(AFileName);
+    if (Picture.Width < 1) or (Picture.Height < 1) then
+      raise EPDFiumViewer.Create('Die Bilddatei enthält keine gültigen Bilddaten.');
+    Bmp.PixelFormat := pf32bit;
+    Bmp.SetSize(Picture.Width, Picture.Height);
+    Bmp.Canvas.Brush.Color := clWhite;
+    Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+    Bmp.Canvas.Draw(0, 0, Picture.Graphic);
+    PdfBmp := FPDFBitmap_Create(Bmp.Width, Bmp.Height, 1);
+    if PdfBmp = nil then
+      raise EPDFiumViewer.Create('PDFium konnte die Bilddaten nicht vorbereiten.');
+    Buffer := FPDFBitmap_GetBuffer(PdfBmp);
+    Stride := FPDFBitmap_GetStride(PdfBmp);
+    if (Buffer = nil) or (Stride < Bmp.Width * 4) then
+      raise EPDFiumViewer.Create('Ungültiger PDFium-Bildpuffer.');
+    for Y := 0 to Bmp.Height - 1 do
+    begin
+      Src := Bmp.ScanLine[Y];
+      Pixel := Buffer;
+      Inc(Pixel, Y * Stride);
+      for X := 0 to Bmp.Width - 1 do
+      begin
+        Move(Src^, Pixel^, 3);
+        PByte(NativeUInt(Pixel) + 3)^ := AAlpha;
+        Inc(Src, 4);
+        Inc(Pixel, 4);
+      end;
+    end;
+    if AAllPages then
+    begin
+      FirstPage := 0;
+      LastPage := FPageCount - 1;
+    end
+    else
+    begin
+      if (ACurrentPage < 0) or (ACurrentPage >= FPageCount) then
+        raise EPDFiumViewer.Create('Ungültige PDF-Seite.');
+      FirstPage := ACurrentPage;
+      LastPage := ACurrentPage;
+    end;
+    AngleRad := DegToRad(AAngleDegrees);
+    for I := FirstPage to LastPage do
+    begin
+      if not PageSize(I, PageW, PageH) then
+        raise EPDFiumViewer.CreateFmt('Seitengröße von Seite %d nicht lesbar.', [I + 1]);
+      TargetW := PageW * EnsureRange(AWidthPercent, 5, 100) / 100;
+      TargetH := TargetW * Bmp.Height / Bmp.Width;
+      if TargetH > PageH * 0.9 then
+      begin
+        TargetH := PageH * 0.9;
+        TargetW := TargetH * Bmp.Width / Bmp.Height;
+      end;
+      PX := (PageW - TargetW * Cos(AngleRad) + TargetH * Sin(AngleRad)) / 2;
+      PY := (PageH - TargetW * Sin(AngleRad) - TargetH * Cos(AngleRad)) / 2;
+      Page := FPDF_LoadPage(FDocument, PhysicalPage(I));
+      if Page = nil then
+        raise EPDFiumViewer.CreateFmt('PDF-Seite %d konnte nicht geöffnet werden.', [I + 1]);
+      try
+        Obj := FPDFPageObj_NewImageObj(FDocument);
+        if Obj = nil then
+          raise EPDFiumViewer.Create('PDFium konnte kein Bildobjekt erzeugen.');
+        try
+          if FPDFImageObj_SetBitmap(nil, 0, Obj, PdfBmp) = 0 then
+            raise EPDFiumViewer.Create('PDFium konnte das Bild nicht einbetten.');
+          FPDFPageObj_Transform(Obj,
+            TargetW * Cos(AngleRad), TargetW * Sin(AngleRad),
+            -TargetH * Sin(AngleRad), TargetH * Cos(AngleRad), PX, PY);
+          FPDFPage_InsertObject(Page, Obj);
+          Obj := nil;
+          if FPDFPage_GenerateContent(Page) = 0 then
+            raise EPDFiumViewer.Create('PDFium konnte den Seiteninhalt nicht aktualisieren.');
+          FModified := True;
+          InvalidateSearchCache;
+        finally
+          if Obj <> nil then FPDFPageObj_Destroy(Obj);
+        end;
+      finally
+        FPDF_ClosePage(Page);
+      end;
+    end;
+  finally
+    if PdfBmp <> nil then FPDFBitmap_Destroy(PdfBmp);
+    Bmp.Free;
+    Picture.Free;
   end;
 end;
 

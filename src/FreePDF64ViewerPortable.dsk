@@ -17,16 +17,19 @@ File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Anleitung_Unit.pas',0,1,16,1
 
 [Modules]
 Module0=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFMergeTabs.pas
-Module2=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas
-Module3=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
-Module4=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas
-Module5=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
+Module2=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFMergeTabs.pas
+Module3=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFBrowserForm.pas
+Module4=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
+Module5=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas
 Module6=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFStaticXFASync.pas
 Count=7
 EditWindowCount=1
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uPDFMergeTabs.pas]
@@ -39,9 +42,6 @@ ModuleType=TSourceModule
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable_V8\uPDFStaticXFASync.pas]
@@ -93,9 +93,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
-CursorX=1
-CursorY=1733
-TopLine=1724
+CursorX=17
+CursorY=2650
+TopLine=2628
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -104,9 +104,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumCore.pas
 [View1]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable_V8\uPDFTabsForm.pas
-CursorX=101
-CursorY=9
-TopLine=1
+CursorX=10
+CursorY=2572
+TopLine=2550
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -161,7 +161,7 @@ CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable_V8\uFreePDF64PDFiumView.pas
 CursorX=1
 CursorY=3461
-TopLine=3452
+TopLine=3463
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -321,8 +321,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=-2039
+Top=336
 Width=273
 Height=362
 MaxLeft=-1
@@ -526,8 +526,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=505
+Top=1083
 Width=2855
 Height=3210
 MaxLeft=-1
@@ -640,8 +640,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=8
-Top=8
+Left=1270
+Top=36
 Width=3824
 Height=1420
 MaxLeft=-1

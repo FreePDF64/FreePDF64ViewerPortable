@@ -23,6 +23,7 @@ type
     HelpScroll: TScrollBox;
     procedure OpenProjectLink(Sender: TObject);
     procedure OpenContactMail(Sender: TObject);
+    procedure JumpToHelpSection(Sender: TObject);
   protected
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
       MousePos: TPoint): Boolean; override;
@@ -2543,6 +2544,12 @@ begin
     nil, nil, SW_SHOWNORMAL);
 end;
 
+procedure TViewerHelpForm.JumpToHelpSection(Sender: TObject);
+begin
+  if (HelpScroll <> nil) and (Sender is TLabel) then
+    HelpScroll.VertScrollBar.Position := TLabel(Sender).Tag;
+end;
+
 procedure TPDFTabsForm.ShowModernInfo(AAbout, AMergeHelp: Boolean);
 var
   D: TForm;
@@ -2552,9 +2559,43 @@ var
   Btn: TButton;
   Img: TImage;
   Y, Scale: Integer;
+  TOCLabels: array of TLabel;
+  TOCCount: Integer;
   function Px(V: Integer): Integer;
   begin
     Result := MulDiv(V, Scale, 96);
+  end;
+  procedure AddTOC(const AItems: array of string);
+  var
+    I, H: Integer;
+    L: TLabel;
+    P: TPanel;
+  begin
+    TOCCount := Length(AItems);
+    SetLength(TOCLabels, TOCCount);
+    H := Px(36 + TOCCount * 27);
+    P := TPanel.Create(D);
+    P.Parent := Scroll;
+    P.SetBounds(Px(22), Y + Px(5), Max(Px(320), Scroll.ClientWidth - Px(62)), H);
+    P.BevelOuter := bvNone;
+    P.ParentBackground := False;
+    P.Color := RGB(224, 237, 251);
+    for I := 0 to TOCCount - 1 do
+    begin
+      L := TLabel.Create(D);
+      L.Parent := P;
+      L.SetBounds(Px(18), Px(12 + I * 27), P.Width - Px(36), Px(24));
+      L.Font.Name := 'Segoe UI';
+      L.Font.Size := 10;
+      L.Font.Color := RGB(0, 85, 170);
+      L.Font.Style := [fsUnderline];
+      L.ShowAccelChar := False;
+      L.Cursor := crHandPoint;
+      L.Caption := AItems[I];
+      L.OnClick := TViewerHelpForm(D).JumpToHelpSection;
+      TOCLabels[I] := L;
+    end;
+    Inc(Y, H + Px(14));
   end;
   procedure AddSection(const ATitle, ABody: string);
   var
@@ -2562,7 +2603,12 @@ var
     Head, Body: TLabel;
     BodyHeight, CardHeight, ContentWidth: Integer;
     ContactHead, ContactLink: TLabel;
+    I: Integer;
   begin
+    if (ABody = '') and not (AAbout or AMergeHelp) then
+      for I := 0 to TOCCount - 1 do
+        if SameText(TOCLabels[I].Caption, ATitle) then
+          TOCLabels[I].Tag := Y;
     ContentWidth := Max(Px(320), Scroll.ClientWidth - Px(62));
     Card := TPanel.Create(D);
     Card.Parent := Scroll;
@@ -2842,6 +2888,10 @@ begin
     end
     else if PDFLanguage = 'en' then
     begin
+      AddTOC(['Customizable user interface (themes)', 'Images and multipage TIFF files',
+        'Opening and organizing PDFs', 'Viewing and searching', 'Editing and combining PDFs',
+        'Watermarks and hyperlinks', 'Interactive forms', 'Document information and tools',
+        'Display and Logging']);
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
         'Five themes are available: Standard, Modern Light, Modern Dark, Windows Classic and Classic Blue. '
@@ -2969,6 +3019,20 @@ begin
         + 'the PDF order; its page selection moves with it. Click the question-mark '
         + 'button in the merge dialog for help. Save the result as a new PDF. '
         + 'Original PDFs are not modified; unsaved changes in open tabs are not included.');
+      AddSection('Watermarks and hyperlinks', '');
+      AddSection('Text watermarks',
+        'Right-click in the PDF thumbnail pane and select Add text watermark. Enter the text, '
+        + 'then choose font size, opacity, rotation angle and whether to apply it to the current page '
+        + 'or all pages. Save the PDF to keep the watermark.');
+      AddSection('Image watermarks',
+        'Choose Add image watermark in the PDF thumbnail context menu. Select a JPG or PNG image '
+        + 'and set its size, opacity, rotation and page range. Save the PDF to keep the result.');
+      AddSection('Add and move hyperlinks',
+        'Choose Add hyperlink in the PDF thumbnail context menu, then drag a rectangle on the PDF page. '
+        + 'Enter the visible text and a web or email link target. The link appears blue and underlined. '
+        + 'Hover to see the link target and a hand cursor. Hold Ctrl and drag with the left mouse button '
+        + 'to move the hyperlink text, underline and clickable area together. Save the PDF to keep the changes. '
+        + 'These editing features are available for PDF files only, not images.');
       AddSection('Interactive forms', '');
       AddSection('JavaScript (V8) and automatic calculations',
         'Supported AcroForm JavaScript actions can validate field entries and update calculated values, '
@@ -3025,6 +3089,11 @@ begin
     end
     else
     begin
+      AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Grafiken und mehrseitige TIFF-Dateien',
+        'PDFs öffnen und organisieren', 'Anzeige, Navigation und Suche',
+        'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks',
+        'Interaktive Formulare', 'Dokumentinformationen und Werkzeuge',
+        'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
       AddSection('Design auswählen',
         'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Modern Dunkel, Windows Klassik und Klassisch Blau. '
@@ -3188,6 +3257,23 @@ begin
         + 'öffnen Sie die Dialoghilfe. Das Ergebnis wird als neue PDF gespeichert. '
         + 'Die Originaldateien bleiben unverändert; ungespeicherte Änderungen '
         + 'geöffneter PDFs werden nicht übernommen.');
+      AddSection('Wasserzeichen und Hyperlinks', '');
+      AddSection('Textwasserzeichen hinzufügen',
+        'Klicken Sie mit der rechten Maustaste in die PDF-Miniaturansicht und wählen Sie '
+        + '„Textwasserzeichen hinzufügen ...“. Geben Sie den Text ein und wählen Sie Schriftgröße, '
+        + 'Deckkraft, Drehwinkel sowie die aktuelle oder alle Seiten. Speichern Sie anschließend die PDF.');
+      AddSection('Bildwasserzeichen hinzufügen',
+        'Wählen Sie „Bildwasserzeichen hinzufügen ...“ im Kontextmenü der PDF-Miniaturansicht. '
+        + 'Wählen Sie eine JPG- oder PNG-Datei und stellen Sie Größe, Deckkraft, Drehwinkel und '
+        + 'Seitenbereich ein. Speichern Sie anschließend die PDF.');
+      AddSection('Hyperlinks hinzufügen und verschieben',
+        'Wählen Sie „Hyperlink hinzufügen ...“ im Kontextmenü der PDF-Miniaturansicht und ziehen Sie '
+        + 'mit der Maus einen Bereich auf der PDF-Seite auf. Geben Sie den sichtbaren Anzeigetext und '
+        + 'eine Webadresse oder E-Mail-Adresse ein. Der Text erscheint blau und unterstrichen. '
+        + 'Beim Überfahren zeigt ein Hinweis das Linkziel und der Mauszeiger wird zur Hand. '
+        + 'Mit gedrückter Strg-Taste und linker Maustaste verschieben Sie Text, Unterstrich und '
+        + 'anklickbaren Linkbereich gemeinsam. Speichern Sie die PDF, um die Änderungen zu übernehmen. '
+        + 'Diese Bearbeitungsfunktionen stehen nur für PDF-Dateien zur Verfügung, nicht für Grafiken.');
       AddSection('Interaktive Formulare', '');
       AddSection('JavaScript (V8) und automatische Berechnungen',
         'Unterstützte AcroForm-JavaScript-Aktionen können Eingaben prüfen und berechnete Werte aktualisieren, '

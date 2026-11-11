@@ -7,7 +7,7 @@ uses
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
   Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, System.IniFiles, System.Generics.Collections, Math,
-  System.NetEncoding, System.Character, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore;
+  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore;
 
 const
   WM_PDF_FINISH_TEXT = WM_APP + $5A2;
@@ -213,6 +213,15 @@ type
     FMarker: TButton;
     FQuickSave: TPDFiumSaveButton;
     FReloadMenuItem: TMenuItem;
+    FLinkMenuItem: TMenuItem;
+    FLinkMode: Boolean;
+    FLinkMovePending: Boolean;
+    FLinkMovePage: Integer;
+    FLinkMoveStart: TPoint;
+    FLinkMoveEnd: TPoint;
+    FWatermarkMenuItem: TMenuItem;
+    FImageWatermarkMenuItem: TMenuItem;
+    FRequiredFieldsMenuItem: TMenuItem;
     FMoveUpItem, FMoveDownItem, FExtractItem: TMenuItem;
     FShapeSelect: TComboBox;
     FWidthSelect: TComboBox;
@@ -318,6 +327,8 @@ type
     procedure ThumbMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DeleteSelectedThumbs(Sender: TObject);
     procedure RotateSelectedThumbs(Sender: TObject);
+    procedure TextWatermarkClick(Sender: TObject);
+    procedure ImageWatermarkClick(Sender: TObject);
     procedure ReloadPDFClick(Sender: TObject);
     procedure RequiredFieldsReportClick(Sender: TObject);
     procedure RefreshThumbMenuCaptions;
@@ -371,6 +382,7 @@ type
     function SelectionHit(Sender: TObject; X, Y: Integer): Integer;
     procedure FindClick(Sender: TObject);
     procedure MarkerClick(Sender: TObject);
+    procedure LinkMenuClick(Sender: TObject);
     procedure TextInsertClick(Sender: TObject);
     procedure HighlightClick(Sender: TObject);
     procedure TextUndoClick(Sender: TObject);
@@ -2223,13 +2235,25 @@ begin
   FThumbMenu.Items.Add(FInsertAfterItem);
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
-  // 3b.57: Vollstaendigen Pflichtfeldbericht auch ohne Speichern aufrufen.
+  FLinkMenuItem := TMenuItem.Create(FThumbMenu);
+  FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  FLinkMenuItem.OnClick := LinkMenuClick;
+  FThumbMenu.Items.Add(FLinkMenuItem);
+  FImageWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
+  FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
+  FImageWatermarkMenuItem.OnClick := ImageWatermarkClick;
+  FThumbMenu.Items.Add(FImageWatermarkMenuItem);
+  FWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
+  FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+  FWatermarkMenuItem.OnClick := TextWatermarkClick;
+  FThumbMenu.Items.Add(FWatermarkMenuItem);
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
-  with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
-  begin
-    Caption := Tr('Pflichtfelder prüfen ...') + ' (F7)';
-    OnClick := RequiredFieldsReportClick;
-  end;
+  FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
+  // 3b.57: Vollstaendigen Pflichtfeldbericht auch ohne Speichern aufrufen.
+  FRequiredFieldsMenuItem := TMenuItem.Create(FThumbMenu);
+  FRequiredFieldsMenuItem.Caption := Tr('Pflichtfelder prüfen ...') + ' (F7)';
+  FRequiredFieldsMenuItem.OnClick := RequiredFieldsReportClick;
+  FThumbMenu.Items.Add(FRequiredFieldsMenuItem);
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
   FReloadMenuItem := TMenuItem.Create(FThumbMenu);
@@ -3836,6 +3860,12 @@ begin
   end;
   if FBookmarksTab <> nil then FBookmarksTab.Caption := Tr('Inhalte');
   if FThumbMenu <> nil then RefreshThumbMenuCaptions;
+  if FLinkMenuItem <> nil then
+    FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  if FWatermarkMenuItem <> nil then
+    FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+  if FImageWatermarkMenuItem <> nil then
+    FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   if FOutlineMenu <> nil then OutlineMenuPopup(nil);
   LayoutToolbar(nil);
 end;
@@ -4566,9 +4596,321 @@ begin
   FExtractItem.Caption := Tr('Seite(n) extrahieren ...');
   FInsertBeforeItem.Caption := Tr('PDF davor einfügen ...');
   FInsertAfterItem.Caption := Tr('PDF danach einfügen ...');
-  FThumbMenu.Items[13].Caption := Tr('Pflichtfelder prüfen ...') + ' (F7)';
+  if FLinkMenuItem <> nil then
+    FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  if FWatermarkMenuItem <> nil then
+    FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+  if FImageWatermarkMenuItem <> nil then
+    FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
+  if FRequiredFieldsMenuItem <> nil then
+    FRequiredFieldsMenuItem.Caption := Tr('Pflichtfelder prüfen ...') + ' (F7)';
   FReloadMenuItem.Caption :=
     Tr('PDF neu laden (Änderungen verwerfen)');
+end;
+
+function AskHyperlinkDetails(AOwner: TComponent; const AEnglish: Boolean;
+  out ACaption, ATarget: string): Boolean;
+var
+  Dlg: TForm;
+  L1, L2: TLabel;
+  E1, E2: TEdit;
+  OKBtn, CancelBtn: TButton;
+begin
+  Result := False;
+  Dlg := TForm.CreateNew(AOwner);
+  try
+    Dlg.BorderStyle := bsDialog;
+    Dlg.Position := poScreenCenter;
+    Dlg.ClientWidth := 460;
+    Dlg.ClientHeight := 186;
+    Dlg.Caption := 'Hyperlink hinzufügen';
+    if AEnglish then Dlg.Caption := 'Add hyperlink';
+    Dlg.Scaled := True;
+    L1 := TLabel.Create(Dlg);
+    L1.Parent := Dlg;
+    L1.SetBounds(16, 14, 420, 18);
+    L1.Caption := 'Anzeigetext:';
+    if AEnglish then L1.Caption := 'Display text:';
+    E1 := TEdit.Create(Dlg);
+    E1.Parent := Dlg;
+    E1.SetBounds(16, 35, 428, 25);
+    E1.Text := ACaption;
+    L2 := TLabel.Create(Dlg);
+    L2.Parent := Dlg;
+    L2.SetBounds(16, 71, 420, 18);
+    L2.Caption := 'Webadresse oder E-Mail-Adresse:';
+    if AEnglish then L2.Caption := 'Web address or email address:';
+    E2 := TEdit.Create(Dlg);
+    E2.Parent := Dlg;
+    E2.SetBounds(16, 92, 428, 25);
+    E2.Text := ATarget;
+    OKBtn := TButton.Create(Dlg);
+    OKBtn.Parent := Dlg;
+    OKBtn.SetBounds(262, 142, 85, 28);
+    OKBtn.Caption := 'OK';
+    OKBtn.ModalResult := mrOk;
+    OKBtn.Default := True;
+    CancelBtn := TButton.Create(Dlg);
+    CancelBtn.Parent := Dlg;
+    CancelBtn.SetBounds(359, 142, 85, 28);
+    CancelBtn.Caption := 'Abbrechen';
+    if AEnglish then CancelBtn.Caption := 'Cancel';
+    CancelBtn.ModalResult := mrCancel;
+    CancelBtn.Cancel := True;
+    Dlg.ActiveControl := E1;
+    if Dlg.ShowModal = mrOk then
+    begin
+      ACaption := Trim(E1.Text);
+      ATarget := Trim(E2.Text);
+      Result := (ACaption <> '') and (ATarget <> '');
+    end;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.LinkMenuClick(Sender: TObject);
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  FLinkMode := not FLinkMode;
+  if FLinkMode then
+  begin
+    FTextInsertMode := False;
+    FHighlightMode := False;
+    FNoteMode := False;
+    FMarkMode := False;
+    if FTextEditor <> nil then FinishTextEditor(False);
+    Screen.Cursor := crCross;
+  end
+  else
+    Screen.Cursor := crDefault;
+end;
+
+procedure TFreePDF64PDFiumView.TextWatermarkClick(Sender: TObject);
+var
+  D: TForm;
+  L: TLabel;
+  EditText: TEdit;
+  CbSize, CbOpacity, CbAngle, CbScope: TComboBox;
+  BtnOK, BtnCancel: TButton;
+  FontSize, Angle: Double;
+  Opacity, I, FirstPage, LastPage: Integer;
+  Scale: Integer;
+
+  procedure AddLabel(const ACaption: string; ATop: Integer);
+  begin
+    L := TLabel.Create(D);
+    L.Parent := D;
+    L.Caption := ACaption;
+    L.SetBounds(MulDiv(18, Scale, 96), MulDiv(ATop, Scale, 96),
+      MulDiv(370, Scale, 96), MulDiv(19, Scale, 96));
+  end;
+
+  procedure SetupCombo(C: TComboBox; ATop: Integer);
+  begin
+    C.Parent := D;
+    C.Style := csDropDownList;
+    C.SetBounds(MulDiv(18, Scale, 96), MulDiv(ATop, Scale, 96),
+      MulDiv(350, Scale, 96), MulDiv(25, Scale, 96));
+  end;
+
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  D := TForm.CreateNew(Self);
+  try
+    Scale := CurrentPPI;
+    D.Caption := Tr('Textwasserzeichen');
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsDialog;
+    D.Font.Assign(Font);
+    D.ClientWidth := MulDiv(390, Scale, 96);
+    D.ClientHeight := MulDiv(345, Scale, 96);
+
+    AddLabel(Tr('Wasserzeichentext:'), 12);
+    EditText := TEdit.Create(D);
+    EditText.Parent := D;
+    EditText.Text := 'ENTWURF';
+    EditText.SetBounds(MulDiv(18, Scale, 96), MulDiv(33, Scale, 96),
+      MulDiv(350, Scale, 96), MulDiv(25, Scale, 96));
+
+    AddLabel(Tr('Schriftgröße in Punkt (1–200):'), 68);
+    CbSize := TComboBox.Create(D);
+    SetupCombo(CbSize, 89);
+    CbSize.Items.Text := '12'#13#10'16'#13#10'20'#13#10'24'#13#10'28'#13#10'32'#13#10'36'#13#10'40'#13#10'48'#13#10'56'#13#10'64'#13#10'72'#13#10'96'#13#10'120'#13#10'144'#13#10'180'#13#10'200';
+    CbSize.ItemIndex := CbSize.Items.IndexOf('48');
+
+    AddLabel(Tr('Deckkraft in Prozent (1–100):'), 123);
+    CbOpacity := TComboBox.Create(D);
+    SetupCombo(CbOpacity, 144);
+    CbOpacity.Items.Text := '10 %'#13#10'20 %'#13#10'30 %'#13#10'40 %'#13#10'50 %'#13#10'60 %'#13#10'70 %'#13#10'80 %'#13#10'90 %'#13#10'100 %';
+    CbOpacity.ItemIndex := 2;
+
+    AddLabel(Tr('Drehwinkel in Grad (-180 bis 180):'), 178);
+    CbAngle := TComboBox.Create(D);
+    SetupCombo(CbAngle, 199);
+    CbAngle.Items.Text := '-180'#13#10'-135'#13#10'-90'#13#10'-60'#13#10'-45'#13#10'-30'#13#10'0'#13#10'30'#13#10'45'#13#10'60'#13#10'90'#13#10'135'#13#10'180';
+    CbAngle.ItemIndex := CbAngle.Items.IndexOf('45');
+
+    AddLabel(Tr('Seitenbereich:'), 233);
+    CbScope := TComboBox.Create(D);
+    SetupCombo(CbScope, 254);
+    CbScope.Items.Add(Tr('Aktuelle Seite'));
+    CbScope.Items.Add(Tr('Alle Seiten'));
+    CbScope.ItemIndex := 0;
+
+    BtnOK := TButton.Create(D);
+    BtnOK.Parent := D;
+    BtnOK.Caption := Tr('OK');
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Default := True;
+    BtnOK.SetBounds(MulDiv(191, Scale, 96), MulDiv(301, Scale, 96),
+      MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
+    BtnCancel := TButton.Create(D);
+    BtnCancel.Parent := D;
+    BtnCancel.Caption := Tr('Abbrechen');
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Cancel := True;
+    BtnCancel.SetBounds(MulDiv(284, Scale, 96), MulDiv(301, Scale, 96),
+      MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
+
+    if D.ShowModal <> mrOk then Exit;
+    if Trim(EditText.Text) = '' then Exit;
+    FontSize := StrToFloat(CbSize.Text);
+    Opacity := StrToInt(StringReplace(CbOpacity.Text, ' %', '', []));
+    Angle := StrToFloat(CbAngle.Text);
+    if CbScope.ItemIndex = 1 then
+    begin
+      FirstPage := 0;
+      LastPage := FCore.PageCount - 1;
+    end
+    else
+    begin
+      FirstPage := FPage;
+      LastPage := FPage;
+    end;
+    try
+      FCore.AddTextWatermark(EditText.Text, CbScope.ItemIndex = 1, FPage,
+        FontSize, Round(Opacity * 255 / 100), Angle);
+      for I := FirstPage to LastPage do
+      begin
+        if I < Length(FLoadedPages) then FLoadedPages[I] := False;
+        if I < FPages.Count then PageImage(I).Picture.Assign(nil);
+        if I < FThumbImages.Count then
+          TImage(FThumbImages[I]).Picture.Assign(nil);
+      end;
+      PaintPage;
+      UpdateSaveState;
+      FRenderPending := True;
+    except
+      on E: Exception do
+        MessageDlg(E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.ImageWatermarkClick(Sender: TObject);
+var
+  FileDlg: TOpenDialog;
+  D: TForm;
+  L: TLabel;
+  CbWidth, CbOpacity, CbAngle, CbScope: TComboBox;
+  BtnOK, BtnCancel: TButton;
+  Scale, I, FirstPage, LastPage, Opacity: Integer;
+  ImageFile: string;
+  procedure AddCombo(var C: TComboBox; const Caption: string;
+    Top: Integer; const Values, DefaultValue: string);
+  begin
+    L := TLabel.Create(D);
+    L.Parent := D;
+    L.Caption := Tr(Caption);
+    L.SetBounds(MulDiv(18, Scale, 96), MulDiv(Top, Scale, 96),
+      MulDiv(350, Scale, 96), MulDiv(19, Scale, 96));
+    C := TComboBox.Create(D);
+    C.Parent := D;
+    C.Style := csDropDownList;
+    C.SetBounds(MulDiv(18, Scale, 96), MulDiv(Top + 21, Scale, 96),
+      MulDiv(350, Scale, 96), MulDiv(25, Scale, 96));
+    C.Items.Text := Values;
+    C.ItemIndex := C.Items.IndexOf(DefaultValue);
+  end;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  FileDlg := TOpenDialog.Create(Self);
+  try
+    FileDlg.Title := Tr('Bild für Wasserzeichen auswählen');
+    FileDlg.Filter := 'Bilder (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg';
+    if not FileDlg.Execute then Exit;
+    ImageFile := FileDlg.FileName;
+  finally
+    FileDlg.Free;
+  end;
+  D := TForm.CreateNew(Self);
+  try
+    Scale := CurrentPPI;
+    D.Caption := Tr('Bildwasserzeichen');
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsDialog;
+    D.Font.Assign(Font);
+    D.ClientWidth := MulDiv(390, Scale, 96);
+    D.ClientHeight := MulDiv(285, Scale, 96);
+    AddCombo(CbWidth, 'Bildbreite (Prozent der Seitenbreite):', 12,
+      '10'#13#10'20'#13#10'30'#13#10'40'#13#10'50'#13#10'60'#13#10'70'#13#10'80'#13#10'90', '40');
+    AddCombo(CbOpacity, 'Deckkraft:', 67,
+      '10 %'#13#10'20 %'#13#10'30 %'#13#10'40 %'#13#10'50 %'#13#10'60 %'#13#10'70 %'#13#10'80 %'#13#10'90 %'#13#10'100 %', '30 %');
+    AddCombo(CbAngle, 'Drehwinkel:', 122,
+      '-90'#13#10'-45'#13#10'0'#13#10'45'#13#10'90', '0');
+    AddCombo(CbScope, 'Seitenbereich:', 177, '', '');
+    CbScope.Items.Add(Tr('Aktuelle Seite'));
+    CbScope.Items.Add(Tr('Alle Seiten'));
+    CbScope.ItemIndex := 0;
+    BtnOK := TButton.Create(D);
+    BtnOK.Parent := D;
+    BtnOK.Caption := Tr('OK');
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Default := True;
+    BtnOK.SetBounds(MulDiv(191, Scale, 96), MulDiv(242, Scale, 96),
+      MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
+    BtnCancel := TButton.Create(D);
+    BtnCancel.Parent := D;
+    BtnCancel.Caption := Tr('Abbrechen');
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Cancel := True;
+    BtnCancel.SetBounds(MulDiv(284, Scale, 96), MulDiv(242, Scale, 96),
+      MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
+    if D.ShowModal <> mrOk then Exit;
+    Opacity := StrToInt(StringReplace(CbOpacity.Text, ' %', '', []));
+    if CbScope.ItemIndex = 1 then
+    begin
+      FirstPage := 0;
+      LastPage := FCore.PageCount - 1;
+    end
+    else
+    begin
+      FirstPage := FPage;
+      LastPage := FPage;
+    end;
+    try
+      FCore.AddImageWatermark(ImageFile, CbScope.ItemIndex = 1, FPage,
+        StrToInt(CbWidth.Text), Round(Opacity * 255 / 100),
+        StrToFloat(CbAngle.Text));
+      for I := FirstPage to LastPage do
+      begin
+        if I < Length(FLoadedPages) then FLoadedPages[I] := False;
+        if I < FPages.Count then PageImage(I).Picture.Assign(nil);
+        if I < FThumbImages.Count then
+          TImage(FThumbImages[I]).Picture.Assign(nil);
+      end;
+      PaintPage;
+      UpdateSaveState;
+      FRenderPending := True;
+    except
+      on E: Exception do MessageDlg(E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    D.Free;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ThumbMenuPopup(Sender: TObject);
@@ -5020,7 +5362,7 @@ begin
           [MissingCount]));
         Memo.Lines.Add('');
         if MissingCount = 0 then
-          Memo.Lines.Add(Tr('Alle erkannten Pflichtfelder sind ausgefuellt.'))
+          Memo.Lines.Add(Tr('Alle erkannten Pflichtfelder sind ausgefüllt.'))
         else
           begin
           for I := 0 to Report.Count - 1 do
@@ -5872,9 +6214,14 @@ begin
   FMarkMode := FEditVisible and not FTextInsertMode and not FHighlightMode and not FNoteMode;
   if not FEditVisible then
   begin
+    // Beim Schliessen der Werkzeugleiste keinen aktiven Texteingabemodus
+    // oder unbestaetigten Editor zuruecklassen.
+    if FTextEditor <> nil then
+      FinishTextEditor(False);
     FTextInsertMode := False;
     FHighlightMode := False;
     FNoteMode := False;
+    FMarkMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
     Screen.Cursor := crDefault;
     FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
@@ -8185,6 +8532,35 @@ var
   PX, PY: Double;
   NoteItem: TMenuItem;
 begin
+  if (Button = mbLeft) and (ssCtrl in Shift) and
+     (Sender is TPDFiumImage) and (FCore <> nil) and
+     LinkAtImagePoint(Sender, X, Y, Target) and
+     ((Target.URI <> '') or (Target.PageIndex >= 0)) then
+  begin
+    FLinkMovePending := True;
+    FLinkMovePage := TPDFiumImage(Sender).Tag;
+    FLinkMoveStart := Point(X, Y);
+    FLinkMoveEnd := FLinkMoveStart;
+    TPDFiumImage(Sender).MouseCapture := True;
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    Exit;
+  end;
+  if FLinkMode and (Sender is TPDFiumImage) then
+  begin
+    if Button = mbLeft then
+    begin
+      FHighlightAreaDragging := True;
+      FHighlightAreaPage := TPDFiumImage(Sender).Tag;
+      FHighlightAreaStartX := X;
+      FHighlightAreaStartY := Y;
+      FHighlightAreaEndX := X;
+      FHighlightAreaEndY := Y;
+      TPDFiumImage(Sender).MouseCapture := True;
+      TPDFiumImage(Sender).Cursor := crCross;
+      Screen.Cursor := crCross;
+    end;
+    Exit;
+  end;
   if (Sender is TPDFiumImage) and (FCore <> nil) then
   begin
     Img := TPDFiumImage(Sender);
@@ -8708,6 +9084,17 @@ var
   Target: TPDFLinkTarget;
   CurrentScreen: TPoint;
 begin
+  if FLinkMovePending and (Sender is TPDFiumImage) then
+  begin
+    FLinkMoveEnd := Point(X, Y);
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    Exit;
+  end;
+  if FLinkMode and (Sender is TPDFiumImage) and not FHighlightAreaDragging then
+  begin
+    TPDFiumImage(Sender).Cursor := crCross;
+    Exit;
+  end;
   if (Sender is TPDFiumImage) and FNoteMovePending then
   begin
     TPDFiumImage(Sender).Cursor := crCross;
@@ -8765,9 +9152,23 @@ begin
     Exit;
   end;
   if (not (ssLeft in Shift)) and LinkAtImagePoint(Sender, X, Y, Target) then
-    TPDFiumImage(Sender).Cursor := crHandPoint
+  begin
+    TPDFiumImage(Sender).Cursor := crHandPoint;
+    if Target.URI <> '' then
+      TPDFiumImage(Sender).Hint := Target.URI
+    else if Target.PageIndex >= 0 then
+      TPDFiumImage(Sender).Hint := ToolbarHint('Seite ', 'Page ') +
+        IntToStr(Target.PageIndex + 1)
+    else
+      TPDFiumImage(Sender).Hint := '';
+    TPDFiumImage(Sender).ShowHint := TPDFiumImage(Sender).Hint <> '';
+  end
   else
+  begin
     TPDFiumImage(Sender).Cursor := crDefault;
+    TPDFiumImage(Sender).Hint := '';
+    TPDFiumImage(Sender).ShowHint := False;
+  end;
   if FSelecting then
   begin
     if not (ssLeft in Shift) then Exit;
@@ -8797,7 +9198,35 @@ procedure TFreePDF64PDFiumView.ImageMouseUp(Sender: TObject;
 var
   StartChar, EndChar, Pg: Integer;
   AX1, AY1, AX2, AY2: Double;
+  LinkURL, LinkCaption: string;
+  TextX, TextY, TextWidth: Double;
+  LinkTextBounds: TPDFInkRect;
 begin
+  if FLinkMovePending then
+  begin
+    FLinkMovePending := False;
+    if Sender is TPDFiumImage then
+    begin
+      TPDFiumImage(Sender).MouseCapture := False;
+      TPDFiumImage(Sender).Cursor := crDefault;
+      if (FCore <> nil) and
+         (TPDFiumImage(Sender).Tag = FLinkMovePage) and
+         ((Abs(X - FLinkMoveStart.X) > 1) or
+          (Abs(Y - FLinkMoveStart.Y) > 1)) and
+         FCore.DevicePointToPage(FLinkMovePage,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           FLinkMoveStart.X, FLinkMoveStart.Y, AX1, AY1) and
+         FCore.DevicePointToPage(FLinkMovePage,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           X, Y, AX2, AY2) then
+      begin
+        if FCore.MoveLinkAtPoint(FLinkMovePage, AX1, AY1,
+          AX2 - AX1, AY2 - AY1) then
+          RefreshTextPage(FLinkMovePage);
+      end;
+    end;
+    Exit;
+  end;
   if FDraggingPage then
   begin
     FDraggingPage := False;
@@ -8813,6 +9242,57 @@ begin
     TPDFiumImage(Sender).Cursor := crDefault;
     TPDFiumImage(Sender).MouseCapture := False;
     Pg := FHighlightAreaPage;
+    if FLinkMode then
+    begin
+      try
+        if (Pg = TPDFiumImage(Sender).Tag) and
+           (Abs(X - FHighlightAreaStartX) >= 4) and
+           (Abs(Y - FHighlightAreaStartY) >= 4) then
+        begin
+          if FCore.DevicePointToPage(Pg, TPDFiumImage(Sender).Width,
+               TPDFiumImage(Sender).Height, FHighlightAreaStartX,
+               FHighlightAreaStartY, AX1, AY1) and
+             FCore.DevicePointToPage(Pg, TPDFiumImage(Sender).Width,
+               TPDFiumImage(Sender).Height, X, Y, AX2, AY2) then
+          begin
+            LinkCaption := '';
+            LinkURL := 'https://';
+            if AskHyperlinkDetails(Self, PDFLanguage = 'en',
+              LinkCaption, LinkURL) then
+            begin
+              if (Pos('@', LinkURL) > 0) and (Pos(':', LinkURL) = 0) then
+                LinkURL := 'mailto:' + LinkURL;
+              if (Pos('https://', LowerCase(LinkURL)) = 1) or
+                 (Pos('http://', LowerCase(LinkURL)) = 1) or
+                 (Pos('mailto:', LowerCase(LinkURL)) = 1) then
+              begin
+                TextX := Min(AX1, AX2) + 2;
+                TextY := Min(AY1, AY2) + 4;
+                TextWidth := Max(2, Abs(AX2 - AX1) - 4);
+                // Linkbereich an den tatsächlichen PDFium-Textgrenzen ausrichten,
+                // nicht an der mit der Maus aufgezogenen Auswahl.
+                if FCore.InsertVisibleLinkText(Pg, TextX, TextY, TextWidth,
+                     LinkCaption, LinkTextBounds) and
+                   FCore.AddURILink(Pg, LinkTextBounds.Left - 1,
+                     LinkTextBounds.Bottom - 2, LinkTextBounds.Right + 1,
+                     LinkTextBounds.Top + 2, LinkURL) then
+                  RefreshTextPage(Pg)
+                else
+                  PDFModernMessageDlg(ToolbarHint('Hyperlink konnte nicht eingefügt werden.',
+                    'Could not insert hyperlink.'), mtError, [mbOK], 0);
+              end
+              else
+                PDFModernMessageDlg(ToolbarHint('Bitte http://, https:// oder eine E-Mail-Adresse eingeben.',
+                  'Enter http://, https:// or an email address.'), mtWarning, [mbOK], 0);
+            end;
+          end;
+        end;
+      finally
+        FLinkMode := False;
+        Screen.Cursor := crDefault;
+      end;
+      Exit;
+    end;
     try
       if (Pg = TPDFiumImage(Sender).Tag) and
          FCore.DevicePointToPage(Pg, TPDFiumImage(Sender).Width,
