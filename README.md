@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable 3.1.2
+# FreePDF64-Viewer Portable 3.1.3
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -18,7 +18,21 @@ Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Grafik-Viewer f�
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
-## Neu in Version 3.1.2: JavaScript-V8 und statische XFA-Formulare
+## Neu in Version 3.1.3: Wasserzeichen, Hyperlinks und verbesserte Bedienung
+
+Version **3.1.3** erweitert die PDF-Bearbeitung um Wasserzeichen und anklickbare Hyperlinks. Die Funktionen stehen **ausschließlich für PDF-Dateien** zur Verfügung, nicht für JPG, PNG, BMP oder TIFF.
+
+- **Textwasserzeichen:** Eigenen Text mit wählbarer Schriftgröße, Deckkraft und Drehwinkel auf der aktuellen oder auf allen PDF-Seiten einfügen.
+- **Bildwasserzeichen:** PNG- oder JPG-Bilder mit einstellbarer Größe, Deckkraft und Drehwinkel als Wasserzeichen einfügen – auf der aktuellen oder auf allen PDF-Seiten.
+- **Sichtbare Hyperlinks:** Einen Bereich auf der PDF-Seite mit der Maus aufziehen und einen **Anzeigetext** sowie eine **Webadresse oder E-Mail-Adresse** festlegen. Der Linktext erscheint **blau und unterstrichen**.
+- **Hyperlinks bedienen und verschieben:** Beim Überfahren wird das Linkziel als Hinweis angezeigt; der Mauszeiger wechselt zur Hand. Mit **Strg + gedrückter linker Maustaste** lassen sich eingefügte Hyperlinks samt Text, Unterstrich und Linkbereich verschieben. Ohne Strg bleibt der Link normal anklickbar.
+- **Änderungen speichern:** Wasserzeichen und Hyperlinks werden in der PDF gespeichert und bleiben nach erneutem Öffnen erhalten.
+- **Funktionsübersicht:** Deutsche und englische Funktionsübersicht um die neuen Werkzeuge ergänzt; ein **anklickbares Inhaltsverzeichnis** erleichtert die Navigation.
+- **Werkzeugleiste:** Beim Schließen von „Werkzeuge“ werden die Modi **„Text einfügen“** und **„Kommentar“** deaktiviert; bereits eingefügte Inhalte bleiben erhalten.
+
+**Bedienung:** Die neuen Befehle **„Hyperlink hinzufügen …“**, **„Bildwasserzeichen hinzufügen …“** und **„Textwasserzeichen hinzufügen …“** stehen im Kontextmenü der PDF-Miniaturansicht zur Verfügung.
+
+## Bereits in Version 3.1.2: JavaScript-V8 und statische XFA-Formulare
 
 Version **3.1.2** erweitert die Formularunterstützung des Viewers:
 
@@ -57,7 +71,7 @@ Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseiti
 - 📑 **PDFs und Grafiken in einer Anwendung:** Registerkarten und Vorschauen erleichtern den Überblick. PDF-Dokumente und unterstützte Bilddateien lassen sich gleichzeitig öffnen.
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🧾 **Interaktive Formulare:** AcroForm- und unterstützte statische XFA-Formulare bearbeiten und speichern; unterstützte JavaScript-V8-Berechnungen werden aktualisiert.
-- 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten sowie einfache Markierungen hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
+- 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
 ## Warum FreePDF64-Viewer Portable statt Browser oder gewöhnlichem PDF-Reader?
 
@@ -121,11 +135,13 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
 - **Flexible PDF-Anzeige:** Vergrößerbare Seitenminiaturen, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi. Seiten lassen sich in der Miniaturansicht mit gedrückter linker Maustaste verschieben.
 - **PDF-Werkzeuge:** Unter anderem Seiten drehen, nach oben/unten verschieben, löschen, extrahieren, Dokumenteigenschaften anzeigen und PDF-Anlagen verwalten.
+- **PDF-Wasserzeichen:** Text- oder Bildwasserzeichen mit Größe, Deckkraft und Drehwinkel auf der aktuellen oder allen PDF-Seiten hinzufügen.
+- **PDF-Hyperlinks:** Blauen, unterstrichenen Linktext mit Web- oder E-Mail-Ziel einfügen, Linkziel-Hint anzeigen und den Link mit **Strg + linker Maustaste** verschieben.
 - **Formulare ausfüllen:** AcroForm- und unterstützte statische XFA-Felder bearbeiten und speichern; JavaScript-V8-Aktionen und automatische Berechnungen werden unterstützt.
 - **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
 - **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
 - **PDF neu laden:** Das aktuelle Dokument über **Datei → PDF neu laden (Änderungen verwerfen)** erneut öffnen; vor dem Verwerfen ungespeicherter Änderungen wird nachgefragt.
-- **Sitzung wiederherstellen:** Zuletzt geschlossene PDF-Dateien oder die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
+- **Sitzung wiederherstellen:** Zuletzt geöffnete PDF- und Grafikdateien sowie die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
 - **Windows-Integration:** PDF-Dateien optional mit dem Viewer verknüpfen und direkt per Doppelklick öffnen.
 - **Infobereich:** Den Viewer auf Wunsch beim Schließen in den Windows-Infobereich verschieben.
 
@@ -161,13 +177,16 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 | Grafik zoomen | Lupen-Schaltflächen, **Strg + Mausrad**, 100 %, ganze Seite oder Seitenbreite |
 | Grafik drehen | 90° nach links oder rechts über die Grafik-Symbolleiste |
 | Mehrseitige TIFFs | Seiten wechseln, einzeln drehen und über **Speichern unter …** als mehrseitige TIFF sichern |
-| Aktiven PDF-Tab schließen | **Strg+W** oder **×** am Tab |
+| Aktiven Tab schließen | **Strg+W** oder **×** am Tab |
 | Geöffnete Tabs suchen / Suche schließen | **Strg+Umschalt+A**, **Lupe** oder **Esc** zum Schließen |
 | Globale Volltextsuche über alle geöffneten PDFs | **Strg+Umschalt+F**, **Alle PDFs durchsuchen** oder **Bearbeiten** |
 | Lokale Textsuche im aktuellen PDF | **Text suchen**, **F3** für die weitere Suche |
 | Gespeicherte PDF-Arbeitsbereiche verwalten | Menü **Arbeitsbereiche** oder Startseite |
 | PDF neu laden | **Datei → PDF neu laden (Änderungen verwerfen)** |
 | Markierungen / optische Schwärzung | **Bearbeiten** → Werkzeug auswählen |
+| Text- oder Bildwasserzeichen hinzufügen | Rechtsklick in die PDF-Miniaturansicht → **Textwasserzeichen hinzufügen …** / **Bildwasserzeichen hinzufügen …** |
+| Hyperlink hinzufügen | Rechtsklick in die PDF-Miniaturansicht → **Hyperlink hinzufügen …**; Linkbereich aufziehen und Text/Ziel eingeben |
+| Hyperlink verschieben | **Strg + linke Maustaste** auf dem Hyperlink gedrückt halten und ziehen |
 | Viewer beenden | **Datei → Exit** oder **Alt+F4** |
 | Hilfe und Programminformationen | Menü **Hilfe** |
 | Letzte Sitzung wiederherstellen | Rechtsklick auf die leere Startseite |
@@ -193,7 +212,7 @@ Fragen, Fehlerberichte, Ideen oder Anregungen?
 
 <div align="center">
 
-**FreePDF64-Viewer Portable – PDF-Dateien komfortabel anzeigen und verwalten.**
+**FreePDF64-Viewer Portable – PDF-Dateien und Grafiken komfortabel anzeigen und verwalten.**
 
 Copyright © 2026 FreePDF64
 
@@ -209,7 +228,21 @@ A free, standalone, portable PDF and image viewer for Windows with tabs, cross-d
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
-## New in version 3.1.2: V8 JavaScript and static XFA forms
+## New in version 3.1.3: Watermarks, hyperlinks, and usability improvements
+
+Version **3.1.3** adds watermarks and clickable hyperlinks to PDF editing. These features are available **for PDF files only**, not for JPG, PNG, BMP, or TIFF images.
+
+- **Text watermarks:** Add custom text with selectable font size, opacity, and rotation to the current PDF page or all pages.
+- **Image watermarks:** Add PNG or JPG images as watermarks, with adjustable size, opacity, and rotation, to the current PDF page or all pages.
+- **Visible hyperlinks:** Drag a rectangle on a PDF page, then enter **display text** and a **website or email address**. Link text appears **blue and underlined**.
+- **Hover and move links:** Hover to see the link target in a tooltip and a hand cursor. Hold **Ctrl + left mouse button** to move an inserted hyperlink together with its text, underline, and clickable area. A normal click still follows the link.
+- **Save changes:** Watermarks and hyperlinks are stored in the PDF and remain available after reopening it.
+- **Feature overview:** The German and English feature overviews now include these tools and a **clickable table of contents**.
+- **Tools panel:** Closing **Tools** deactivates **Insert Text** and **Comment** modes without removing content already added.
+
+**How to access:** Right-click in the PDF thumbnail pane and choose **Add Hyperlink…**, **Add Image Watermark…**, or **Add Text Watermark…**.
+
+## Previously introduced in version 3.1.2: V8 JavaScript and static XFA forms
 
 Version **3.1.2** expands the viewer's PDF form capabilities:
 
@@ -248,7 +281,7 @@ In addition to PDFs, the viewer can now open **JPG, JPEG, PNG, BMP, and single- 
 - 📑 **PDFs and images in one application:** Tabs and previews make navigation easier. Keep PDF documents and supported image files open at the same time.
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🧾 **Interactive PDF forms:** Edit and save AcroForm and supported static XFA forms, with supported V8 JavaScript calculations.
-- 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add simple annotations without having to switch to a different view for every task.
+- 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add annotations, watermarks, and clickable hyperlinks without switching views.
 
 ## Why choose FreePDF64-Viewer Portable over a browser or a basic PDF reader?
 
@@ -312,11 +345,13 @@ These actions are available from the **thumbnail pane's context menu**.
 - **Easy tab management:** Close tabs using the small **×** or **Ctrl+W**; find open tabs using the **magnifying glass** or **Ctrl+Shift+A**. Close the search with the same shortcut or **Esc**.
 - **Flexible PDF viewing:** Resizable page thumbnails, table of contents, zoom, page navigation, and various page and viewing modes. Move pages directly in the thumbnail pane by dragging them with the left mouse button held down.
 - **PDF tools:** Rotate, move pages up or down, delete or extract pages, view document properties, and manage PDF attachments.
+- **PDF watermarks:** Add text or image watermarks with adjustable size, opacity, and rotation to the current page or all pages.
+- **PDF hyperlinks:** Insert blue, underlined link text with a website or email target, show the target on hover, and move the link with **Ctrl + left mouse button**.
 - **Fill in forms:** Edit and save AcroForm and supported static XFA fields, with support for V8 JavaScript actions and automatic calculations.
 - **Annotate PDFs:** Add freehand drawings, lines, rectangles, and ellipses as annotations.
 - **Visual redaction:** Cover text areas with black rectangles (this does not securely remove the underlying text).
 - **Reload a PDF:** Reopen the current document using **File → Reload PDF (Discard Changes)**; the viewer asks before discarding unsaved changes.
-- **Restore a session:** Reopen recently closed PDFs or the last session using the context menu on the empty start page.
+- **Restore a session:** Reopen recently opened PDFs and images or the last session using the context menu on the empty start page.
 - **Windows integration:** Optionally associate PDF files with the viewer and open them directly by double-clicking.
 - **System tray:** Optionally minimize the viewer to the Windows notification area when closing it.
 
@@ -352,13 +387,16 @@ These measures primarily improve startup time and usability. They do not mean th
 | Zoom an image | Magnifier buttons, **Ctrl + mouse wheel**, 100%, fit image, or fit width |
 | Rotate an image | Rotate 90° left or right using the image toolbar |
 | Multipage TIFF | Switch pages, rotate them individually, and save as a multipage TIFF via **Save As…** |
-| Close the active PDF tab | **Ctrl+W** or the tab’s **×** |
+| Close the active tab | **Ctrl+W** or the tab’s **×** |
 | Find open tabs / close search | **Ctrl+Shift+A**, the **magnifying glass**, or **Esc** to close |
 | Full-text search across all open PDFs | **Ctrl+Shift+F**, **Search all PDFs**, or **Edit** |
 | Search text in the current PDF | **Find text**; press **F3** to find the next occurrence |
 | Manage saved PDF workspaces | **Workspaces** menu or start page |
 | Reload a PDF | **File → Reload PDF (Discard Changes)** |
 | Annotations / visual redaction | **Edit** → select a tool |
+| Add a text or image watermark | Right-click the PDF thumbnail pane → **Add Text Watermark…** / **Add Image Watermark…** |
+| Add a hyperlink | Right-click the PDF thumbnail pane → **Add Hyperlink…**; drag a link area and enter display text and target |
+| Move a hyperlink | Hold **Ctrl + left mouse button** over the hyperlink and drag |
 | Exit the viewer | **File → Exit** or **Alt+F4** |
 | Help and program information | **Help** menu |
 | Restore the last session | Right-click the empty start page |
@@ -384,7 +422,7 @@ Questions, bug reports, ideas, or feedback?
 
 <div align="center">
 
-**FreePDF64-Viewer Portable – View and manage PDF files with ease.**
+**FreePDF64-Viewer Portable – View and manage PDFs and images with ease.**
 
 Copyright © 2026 FreePDF64
 
