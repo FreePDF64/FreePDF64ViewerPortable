@@ -9420,6 +9420,29 @@ begin
     end;
     Exit;
   end;
+  // Ein einfacher Klick ausserhalb der bestehenden Textauswahl hebt sie auf.
+  // Klicks innerhalb der Auswahl behalten sie fuer Kopieren/Kontextmenue bei.
+  if (Button = mbLeft) and (FSelAnchorPage >= 0) and
+     (FSelFocusPage >= 0) and not (ssShift in Shift) and
+     not (ssCtrl in Shift) and not (ssAlt in Shift) then
+  begin
+    I := SelectionHit(Sender, X, Y);
+    if (TPDFiumImage(Sender).Tag < Min(FSelAnchorPage, FSelFocusPage)) or
+       (TPDFiumImage(Sender).Tag > Max(FSelAnchorPage, FSelFocusPage)) or
+       (I < 0) or
+       ((FSelAnchorPage = FSelFocusPage) and
+        ((I < Min(FSelAnchorChar, FSelFocusChar)) or
+         (I > Max(FSelAnchorChar, FSelFocusChar)))) then
+    begin
+      FSelecting := False;
+      FSelAnchorPage := -1;
+      FSelFocusPage := -1;
+      FSelAnchorChar := -1;
+      FSelFocusChar := -1;
+      RefreshSelectedPages;
+      Exit;
+    end;
+  end;
   // Standard: Text mit linker Maustaste markieren.
   // Bisheriges Verschieben bleibt mit Alt + Ziehen erreichbar.
   if not FMarkMode and (ssAlt in Shift) and
