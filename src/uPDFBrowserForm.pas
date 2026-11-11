@@ -5,7 +5,7 @@ uses
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Classes, System.SyncObjs,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.ExtCtrls, Vcl.Dialogs, uPDFModernDialogs,
-  Vcl.StdCtrls, Vcl.Buttons, Vcl.ComCtrls, Vcl.Printers, Math, IniFiles, System.NetEncoding, Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, Menus;
+  Vcl.StdCtrls, Vcl.Buttons, Vcl.ComCtrls, Vcl.Printers, Vcl.Clipbrd, Math, IniFiles, System.NetEncoding, Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, Menus;
 type
   TPixelRow = array[0..(MaxInt div 4) - 1] of Cardinal;
   PPixelRow = ^TPixelRow;
@@ -124,6 +124,7 @@ type
     procedure ToggleAttachmentsClick(Sender: TObject);
     procedure PageNavigationTimerTimer(Sender: TObject);
     procedure ImageToolClick(Sender: TObject);
+    procedure ImageContextClick(Sender: TObject);
     procedure UpdateImageLayout;
     procedure CreateImageTools;
   public
@@ -1737,6 +1738,22 @@ begin
     FImageZoomLabel.Caption := FormatFloat('0.#', Factor * 100) + ' %';
 end;
 
+procedure TPDFBrowserForm.ImageContextClick(Sender: TObject);
+var
+  Mode: Integer;
+begin
+  if not (Sender is TMenuItem) or (FImageDisplay = nil) then Exit;
+  Mode := TMenuItem(Sender).Tag;
+  if Mode = 20 then
+  begin
+    if (FImageDisplay.Picture.Graphic <> nil) and
+       not FImageDisplay.Picture.Graphic.Empty then
+      Clipboard.Assign(FImageDisplay.Picture.Graphic);
+  end
+  else if (Mode >= 0) and (Mode <= 8) and (FImageButtons[Mode] <> nil) then
+    ImageToolClick(FImageButtons[Mode]);
+end;
+
 procedure TPDFBrowserForm.ImageToolClick(Sender: TObject);
 var
   Mode, X, Y, W, H, DestY: Integer;
@@ -2174,6 +2191,8 @@ end;
 
 procedure TPDFBrowserForm.ShowBasicImage;
 var
+  ContextItem: TMenuItem;
+  ImagePopup: TPopupMenu;
   ButtonIndex: Integer;
   Input: TGDIPlusStartupInput;
   Ext: string;
@@ -2189,6 +2208,19 @@ begin
     FImageDisplay.Parent := FImageScroll;
     FImageDisplay.AutoSize := False;
     FImageDisplay.Stretch := True;
+    ImagePopup := TPopupMenu.Create(FImageDisplay);
+    ImagePopup.AutoPopup := True;
+    FImageDisplay.PopupMenu := ImagePopup;
+    // Eigenes Grafik-Kontextmenue, unabhaengig von PDF-Aktionen.
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach rechts drehen', 'Rotate image 90° right'); ContextItem.Tag := 3; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach links drehen', 'Rotate image 90° left'); ContextItem.Tag := 2; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Ganzes Bild anzeigen', 'Fit whole image'); ContextItem.Tag := 4; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild in Zwischenablage kopieren', 'Copy image to clipboard'); ContextItem.Tag := 20; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild speichern unter ...', 'Save image as ...'); ContextItem.Tag := 7; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    FImageScroll.PopupMenu := ImagePopup;
+
     // Mausrad-Ereignis wird vom Formular empfangen (VCL-Ereignisweitergabe).
     OnMouseWheel := ImageMouseWheel;
     FImageZoom := 1.0;

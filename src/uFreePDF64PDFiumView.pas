@@ -331,6 +331,8 @@ type
     procedure ThumbMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DeleteSelectedThumbs(Sender: TObject);
     procedure RotateSelectedThumbs(Sender: TObject);
+    procedure PageContextRotateClick(Sender: TObject);
+    procedure PageContextToolClick(Sender: TObject);
     procedure ManageLinksClick(Sender: TObject);
     procedure TextWatermarkClick(Sender: TObject);
     procedure ImageWatermarkClick(Sender: TObject);
@@ -2245,14 +2247,14 @@ begin
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
   begin
-    Caption := Tr('Ausgewählte Seite(n) 90° im Uhrzeigersinn drehen');
+    Caption := ToolbarHint('Ausgewählte Seite(n) 90° nach rechts drehen', 'Rotate selected page(s) 90° right');
     Tag := 90;
     OnClick := RotateSelectedThumbs;
   end;
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
   begin
-    Caption := Tr('Ausgewählte Seite(n) 90° gegen den Uhrzeigersinn drehen');
+    Caption := ToolbarHint('Ausgewählte Seite(n) 90° nach links drehen', 'Rotate selected page(s) 90° left');
     Tag := -90;
     OnClick := RotateSelectedThumbs;
   end;
@@ -4652,9 +4654,9 @@ begin
   if FThumbMenu.Items.Count < 13 then Exit;
   FThumbMenu.Items[0].Caption := Tr('Ausgewählte Seite(n) löschen');
   FThumbMenu.Items[2].Caption :=
-    Tr('Ausgewählte Seite(n) 90° im Uhrzeigersinn drehen');
+    ToolbarHint('Ausgewählte Seite(n) 90° nach rechts drehen', 'Rotate selected page(s) 90° right');
   FThumbMenu.Items[3].Caption :=
-    Tr('Ausgewählte Seite(n) 90° gegen den Uhrzeigersinn drehen');
+    ToolbarHint('Ausgewählte Seite(n) 90° nach links drehen', 'Rotate selected page(s) 90° left');
   FMoveUpItem.Caption := Tr('↑ Seite nach oben');
   FMoveDownItem.Caption := Tr('↓ Seite nach unten');
   FExtractItem.Caption := Tr('Seite(n) extrahieren ...');
@@ -5754,6 +5756,24 @@ begin
   finally
     FRenderTimer.Enabled := WasRenderTimer;
     FThumbTimer.Enabled := WasThumbTimer and FThumbScroll.Visible;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.PageContextRotateClick(Sender: TObject);
+var
+  Angle: Integer;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  Angle := 90;
+  if (Sender is TMenuItem) and (TMenuItem(Sender).Tag = -90) then
+    Angle := -90;
+  try
+    // Nur die per Rechtsklick gewaehlte Seite, nicht die Miniaturauswahl.
+    RotatePages(FPage + 1, FPage + 1, Angle);
+    RenderVisiblePages;
+  except
+    on E: Exception do
+      PDFModernMessageDlg(E.Message, mtError, [mbOK], 0);
   end;
 end;
 
@@ -8641,6 +8661,16 @@ begin
   end;
 end;
 
+procedure TFreePDF64PDFiumView.PageContextToolClick(Sender: TObject);
+begin
+  if not FEditVisible then ToggleEditBar(nil);
+  case (Sender as TMenuItem).Tag of
+    1: if not FTextInsertMode then TextInsertClick(Sender);
+    2: if not FHighlightMode then HighlightClick(Sender);
+    3: if not FNoteMode then NoteButtonClick(Sender);
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.HighlightClick(Sender: TObject);
 begin
   if FTextEditor <> nil then FinishTextEditor(True);
@@ -8980,6 +9010,19 @@ begin
       FPage := Img.Tag;
       FPageContextMenu.Items.Clear;
       NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Seite um 90° nach rechts drehen', 'Rotate page 90° clockwise');
+      NoteItem.Tag := 90;
+      NoteItem.OnClick := PageContextRotateClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Seite um 90° nach links drehen', 'Rotate page 90° counterclockwise');
+      NoteItem.Tag := -90;
+      NoteItem.OnClick := PageContextRotateClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := '-';
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := Tr('PDF davor einfügen ...');
       NoteItem.Tag := 0;
       NoteItem.OnClick := InsertPDFAtThumbnail;
@@ -8999,6 +9042,26 @@ begin
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
       NoteItem.OnClick := LinkMenuClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := '-';
+      FPageContextMenu.Items.Add(NoteItem);
+      // Vorhandene Werkzeug-Modi verwenden; kein zweiter Bearbeitungspfad.
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Text einfügen ...', 'Insert text ...');
+      NoteItem.Tag := 1;
+      NoteItem.OnClick := PageContextToolClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Text hervorheben ...', 'Highlight text ...');
+      NoteItem.Tag := 2;
+      NoteItem.OnClick := PageContextToolClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Kommentar hinzufügen ...', 'Add comment ...');
+      NoteItem.Enabled := CanModifyComments(False);
+      NoteItem.Tag := 3;
+      NoteItem.OnClick := PageContextToolClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
