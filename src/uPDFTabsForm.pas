@@ -3033,6 +3033,18 @@ begin
         + 'Hover to see the link target and a hand cursor. Hold Ctrl and drag with the left mouse button '
         + 'to move the hyperlink text, underline and clickable area together. Save the PDF to keep the changes. '
         + 'These editing features are available for PDF files only, not images.');
+      AddSection('Undo and redo watermarks',
+        'After inserting a text or image watermark, the Tools toolbar is shown so that Undo and Redo ' +
+        'are accessible. A watermark applied to all pages can be undone or restored as one action. ' +
+        'Check the result before saving the PDF.');
+      AddSection('Correct an invalid hyperlink target',
+        'If a hyperlink address is invalid, the input dialog remains available for correction. ' +
+        'The entered display text is retained and the link target can be edited.');
+      AddSection('Manage hyperlinks',
+        'Right-click the PDF thumbnail pane and choose Manage hyperlinks to list URI links ' +
+        'with page number, display text and destination. Select a link to jump to its page, ' +
+        'change its destination or delete the clickable link annotation. When deleting a link, ' +
+        'the visible text remains. Save the PDF to preserve your changes.');
       AddSection('Interactive forms', '');
       AddSection('JavaScript (V8) and automatic calculations',
         'Supported AcroForm JavaScript actions can validate field entries and update calculated values, '
@@ -3274,6 +3286,20 @@ begin
         + 'Mit gedrückter Strg-Taste und linker Maustaste verschieben Sie Text, Unterstrich und '
         + 'anklickbaren Linkbereich gemeinsam. Speichern Sie die PDF, um die Änderungen zu übernehmen. '
         + 'Diese Bearbeitungsfunktionen stehen nur für PDF-Dateien zur Verfügung, nicht für Grafiken.');
+      AddSection('Wasserzeichen rückgängig machen und wiederholen',
+        'Nach dem Einfügen eines Text- oder Bildwasserzeichens wird die Symbolleiste „Werkzeuge“ ' +
+        'eingeblendet, damit Rückgängig und Wiederholen erreichbar sind. Ein Wasserzeichen auf ' +
+        'allen Seiten kann als gemeinsamer Schritt rückgängig gemacht und wiederhergestellt werden. ' +
+        'Prüfen Sie das Ergebnis vor dem Speichern der PDF.');
+      AddSection('Ungültige Hyperlink-Adresse korrigieren',
+        'Bei einer ungültigen Hyperlink-Adresse bleibt der Eingabedialog zur Korrektur verfügbar. ' +
+        'Der eingegebene Anzeigetext bleibt erhalten; das Linkziel kann berichtigt werden.');
+      AddSection('Hyperlinks verwalten',
+        'Klicken Sie mit der rechten Maustaste in die PDF-Miniaturansicht und wählen Sie ' +
+        '„Hyperlinks verwalten ...“. Die Übersicht zeigt URI-Hyperlinks mit Seitenzahl, ' +
+        'Anzeigetext und Linkziel. Sie können zur betreffenden Seite springen, das Linkziel ' +
+        'ändern oder die anklickbare Linkannotation löschen. Beim Löschen bleibt der sichtbare ' +
+        'Text erhalten. Speichern Sie die PDF, um die Änderungen zu übernehmen.');
       AddSection('Interaktive Formulare', '');
       AddSection('JavaScript (V8) und automatische Berechnungen',
         'Unterstützte AcroForm-JavaScript-Aktionen können Eingaben prüfen und berechnete Werte aktualisieren, '

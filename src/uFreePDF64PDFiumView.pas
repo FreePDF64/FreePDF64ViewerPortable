@@ -137,6 +137,8 @@ type
     FThumbResizeTimer: TTimer;
     FThumbResizePending: Boolean;
     FThumbResizeInProgress: Boolean;
+    FThumbLastOutlineWidth: Integer;
+    FThumbLastClientWidth: Integer;
     FThumbDeleteRebuildPending: Boolean;
     FThumbNext: Integer;
     FThumbScrollTarget: Integer;
@@ -214,6 +216,7 @@ type
     FQuickSave: TPDFiumSaveButton;
     FReloadMenuItem: TMenuItem;
     FLinkMenuItem: TMenuItem;
+    FManageLinksMenuItem: TMenuItem;
     FLinkMode: Boolean;
     FLinkMovePending: Boolean;
     FLinkMovePage: Integer;
@@ -327,6 +330,7 @@ type
     procedure ThumbMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DeleteSelectedThumbs(Sender: TObject);
     procedure RotateSelectedThumbs(Sender: TObject);
+    procedure ManageLinksClick(Sender: TObject);
     procedure TextWatermarkClick(Sender: TObject);
     procedure ImageWatermarkClick(Sender: TObject);
     procedure ReloadPDFClick(Sender: TObject);
@@ -355,6 +359,7 @@ type
     procedure UpdateSecurityIcon;
     procedure LayoutToolbar(Sender: TObject);
     procedure UpdateUndoRedoGlyphs;
+    procedure InvalidateAllWatermarkPages;
     procedure InfoClick(Sender: TObject);
     procedure InfoDialogClose(Sender: TObject; var Action: TCloseAction);
     procedure InfoDialogDestroy(Sender: TObject);
@@ -516,6 +521,51 @@ type
 procedure ApplyPDFGlyphContrast(AButton: TBitBtn; ADesign: Integer);
 
 implementation
+
+type
+  // Seitenwechsel direkt im geöffneten Dialog, ohne ShowModal neu zu starten.
+  TPDFLinkListNavigator = class(TComponent)
+  private
+    FView: TFreePDF64PDFiumView;
+    FList: TListView;
+    procedure JumpToSelected;
+    procedure ListClick(Sender: TObject);
+    procedure JumpClick(Sender: TObject);
+  public
+    constructor Create(AOwner: TComponent; AView: TFreePDF64PDFiumView;
+      AList: TListView); reintroduce;
+  end;
+
+constructor TPDFLinkListNavigator.Create(AOwner: TComponent;
+  AView: TFreePDF64PDFiumView; AList: TListView);
+begin
+  inherited Create(AOwner);
+  FView := AView;
+  FList := AList;
+end;
+
+procedure TPDFLinkListNavigator.JumpToSelected;
+var
+  Links: TArray<TPDFManagedLink>;
+  Index: Integer;
+begin
+  if (FView = nil) or (FView.FCore = nil) or (FList = nil) then Exit;
+  Index := FList.ItemIndex;
+  if Index < 0 then Exit;
+  Links := FView.FCore.GetManagedLinks;
+  if Index >= Length(Links) then Exit;
+  FView.ShowPage(Links[Index].PageIndex);
+end;
+
+procedure TPDFLinkListNavigator.ListClick(Sender: TObject);
+begin
+  JumpToSelected;
+end;
+
+procedure TPDFLinkListNavigator.JumpClick(Sender: TObject);
+begin
+  JumpToSelected;
+end;
 
 var
   GThumbnailViews: TList<TFreePDF64PDFiumView>;
@@ -2235,6 +2285,10 @@ begin
   FThumbMenu.Items.Add(FInsertAfterItem);
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
+  FManageLinksMenuItem := TMenuItem.Create(FThumbMenu);
+  FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+  FManageLinksMenuItem.OnClick := ManageLinksClick;
+  FThumbMenu.Items.Add(FManageLinksMenuItem);
   FLinkMenuItem := TMenuItem.Create(FThumbMenu);
   FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   FLinkMenuItem.OnClick := LinkMenuClick;
@@ -2275,6 +2329,8 @@ begin
   FThumbResizeTimer.Interval := 35;
   FThumbResizeTimer.OnTimer := ThumbResizeTimerTick;
   FThumbResizePending := False;
+  FThumbLastOutlineWidth := -1;
+  FThumbLastClientWidth := -1;
   FThumbResizeInProgress := False;
   FThumbDeleteRebuildPending := False;
   ShowOutlineTab(True);
@@ -3860,6 +3916,8 @@ begin
   end;
   if FBookmarksTab <> nil then FBookmarksTab.Caption := Tr('Inhalte');
   if FThumbMenu <> nil then RefreshThumbMenuCaptions;
+  if FManageLinksMenuItem <> nil then
+    FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   if FWatermarkMenuItem <> nil then
@@ -4596,6 +4654,8 @@ begin
   FExtractItem.Caption := Tr('Seite(n) extrahieren ...');
   FInsertBeforeItem.Caption := Tr('PDF davor einfügen ...');
   FInsertAfterItem.Caption := Tr('PDF danach einfügen ...');
+  if FManageLinksMenuItem <> nil then
+    FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   if FWatermarkMenuItem <> nil then
@@ -4615,54 +4675,243 @@ var
   L1, L2: TLabel;
   E1, E2: TEdit;
   OKBtn, CancelBtn: TButton;
+  PPI: Integer;
+  function Px(V: Integer): Integer;
+  begin
+    Result := MulDiv(V, PPI, 96);
+  end;
 begin
   Result := False;
   Dlg := TForm.CreateNew(AOwner);
   try
+    PPI := Screen.PixelsPerInch;
+    if AOwner is TControl then
+      PPI := TControl(AOwner).CurrentPPI;
+    Dlg.Scaled := False;
+    Dlg.Font.Name := 'Segoe UI';
+    Dlg.Font.Size := 9;
     Dlg.BorderStyle := bsDialog;
     Dlg.Position := poScreenCenter;
-    Dlg.ClientWidth := 460;
-    Dlg.ClientHeight := 186;
+    Dlg.ClientWidth := Px(420);
+    Dlg.ClientHeight := Px(172);
     Dlg.Caption := 'Hyperlink hinzufügen';
     if AEnglish then Dlg.Caption := 'Add hyperlink';
-    Dlg.Scaled := True;
+
     L1 := TLabel.Create(Dlg);
     L1.Parent := Dlg;
-    L1.SetBounds(16, 14, 420, 18);
+    L1.SetBounds(Px(16), Px(12), Px(388), Px(18));
     L1.Caption := 'Anzeigetext:';
     if AEnglish then L1.Caption := 'Display text:';
     E1 := TEdit.Create(Dlg);
     E1.Parent := Dlg;
-    E1.SetBounds(16, 35, 428, 25);
+    E1.SetBounds(Px(16), Px(32), Px(388), Px(25));
     E1.Text := ACaption;
     L2 := TLabel.Create(Dlg);
     L2.Parent := Dlg;
-    L2.SetBounds(16, 71, 420, 18);
+    L2.SetBounds(Px(16), Px(66), Px(388), Px(18));
     L2.Caption := 'Webadresse oder E-Mail-Adresse:';
     if AEnglish then L2.Caption := 'Web address or email address:';
     E2 := TEdit.Create(Dlg);
     E2.Parent := Dlg;
-    E2.SetBounds(16, 92, 428, 25);
+    E2.SetBounds(Px(16), Px(86), Px(388), Px(25));
     E2.Text := ATarget;
     OKBtn := TButton.Create(Dlg);
     OKBtn.Parent := Dlg;
-    OKBtn.SetBounds(262, 142, 85, 28);
+    OKBtn.SetBounds(Px(222), Px(131), Px(85), Px(28));
     OKBtn.Caption := 'OK';
     OKBtn.ModalResult := mrOk;
     OKBtn.Default := True;
     CancelBtn := TButton.Create(Dlg);
     CancelBtn.Parent := Dlg;
-    CancelBtn.SetBounds(359, 142, 85, 28);
+    CancelBtn.SetBounds(Px(319), Px(131), Px(85), Px(28));
     CancelBtn.Caption := 'Abbrechen';
     if AEnglish then CancelBtn.Caption := 'Cancel';
     CancelBtn.ModalResult := mrCancel;
     CancelBtn.Cancel := True;
     Dlg.ActiveControl := E1;
-    if Dlg.ShowModal = mrOk then
+    // Bei ungueltiger Eingabe den Dialog offen lassen, damit der Benutzer
+    // den fehlerhaften Wert direkt korrigieren kann.
+    while Dlg.ShowModal = mrOk do
     begin
-      ACaption := Trim(E1.Text);
+      if Trim(E1.Text) = '' then
+      begin
+        PDFModernMessageDlg(
+          ToolbarHint('Bitte einen Anzeigetext eingeben.',
+            'Please enter display text.'), mtWarning, [mbOK], 0);
+        Dlg.ActiveControl := E1;
+        Continue;
+      end;
       ATarget := Trim(E2.Text);
-      Result := (ACaption <> '') and (ATarget <> '');
+      if (Pos('@', ATarget) > 0) and (Pos(':', ATarget) = 0) then
+        ATarget := 'mailto:' + ATarget;
+      if not ((Pos('https://', LowerCase(ATarget)) = 1) or
+              (Pos('http://', LowerCase(ATarget)) = 1) or
+              (Pos('mailto:', LowerCase(ATarget)) = 1)) or
+         (ATarget = 'https://') or (ATarget = 'http://') or
+         (ATarget = 'mailto:') then
+      begin
+        PDFModernMessageDlg(
+          ToolbarHint('Bitte eine gültige http://-, https://- oder E-Mail-Adresse eingeben.',
+            'Please enter a valid http://, https:// or email address.'),
+          mtWarning, [mbOK], 0);
+        Dlg.ActiveControl := E2;
+        E2.SelectAll;
+        Continue;
+      end;
+      ACaption := Trim(E1.Text);
+      Result := True;
+      Break;
+    end;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.ManageLinksClick(Sender: TObject);
+var
+  Dlg: TForm;
+  Links: TArray<TPDFManagedLink>;
+  LV: TListView;
+  BtnJump, BtnEdit, BtnDelete, BtnClose: TButton;
+  I, Index, Choice, PPI: Integer;
+  NewTarget, Prompt: string;
+  English: Boolean;
+  Changed: Boolean;
+  Navigator: TPDFLinkListNavigator;
+
+  function Px(Value: Integer): Integer;
+  begin
+    Result := MulDiv(Value, PPI, 96);
+  end;
+
+  procedure FillList;
+  var
+    K: Integer;
+    L: TListItem;
+  begin
+    Links := FCore.GetManagedLinks;
+    LV.Items.BeginUpdate;
+    try
+      LV.Items.Clear;
+      for K := 0 to High(Links) do
+      begin
+        L := LV.Items.Add;
+        L.Caption := IntToStr(Links[K].PageIndex + 1);
+        L.SubItems.Add(Links[K].DisplayText);
+        L.SubItems.Add(Links[K].Target);
+      end;
+      if LV.Items.Count > 0 then
+      begin
+        LV.ItemIndex := 0;
+        LV.Selected := LV.Items[0];
+      end;
+    finally
+      LV.Items.EndUpdate;
+    end;
+  end;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  English := PDFLanguage = 'en';
+  Dlg := TForm.CreateNew(Self);
+  try
+    Dlg.Caption := ToolbarHint('Hyperlinks verwalten', 'Manage hyperlinks');
+    Dlg.BorderStyle := bsSizeable;
+    Dlg.Position := poScreenCenter;
+    Dlg.Scaled := True;
+    PPI := CurrentPPI;
+    Dlg.ClientWidth := Px(660);
+    Dlg.ClientHeight := Px(390);
+    Dlg.Constraints.MinWidth := Px(510);
+    Dlg.Constraints.MinHeight := Px(300);
+    LV := TListView.Create(Dlg);
+    LV.Parent := Dlg;
+    LV.ViewStyle := vsReport;
+    LV.ReadOnly := True;
+    LV.RowSelect := True;
+    LV.HideSelection := False;
+    LV.SetBounds(Px(12), Px(12), Dlg.ClientWidth - Px(24),
+      Dlg.ClientHeight - Px(74));
+    LV.Anchors := [akLeft, akTop, akRight, akBottom];
+    with LV.Columns.Add do
+    begin
+      Caption := ToolbarHint('Seite', 'Page');
+      Width := Px(70);
+    end;
+    with LV.Columns.Add do
+    begin
+      Caption := ToolbarHint('Anzeigetext', 'Display text');
+      Width := Px(180);
+    end;
+    with LV.Columns.Add do
+    begin
+      Caption := ToolbarHint('Linkziel', 'Link target');
+      Width := Px(360);
+    end;
+    LV.OnDblClick := nil;
+    Navigator := TPDFLinkListNavigator.Create(Dlg, Self, LV);
+    LV.OnClick := Navigator.ListClick;
+    BtnJump := TButton.Create(Dlg);
+    BtnJump.Parent := Dlg;
+    BtnJump.Caption := ToolbarHint('Zur Seite', 'Go to page');
+    BtnJump.SetBounds(Px(12), Dlg.ClientHeight - Px(49), Px(108), Px(32));
+    BtnJump.Anchors := [akLeft, akBottom];
+    BtnJump.OnClick := Navigator.JumpClick;
+    BtnEdit := TButton.Create(Dlg);
+    BtnEdit.Parent := Dlg;
+    BtnEdit.Caption := ToolbarHint('Linkziel ändern ...', 'Edit target ...');
+    BtnEdit.SetBounds(Px(128), Dlg.ClientHeight - Px(49), Px(150), Px(32));
+    BtnEdit.Anchors := [akLeft, akBottom];
+    BtnEdit.ModalResult := mrRetry;
+    BtnDelete := TButton.Create(Dlg);
+    BtnDelete.Parent := Dlg;
+    BtnDelete.Caption := ToolbarHint('Link löschen', 'Delete link');
+    BtnDelete.SetBounds(Px(286), Dlg.ClientHeight - Px(49), Px(122), Px(32));
+    BtnDelete.Anchors := [akLeft, akBottom];
+    BtnDelete.ModalResult := mrNo;
+    BtnClose := TButton.Create(Dlg);
+    BtnClose.Parent := Dlg;
+    BtnClose.Caption := ToolbarHint('Schließen', 'Close');
+    BtnClose.SetBounds(Dlg.ClientWidth - Px(112),
+      Dlg.ClientHeight - Px(49), Px(100), Px(32));
+    BtnClose.Anchors := [akRight, akBottom];
+    BtnClose.ModalResult := mrCancel;
+    BtnClose.Cancel := True;
+    Changed := False;
+    FillList;
+    repeat
+      Choice := Dlg.ShowModal;
+      if Choice = mrCancel then Break;
+      Index := LV.ItemIndex;
+      if (Index < 0) or (Index >= Length(Links)) then Continue;
+      case Choice of
+        mrRetry:
+          begin
+            NewTarget := Links[Index].Target;
+            Prompt := ToolbarHint('Neue Webadresse oder E-Mail-Adresse:',
+              'New web address or email address:');
+            if InputQuery(ToolbarHint('Linkziel ändern', 'Edit link target'),
+              Prompt, NewTarget) and (Trim(NewTarget) <> '') then
+            begin
+              if (Pos(':', NewTarget) = 0) then
+              begin
+                if Pos('@', NewTarget) > 0 then NewTarget := 'mailto:' + NewTarget
+                else NewTarget := 'https://' + NewTarget;
+              end;
+              Changed := FCore.ChangeManagedLink(Links[Index], NewTarget) or Changed;
+            end;
+          end;
+        mrNo:
+          if MessageDlg(ToolbarHint('Diesen Hyperlink wirklich löschen? Der sichtbare Text bleibt erhalten.',
+            'Delete this hyperlink? The visible text will remain.'),
+            mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+            Changed := FCore.DeleteManagedLink(Links[Index]) or Changed;
+      end;
+      FillList;
+    until False;
+    if Changed then
+    begin
+      UpdateSaveState;
+      RefreshPDFDisplay;
     end;
   finally
     Dlg.Free;
@@ -4801,6 +5050,12 @@ begin
       PaintPage;
       UpdateSaveState;
       FRenderPending := True;
+      if not FEditVisible then
+      begin
+        ToggleEditBar(nil);
+        FMarkMode := False;
+      end;
+      UpdateTextUndoButtons;
     except
       on E: Exception do
         MessageDlg(E.Message, mtError, [mbOK], 0);
@@ -4905,6 +5160,12 @@ begin
       PaintPage;
       UpdateSaveState;
       FRenderPending := True;
+      if not FEditVisible then
+      begin
+        ToggleEditBar(nil);
+        FMarkMode := False;
+      end;
+      UpdateTextUndoButtons;
     except
       on E: Exception do MessageDlg(E.Message, mtError, [mbOK], 0);
     end;
@@ -5701,6 +5962,25 @@ begin
   if (FThumbScroll = nil) or (FThumbImages = nil) or
      FThumbResizeInProgress then Exit;
 
+  // Eine neue Bitmap (z.B. nach Wasserzeichen) kann die Scrollbar
+  // umschalten und damit ClientWidth aendern, ohne dass die Seitenleiste
+  // selbst breiter geworden ist. Das darf die Miniaturen nicht vergroessern.
+  // Explizite Layout-Aufrufe (Sender=nil) bleiben immer moeglich.
+  if (Sender <> nil) and (FOutlinePanel <> nil) then
+  begin
+    // Eine neu eingeblendete Scrollleiste veraendert ClientWidth,
+    // ohne die Breite der Seitenleiste zu veraendern.
+    if (FThumbLastOutlineWidth = FOutlinePanel.ClientWidth) and
+       (FThumbLastClientWidth = FThumbScroll.ClientWidth) then Exit;
+    FThumbLastOutlineWidth := FOutlinePanel.ClientWidth;
+    FThumbLastClientWidth := FThumbScroll.ClientWidth;
+  end
+  else if FOutlinePanel <> nil then
+  begin
+    FThumbLastOutlineWidth := FOutlinePanel.ClientWidth;
+    FThumbLastClientWidth := FThumbScroll.ClientWidth;
+  end;
+
   // Bei laufendem Ziehen nicht fuer jede einzelne Mausbewegung alle
   // Steuerelemente neu positionieren. Der Timer buendelt die Updates auf
   // maximal ca. 28 Aktualisierungen pro Sekunde. Explizite Aufrufe (z.B.
@@ -5738,9 +6018,12 @@ begin
   FThumbResizeInProgress := True;
   try
     // Miniaturen an die tatsaechliche Breite der Seitenleiste anpassen.
-    ThumbWidth := EnsureRange(FThumbScroll.ClientWidth - 24, 80, 320);
-    LeftX := (FThumbScroll.ClientWidth - ThumbWidth) div 2;
-    if LeftX < 8 then LeftX := 8;
+    // Stabile Bildbreite unabhaengig davon, ob die vertikale Scrollleiste
+    // sichtbar ist. Nur die horizontale Position folgt der Clientbreite.
+    ThumbWidth := EnsureRange(FThumbScroll.Width -
+      GetSystemMetrics(SM_CXVSCROLL) - 24, 80, 320);
+    ThumbWidth := Min(ThumbWidth, Max(1, FThumbScroll.ClientWidth - 16));
+    LeftX := Max(0, (FThumbScroll.ClientWidth - ThumbWidth) div 2);
     // TScrollBox verschiebt die Top-Koordinaten der Child-Controls
     // beim Scrollen. Ein erneutes Layout darf den Scrolloffset nicht
     // als zusaetzlichen oberen Leerraum in die Miniaturen einbauen.
@@ -5778,6 +6061,10 @@ begin
              (FPageWidths[Img.Tag] > 0) and (FPageHeights[Img.Tag] > 0) then
             ThumbHeight := Round(ThumbWidth *
               FPageHeights[Img.Tag] / FPageWidths[Img.Tag])
+          else if (Length(FPageSizesValid) > 0) and FPageSizesValid[0] and
+                  (FPageWidths[0] > 0) and (FPageHeights[0] > 0) then
+            // Noch nicht geladene Seiten mit demselben Massstab wie Seite 1.
+            ThumbHeight := Round(ThumbWidth * FPageHeights[0] / FPageWidths[0])
           else
             ThumbHeight := Round(118 * ThumbWidth / 145);
           ThumbHeight := EnsureRange(ThumbHeight, 55, 420);
@@ -5812,7 +6099,12 @@ begin
         if FThumbScroll.Controls[I] is TLabel then
         begin
           Lab := TLabel(FThumbScroll.Controls[I]);
-          if (Lab.Left <> (FThumbScroll.ClientWidth - 70) div 2) or
+          if Copy(Lab.Name, 1, 11) = 'ThumbCheck_' then
+           begin
+             Lab.Left := LeftX + ThumbWidth - Lab.Width - 4;
+             Continue;
+           end;
+           if (Lab.Left <> (FThumbScroll.ClientWidth - 70) div 2) or
              (Lab.Top <> Y) or (Lab.Width <> 70) or (Lab.Height <> 18) then
             Lab.SetBounds((FThumbScroll.ClientWidth - 70) div 2, Y, 70, 18);
           Inc(Y, 29);
@@ -5851,6 +6143,9 @@ begin
     for I := FThumbNext to LastPage - 1 do
     begin
       H := 118;
+      if (Length(FPageSizesValid) > 0) and FPageSizesValid[0] and
+         (FPageWidths[0] > 0) and (FPageHeights[0] > 0) then
+        H := Round(145 * FPageHeights[0] / FPageWidths[0]);
       if (I < Length(FPageSizesValid)) and FPageSizesValid[I] and
          (FPageWidths[I] > 0) and (FPageHeights[I] > 0) then
       begin
@@ -8283,6 +8578,20 @@ begin
   UpdateTextUndoButtons;
 end;
 
+procedure TFreePDF64PDFiumView.InvalidateAllWatermarkPages;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FLoadedPages) do
+  begin
+    FLoadedPages[I] := False;
+    if I < FPages.Count then PageImage(I).Picture.Assign(nil);
+    if I < FThumbImages.Count then TImage(FThumbImages[I]).Picture.Assign(nil);
+  end;
+  FRenderPending := True;
+  PaintPage;
+end;
+
 procedure TFreePDF64PDFiumView.TextUndoClick(Sender: TObject);
 var Pg: Integer;
 begin
@@ -8293,7 +8602,11 @@ begin
       if not CanModifyComments then Exit;
       if FCore.UndoNote(Pg) then RefreshTextPage(Pg);
     end
-    else if FCore.UndoInsertedText(Pg) then RefreshTextPage(Pg);
+    else if FCore.UndoInsertedText(Pg) then
+    begin
+      InvalidateAllWatermarkPages;
+      RefreshTextPage(Pg);
+    end;
   except
     on E: Exception do PDFModernMessageDlg(E.Message, mtError, [mbOK], 0);
   end;
@@ -8309,7 +8622,11 @@ begin
       if not CanModifyComments then Exit;
       if FCore.RedoNote(Pg) then RefreshTextPage(Pg);
     end
-    else if FCore.RedoInsertedText(Pg) then RefreshTextPage(Pg);
+    else if FCore.RedoInsertedText(Pg) then
+    begin
+      InvalidateAllWatermarkPages;
+      RefreshTextPage(Pg);
+    end;
   except
     on E: Exception do PDFModernMessageDlg(E.Message, mtError, [mbOK], 0);
   end;
@@ -9276,7 +9593,14 @@ begin
                    FCore.AddURILink(Pg, LinkTextBounds.Left - 1,
                      LinkTextBounds.Bottom - 2, LinkTextBounds.Right + 1,
                      LinkTextBounds.Top + 2, LinkURL) then
-                  RefreshTextPage(Pg)
+                  begin
+                    RefreshTextPage(Pg);
+                    if not FEditVisible then
+                    begin
+                      ToggleEditBar(nil);
+                      FMarkMode := False;
+                    end;
+                  end
                 else
                   PDFModernMessageDlg(ToolbarHint('Hyperlink konnte nicht eingefügt werden.',
                     'Could not insert hyperlink.'), mtError, [mbOK], 0);

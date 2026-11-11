@@ -74,6 +74,13 @@ type
     CharIndex: Integer;
     CharCount: Integer;
   end;
+  TPDFManagedLink = record
+    PageIndex: Integer;
+    AnnotIndex: Integer;
+    Target: string;
+    DisplayText: string;
+    Bounds: TPDFInkRect;
+  end;
   TPDFLinkTarget = record
     URI: string;
     PageIndex: Integer; // -1 bei externem Link
@@ -103,6 +110,13 @@ type
     StartChar, CharCount: Integer;
     AreaX1, AreaY1, AreaX2, AreaY2: Double;
     MarkColor: TColor;
+    IsVisibleLink: Boolean;
+    LinkLineIndex: Integer;
+    LinkLineObj: Pointer;
+    LinkURI: string;
+    LinkRect: TPDFInkRect;
+    LinkAnnotIndex: Integer;
+    WatermarkGroup: Integer;
   end;
   TPDFNote = record
     PageIndex: Integer;
@@ -132,6 +146,8 @@ type
     FOrderChanged: Boolean;
     FTextActions: TList<TPDFInsertedTextAction>;
     FTextActionPos: Integer;
+    FNextWatermarkGroup: Integer;
+    FBatchWatermarkFont: Pointer; // nur waehrend AddTextWatermark gueltig
     FReplayingHighlight: Boolean;
     FNoteActions: TList<TPDFNoteAction>;
     FNoteActionPos: Integer;
@@ -165,6 +181,9 @@ type
       const AText: string; out ATextBounds: TPDFInkRect): Boolean;
     function AddURILink(APageIndex: Integer; AX1, AY1, AX2, AY2: Double;
       const AURI: string): Boolean;
+    function GetManagedLinks: TArray<TPDFManagedLink>;
+    function ChangeManagedLink(const ALink: TPDFManagedLink; const ATarget: string): Boolean;
+    function DeleteManagedLink(const ALink: TPDFManagedLink): Boolean;
     function MoveLinkAtPoint(APageIndex: Integer; AX, AY, DX, DY: Double): Boolean;
     procedure AddImageWatermark(const AFileName: string; AAllPages: Boolean;
       ACurrentPage: Integer; AWidthPercent: Integer; AAlpha: Byte;
@@ -2030,6 +2049,8 @@ begin
   begin
     A := FTextActions[I];
     if not A.Inserted and not A.IsHighlight and (A.Obj <> nil) then FPDFPageObj_Destroy(A.Obj);
+    if A.IsVisibleLink and not A.Inserted and (A.LinkLineObj <> nil) then
+      FPDFPageObj_Destroy(A.LinkLineObj);
   end;
   FTextActions.Clear;
   FTextActionPos := 0;
@@ -2043,7 +2064,15 @@ begin Result := FTextActionPos < FTextActions.Count; end;
 
 function TFreePDF64PDFiumCore.ChangeTextAction(AUndo: Boolean;
   out APageIndex: Integer): Boolean;
-var A: TPDFInsertedTextAction; P, CurrentObj: Pointer; N: Integer;
+type
+  TSetLinkURI = function(Annot: Pointer; URI: PAnsiChar): Integer; stdcall;
+var
+  A: TPDFInsertedTextAction;
+  P, CurrentObj, LinkObj, Annot: Pointer;
+  N: Integer;
+  SetURI: TSetLinkURI;
+  H: HMODULE;
+  U: AnsiString;
 begin
   Result := False;
   APageIndex := -1;
@@ -2095,6 +2124,25 @@ begin
     end
     else if AUndo then
     begin
+      if A.IsVisibleLink then
+      begin
+        // A hyperlink is one undo step: remove URI annotation and underline
+        // before removing the associated text object.
+        if A.LinkURI <> '' then
+        begin
+          if (A.LinkAnnotIndex < 0) or
+             (A.LinkAnnotIndex >= FPDFPage_GetAnnotCount(P)) or
+             (FPDFPage_RemoveAnnot(P, A.LinkAnnotIndex) = 0) then
+            raise EPDFiumViewer.Create('Hyperlink-Annotation konnte nicht entfernt werden.');
+        end;
+        if (A.LinkLineIndex < 0) or
+           (A.LinkLineIndex >= FPDFPage_CountObjects(P)) then
+          raise EPDFiumViewer.Create('Hyperlink-Unterstreichung wurde nicht gefunden.');
+        LinkObj := FPDFPage_GetObject(P, A.LinkLineIndex);
+        if (LinkObj = nil) or (FPDFPage_RemoveObject(P, LinkObj) = 0) then
+          raise EPDFiumViewer.Create('Hyperlink-Unterstreichung konnte nicht entfernt werden.');
+        A.LinkLineObj := LinkObj;
+      end;
       // Seiten werden bei jedem Aufruf neu geladen. Der urspruengliche
       // Objektzeiger ist dann nicht mehr der Zeiger dieser Seiteninstanz.
       if (A.ObjectIndex < 0) or
@@ -2112,6 +2160,36 @@ begin
       FPDFPage_InsertObject(P, A.Obj);
       A.Obj := nil; // Die Seite besitzt das Objekt wieder.
       A.Inserted := True;
+      if A.IsVisibleLink then
+      begin
+        A.LinkLineIndex := FPDFPage_CountObjects(P);
+        if A.LinkLineObj = nil then
+          raise EPDFiumViewer.Create('Hyperlink-Unterstreichung kann nicht wiederhergestellt werden.');
+        FPDFPage_InsertObject(P, A.LinkLineObj);
+        A.LinkLineObj := nil;
+        if A.LinkURI <> '' then
+        begin
+          H := GetModuleHandle('pdfium.dll');
+          SetURI := nil;
+          if H <> 0 then
+            SetURI := TSetLinkURI(GetProcAddress(H, 'FPDFAnnot_SetURI'));
+          if not Assigned(SetURI) then
+            raise EPDFiumViewer.Create('PDFium unterstützt FPDFAnnot_SetURI nicht.');
+          A.LinkAnnotIndex := FPDFPage_GetAnnotCount(P);
+          Annot := FPDFPage_CreateAnnot(P, 2);
+          if Annot = nil then
+            raise EPDFiumViewer.Create('Hyperlink-Annotation konnte nicht wiederhergestellt werden.');
+          try
+            U := AnsiString(A.LinkURI);
+            if (FPDFAnnot_SetRect(Annot, A.LinkRect) = 0) or
+               (SetURI(Annot, PAnsiChar(U)) = 0) or
+               (FPDFAnnot_SetBorder(Annot, 0, 0, 0) = 0) then
+              raise EPDFiumViewer.Create('Hyperlink-Ziel konnte nicht wiederhergestellt werden.');
+          finally
+            FPDFPage_CloseAnnot(Annot);
+          end;
+        end;
+      end;
     end;
     FTextActions[N] := A;
     if not A.IsHighlight then
@@ -2128,10 +2206,34 @@ begin
 end;
 
 function TFreePDF64PDFiumCore.UndoInsertedText(out APageIndex: Integer): Boolean;
-begin Result := ChangeTextAction(True, APageIndex); end;
+var
+  GroupId, Pg: Integer;
+begin
+  Result := False;
+  APageIndex := -1;
+  if not CanUndoInsertedText then Exit;
+  GroupId := FTextActions[FTextActionPos - 1].WatermarkGroup;
+  Result := ChangeTextAction(True, APageIndex);
+  if Result and (GroupId <> 0) then
+    while CanUndoInsertedText and
+      (FTextActions[FTextActionPos - 1].WatermarkGroup = GroupId) do
+      ChangeTextAction(True, Pg);
+end;
 
 function TFreePDF64PDFiumCore.RedoInsertedText(out APageIndex: Integer): Boolean;
-begin Result := ChangeTextAction(False, APageIndex); end;
+var
+  GroupId, Pg: Integer;
+begin
+  Result := False;
+  APageIndex := -1;
+  if not CanRedoInsertedText then Exit;
+  GroupId := FTextActions[FTextActionPos].WatermarkGroup;
+  Result := ChangeTextAction(False, APageIndex);
+  if Result and (GroupId <> 0) then
+    while CanRedoInsertedText and
+      (FTextActions[FTextActionPos].WatermarkGroup = GroupId) do
+      ChangeTextAction(False, Pg);
+end;
 
 function TFreePDF64PDFiumCore.IsAlabamaInteractionTest(APageIndex: Integer): Boolean;
 var
@@ -2684,6 +2786,18 @@ begin
       FPDFPage_InsertObject(Page, LineObj);
       LineObj := nil;
       if FPDFPage_GenerateContent(Page) = 0 then Exit;
+      if (FTextActionPos > 0) and (FTextActionPos = FTextActions.Count) then
+      begin
+        var Action := FTextActions[FTextActionPos - 1];
+        if (Action.PageIndex = PhysicalPage(APageIndex)) and Action.Inserted then
+        begin
+          Action.IsVisibleLink := True;
+          Action.LinkLineIndex := FPDFPage_CountObjects(Page) - 1;
+          Action.LinkLineObj := nil;
+          Action.LinkAnnotIndex := -1;
+          FTextActions[FTextActionPos - 1] := Action;
+        end;
+      end;
       FModified := True;
       Result := True;
     finally
@@ -2731,11 +2845,162 @@ begin
     end;
     if Result then
     begin
+      if (FTextActionPos > 0) and (FTextActionPos = FTextActions.Count) then
+      begin
+        var Action := FTextActions[FTextActionPos - 1];
+        if Action.IsVisibleLink and Action.Inserted and
+           (Action.PageIndex = PhysicalPage(APageIndex)) and (Action.LinkURI = '') then
+        begin
+          Action.LinkURI := AURI;
+          Action.LinkRect := R;
+          Action.LinkAnnotIndex := FPDFPage_GetAnnotCount(P) - 1;
+          FTextActions[FTextActionPos - 1] := Action;
+        end;
+      end;
       FModified := True;
       InvalidateSearchCache;
     end;
   finally
     FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.GetManagedLinks: TArray<TPDFManagedLink>;
+var
+  Page, Annot, Link, Action, TextPage: Pointer;
+  I, J, N, K: Integer;
+  CL, CR, CB, CT: Double;
+  U: Cardinal;
+  R: TPDFInkRect;
+  Entry: TPDFManagedLink;
+  Size: Cardinal;
+  Buffer: TBytes;
+  URI: UTF8String;
+begin
+  SetLength(Result, 0);
+  if FDocument = nil then Exit;
+  for I := 0 to FPageCount - 1 do
+  begin
+    Page := FPDF_LoadPage(FDocument, PhysicalPage(I));
+    if Page = nil then Continue;
+    try
+      for J := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
+      begin
+        Annot := FPDFPage_GetAnnot(Page, J);
+        if Annot = nil then Continue;
+        try
+          if (FPDFAnnot_GetSubtype(Annot) <> 2) or
+             (FPDFAnnot_GetRect(Annot, R) = 0) then Continue;
+          Link := FPDFLink_GetLinkAtPoint(Page,
+            (R.Left + R.Right) / 2, (R.Top + R.Bottom) / 2);
+          if Link = nil then Continue;
+          Action := FPDFLink_GetAction(Link);
+          if (Action = nil) or (FPDFAction_GetType(Action) <> 3) then Continue;
+          Size := FPDFAction_GetURIPath(FDocument, Action, nil, 0);
+          if (Size = 0) or (Size > 8192) then Continue;
+          SetLength(Buffer, Size);
+          Size := FPDFAction_GetURIPath(FDocument, Action, @Buffer[0], Size);
+          if Size = 0 then Continue;
+          SetString(URI, PAnsiChar(@Buffer[0]), Size);
+          Entry.Target := string(URI).Trim;
+          if (Entry.Target <> '') and (Entry.Target[Length(Entry.Target)] = #0) then
+            Delete(Entry.Target, Length(Entry.Target), 1);
+          if Entry.Target = '' then Continue;
+          Entry.DisplayText := '';
+          TextPage := FPDFText_LoadPage(Page);
+          if TextPage <> nil then
+          try
+            for K := 0 to FPDFText_CountChars(TextPage) - 1 do
+            begin
+              if Length(Entry.DisplayText) >= 120 then Break;
+              if (FPDFText_GetCharBox(TextPage, K, CL, CR, CB, CT) <> 0) and
+                 (CR >= R.Left) and (CL <= R.Right) and
+                 (CT >= R.Bottom) and (CB <= R.Top) then
+              begin
+                U := FPDFText_GetUnicode(TextPage, K);
+                if (U >= 32) and (U <= $FFFF) then
+                  Entry.DisplayText := Entry.DisplayText + Char(U);
+              end;
+            end;
+          finally
+            FPDFText_ClosePage(TextPage);
+          end;
+          Entry.DisplayText := Trim(Entry.DisplayText);
+          Entry.PageIndex := I;
+          Entry.AnnotIndex := J;
+          Entry.Bounds := R;
+          N := Length(Result);
+          SetLength(Result, N + 1);
+          Result[N] := Entry;
+        finally
+          FPDFPage_CloseAnnot(Annot);
+        end;
+      end;
+    finally
+      FPDF_ClosePage(Page);
+    end;
+  end;
+end;
+
+function TFreePDF64PDFiumCore.ChangeManagedLink(
+  const ALink: TPDFManagedLink; const ATarget: string): Boolean;
+var
+  Page, Annot: Pointer;
+  SetURI: TSetURI;
+  H: HMODULE;
+  URI: UTF8String;
+begin
+  Result := False;
+  if (FDocument = nil) or (Trim(ATarget) = '') or
+     (ALink.PageIndex < 0) or (ALink.PageIndex >= FPageCount) then Exit;
+  H := GetModuleHandle('pdfium.dll');
+  if H = 0 then Exit;
+  SetURI := TSetURI(GetProcAddress(H, 'FPDFAnnot_SetURI'));
+  if not Assigned(SetURI) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(ALink.PageIndex));
+  if Page = nil then Exit;
+  try
+    if (ALink.AnnotIndex < 0) or
+       (ALink.AnnotIndex >= FPDFPage_GetAnnotCount(Page)) then Exit;
+    Annot := FPDFPage_GetAnnot(Page, ALink.AnnotIndex);
+    if Annot = nil then Exit;
+    try
+      if FPDFAnnot_GetSubtype(Annot) <> 2 then Exit;
+      URI := UTF8String(Trim(ATarget));
+      Result := SetURI(Annot, PAnsiChar(URI)) <> 0;
+      if Result then FModified := True;
+    finally
+      FPDFPage_CloseAnnot(Annot);
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.DeleteManagedLink(
+  const ALink: TPDFManagedLink): Boolean;
+var
+  Page, Annot: Pointer;
+begin
+  Result := False;
+  if (FDocument = nil) or (ALink.PageIndex < 0) or
+     (ALink.PageIndex >= FPageCount) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(ALink.PageIndex));
+  if Page = nil then Exit;
+  try
+    if (ALink.AnnotIndex < 0) or
+       (ALink.AnnotIndex >= FPDFPage_GetAnnotCount(Page)) then Exit;
+    Annot := FPDFPage_GetAnnot(Page, ALink.AnnotIndex);
+    if Annot = nil then Exit;
+    try
+      if FPDFAnnot_GetSubtype(Annot) <> 2 then Exit;
+    finally
+      FPDFPage_CloseAnnot(Annot);
+    end;
+    Result := FPDFPage_RemoveAnnot(Page, ALink.AnnotIndex) <> 0;
+    if Result then FModified := True;
+  finally
+    FPDF_ClosePage(Page);
   end;
 end;
 
@@ -3260,6 +3525,10 @@ begin
   Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
   if Page = nil then raise EPDFiumViewer.Create('PDF-Seite konnte nicht geladen werden.');
   try
+    if (FBatchWatermarkFont <> nil) and (FBatchWatermarkFont <> Pointer(-1)) then
+      Font := FBatchWatermarkFont
+    else
+    begin
     // Schriftdatei ueber Windows/GDI auslesen. GetFontData liefert die
     // tatsaechlichen TrueType-Bytes, nicht nur einen nicht-portablen Namen.
     DC := CreateCompatibleDC(0);
@@ -3296,6 +3565,9 @@ begin
     // CID=False verwendet eine einfache 8-Bit-Schrift; Umlaute koennen fehlen.
     Font := FPDFText_LoadFont(FDocument, @FontBytes[0], Length(FontBytes), 2, 1);
     if Font = nil then raise EPDFiumViewer.Create('PDFium konnte die Schrift nicht einbetten.');
+    if FBatchWatermarkFont = Pointer(-1) then
+      FBatchWatermarkFont := Font;
+    end;
     Obj := FPDFPageObj_CreateTextObj(FDocument, Font, AFontSize);
     if Obj = nil then raise EPDFiumViewer.Create('PDFium konnte kein Textobjekt erzeugen.');
     try
@@ -3316,6 +3588,8 @@ begin
       begin
         A := FTextActions[I];
         if not A.Inserted and not A.IsHighlight and (A.Obj <> nil) then FPDFPageObj_Destroy(A.Obj);
+        if A.IsVisibleLink and not A.Inserted and (A.LinkLineObj <> nil) then
+          FPDFPageObj_Destroy(A.LinkLineObj);
         FTextActions.Delete(I);
       end;
       A := Default(TPDFInsertedTextAction);
@@ -3339,7 +3613,8 @@ procedure TFreePDF64PDFiumCore.AddTextWatermark(const AText: string;
   AAllPages: Boolean; ACurrentPage: Integer; AFontSize: Double;
   AAlpha: Byte; AAngleDegrees: Double);
 var
-  I, FirstPage, LastPage: Integer;
+  I, FirstPage, LastPage, GroupId: Integer;
+  Action: TPDFInsertedTextAction;
   W, H: Single;
   TextWidth, AngleRad, OffsetX, OffsetY: Double;
 begin
@@ -3358,7 +3633,11 @@ begin
     FirstPage := ACurrentPage;
     LastPage := ACurrentPage;
   end;
+  Inc(FNextWatermarkGroup);
+  GroupId := FNextWatermarkGroup;
   AngleRad := DegToRad(AAngleDegrees);
+  FBatchWatermarkFont := Pointer(-1);
+  try
   for I := FirstPage to LastPage do
   begin
     if not PageSize(I, W, H) then
@@ -3369,6 +3648,12 @@ begin
     OffsetY := (H - TextWidth * Sin(AngleRad)) / 2;
     InsertText(I, OffsetX, OffsetY, AText, AFontSize, clGray,
       'Arial', AAlpha, AAngleDegrees);
+    Action := FTextActions[FTextActions.Count - 1];
+    Action.WatermarkGroup := GroupId;
+    FTextActions[FTextActions.Count - 1] := Action;
+  end;
+  finally
+    FBatchWatermarkFont := nil;
   end;
 end;
 
@@ -3385,6 +3670,8 @@ var
   PageW, PageH: Single;
   TargetW, TargetH, R, PX, PY, AngleRad: Double;
   Pixel: PByte;
+  GroupId, J: Integer;
+  Action, OldAction: TPDFInsertedTextAction;
 begin
   if (FDocument = nil) or (FPageCount = 0) then
     raise EPDFiumViewer.Create('Keine PDF-Datei geladen.');
@@ -3434,6 +3721,8 @@ begin
       FirstPage := ACurrentPage;
       LastPage := ACurrentPage;
     end;
+    Inc(FNextWatermarkGroup);
+    GroupId := FNextWatermarkGroup;
     AngleRad := DegToRad(AAngleDegrees);
     for I := FirstPage to LastPage do
     begin
@@ -3465,6 +3754,23 @@ begin
           Obj := nil;
           if FPDFPage_GenerateContent(Page) = 0 then
             raise EPDFiumViewer.Create('PDFium konnte den Seiteninhalt nicht aktualisieren.');
+          // Register the inserted image as a page object in the existing undo history.
+          for J := FTextActions.Count - 1 downto FTextActionPos do
+          begin
+            OldAction := FTextActions[J];
+            if not OldAction.Inserted and not OldAction.IsHighlight and
+               (OldAction.Obj <> nil) then FPDFPageObj_Destroy(OldAction.Obj);
+            if OldAction.IsVisibleLink and not OldAction.Inserted and
+               (OldAction.LinkLineObj <> nil) then FPDFPageObj_Destroy(OldAction.LinkLineObj);
+            FTextActions.Delete(J);
+          end;
+          Action := Default(TPDFInsertedTextAction);
+          Action.PageIndex := PhysicalPage(I);
+          Action.ObjectIndex := FPDFPage_CountObjects(Page) - 1;
+          Action.Inserted := True;
+          Action.WatermarkGroup := GroupId;
+          FTextActions.Add(Action);
+          FTextActionPos := FTextActions.Count;
           FModified := True;
           InvalidateSearchCache;
         finally
