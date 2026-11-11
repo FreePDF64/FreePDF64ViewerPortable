@@ -446,6 +446,7 @@ type
     procedure SearchChanged(Sender: TObject);
     procedure ColumnClicked(Sender: TObject; Column: TListColumn);
     procedure ShowContents(Sender: TObject);
+    procedure ContentsKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   end;
 
 procedure TWorkspaceListController.ResizeColumns(Sender: TObject);
@@ -652,6 +653,17 @@ begin
     List.CustomSort(@CompareWorkspaceListItems, -(SortColumn + 1));
 end;
 
+procedure TWorkspaceListController.ContentsKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    if Sender is TCustomForm then
+      TCustomForm(Sender).ModalResult := mrCancel;
+    Key := 0;
+  end;
+end;
+
 procedure TWorkspaceListController.ShowContents(Sender: TObject);
 var
   Dialog: TForm;
@@ -667,6 +679,8 @@ begin
   Dialog := TForm.CreateNew(OwnerForm);
   try
     Dialog.Caption := Tr('Inhalt anzeigen ...');
+    Dialog.KeyPreview := True;
+    Dialog.OnKeyDown := ContentsKeyDown;
     Dialog.Position := poOwnerFormCenter;
     Dialog.BorderStyle := bsSizeable;
     Dialog.Font.Name := 'Segoe UI';
