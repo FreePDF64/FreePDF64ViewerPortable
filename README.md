@@ -199,9 +199,20 @@ FreePDF64-Viewer Portable ist als eigenständiger Windows-PDF-Viewer ausgelegt. 
 
 Wird die EXE nach einer PDF-Dateiverknüpfung verschoben, muss die Zuordnung unter Umständen erneut eingerichtet werden.
 
-## Verwendete Komponenten und Lizenzen
+## Lizenz, Zusatzprogramme und Bibliotheken
 
-Der Viewer nutzt **PDFium mit V8-JavaScript-Unterstützung** (BSD-3-Clause License, Copyright © The PDFium Authors) sowie für bestimmte Funktionen **QPDF** und **Xpdf**. Für diese Komponenten gelten die jeweiligen Lizenz- und Copyrightbedingungen. Beachte bei der Weitergabe die zugehörigen Lizenztexte.
+**FreePDF64-Viewer Portable** ist freie und quelloffene Software und steht unter der **GNU General Public License Version 3 (GNU GPL v3, GPL-3.0-only)**. Nutzung, Änderung und Weitergabe sind gemäß den Bedingungen dieser Lizenz gestattet. Der vollständige Lizenztext ist in der mitgelieferten Datei **`LIZENZ_DE.txt`** enthalten.
+
+Das Programm verwendet folgende Komponenten und Zusatzprogramme, für die jeweils eigene Lizenzbedingungen gelten:
+
+- **PDFium:** Bibliothek zur Darstellung und Verarbeitung von PDF-Dateien, © The PDFium Authors. [PDFium-Projekt](https://pdfium.googlesource.com/pdfium/)
+- **V8:** JavaScript-Engine für unterstützte PDF-JavaScript-Funktionen, © The V8 Project Authors. [V8-Projekt](https://v8.dev/)
+- **QPDF:** Zusatzwerkzeug für bestimmte PDF-Funktionen; es gelten die Lizenzbedingungen von QPDF.
+- **Xpdf:** Zusatzwerkzeuge für bestimmte PDF-Funktionen; es gelten die Lizenzbedingungen von Xpdf.
+
+**PDFium und V8** werden unter ihren jeweiligen Open-Source-Lizenzen eingesetzt. Die vollständigen Lizenzbedingungen, Copyright-Vermerke und Hinweise zu eingebundenen Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner **`PDFium`** (Datei **`LICENSE`** und Ordner **`licenses`**). Bei der Weitergabe des Programms sind die jeweiligen Lizenztexte und Hinweise zu beachten.
+
+FreePDF64-Viewer Portable ist **kein offizielles Produkt von PDFium, V8 oder Google**.
 
 ## Kontakt
 
@@ -409,9 +420,20 @@ FreePDF64-Viewer Portable is designed as a standalone PDF viewer for Windows. Se
 
 If the EXE is moved after a PDF file association has been configured, the association may need to be set up again.
 
-## Components and licenses
+## License, third-party software and libraries
 
-The viewer uses **PDFium with V8 JavaScript support** (BSD-3-Clause License, Copyright © The PDFium Authors), as well as **QPDF** and **Xpdf** for certain functions. These components are subject to their respective license and copyright terms. Please observe the associated license texts when redistributing the software.
+**FreePDF64-Viewer Portable** is free and open-source software licensed under the **GNU General Public License version 3 (GNU GPL v3, GPL-3.0-only)**. Use, modification, and redistribution are permitted under the terms of this license. The complete license text is included in **`LICENSE_NOTICE_EN.txt`**.
+
+The application uses the following components and auxiliary tools, each subject to its own license terms:
+
+- **PDFium:** PDF rendering and processing library, © The PDFium Authors. [PDFium project](https://pdfium.googlesource.com/pdfium/)
+- **V8:** JavaScript engine for supported PDF JavaScript features, © The V8 Project Authors. [V8 project](https://v8.dev/)
+- **QPDF:** Auxiliary tool used for certain PDF operations, subject to the QPDF license.
+- **Xpdf:** Auxiliary tools used for certain PDF operations, subject to the Xpdf license.
+
+**PDFium and V8** are used under their respective open-source licenses. Full license terms, copyright notices, and notices for bundled third-party libraries are provided in the accompanying **`PDFium`** subfolder (**`LICENSE`** file and **`licenses`** directory). Please retain and observe the applicable license texts and notices when redistributing the software.
+
+FreePDF64-Viewer Portable is **not an official PDFium, V8, or Google product**.
 
 ## Contact
 
