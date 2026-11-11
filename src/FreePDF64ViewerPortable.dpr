@@ -65,7 +65,13 @@ begin
   PDFArgs := TStringList.Create;
   try
     for I := 1 to ParamCount do
-      if SameText(ExtractFileExt(ParamStr(I)), '.pdf') and
+      if (SameText(ExtractFileExt(ParamStr(I)), '.pdf') or
+          SameText(ExtractFileExt(ParamStr(I)), '.jpg') or
+          SameText(ExtractFileExt(ParamStr(I)), '.jpeg') or
+          SameText(ExtractFileExt(ParamStr(I)), '.png') or
+          SameText(ExtractFileExt(ParamStr(I)), '.bmp') or
+          SameText(ExtractFileExt(ParamStr(I)), '.tif') or
+          SameText(ExtractFileExt(ParamStr(I)), '.tiff')) and
          FileExists(ExpandFileName(ParamStr(I))) then
         PDFArgs.Add(ExpandFileName(ParamStr(I)));
 
@@ -122,7 +128,14 @@ begin
   for I := 1 to ParamCount do
   begin
     PDFFile := ExpandFileName(ParamStr(I));
-    if FileExists(PDFFile) and SameText(ExtractFileExt(PDFFile), '.pdf') then
+    if FileExists(PDFFile) and
+       (SameText(ExtractFileExt(PDFFile), '.pdf') or
+        SameText(ExtractFileExt(PDFFile), '.jpg') or
+        SameText(ExtractFileExt(PDFFile), '.jpeg') or
+        SameText(ExtractFileExt(PDFFile), '.png') or
+        SameText(ExtractFileExt(PDFFile), '.bmp') or
+        SameText(ExtractFileExt(PDFFile), '.tif') or
+        SameText(ExtractFileExt(PDFFile), '.tiff')) then
     begin
       if Viewer.ActivateExistingPDF(PDFFile) then Continue;
       Browser := TPDFBrowserForm.Create(nil);

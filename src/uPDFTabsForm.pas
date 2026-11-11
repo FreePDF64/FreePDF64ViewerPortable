@@ -1103,7 +1103,13 @@ begin
      (Msg.CopyDataStruct^.cbData mod SizeOf(Char) <> 0) then Exit;
   SetString(FileName, PChar(Msg.CopyDataStruct^.lpData),
     Msg.CopyDataStruct^.cbData div SizeOf(Char) - 1);
-  if not SameText(ExtractFileExt(FileName), '.pdf') or
+  if not (SameText(ExtractFileExt(FileName), '.pdf') or
+          SameText(ExtractFileExt(FileName), '.jpg') or
+          SameText(ExtractFileExt(FileName), '.jpeg') or
+          SameText(ExtractFileExt(FileName), '.png') or
+          SameText(ExtractFileExt(FileName), '.bmp') or
+          SameText(ExtractFileExt(FileName), '.tif') or
+          SameText(ExtractFileExt(FileName), '.tiff')) or
      not FileExists(FileName) then Exit;
   // Niemals im synchronen WM_COPYDATA-Handler PDFium-Forms erstellen.
   FPendingExplorerFiles.Add(FileName);
