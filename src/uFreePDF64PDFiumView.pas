@@ -154,6 +154,7 @@ type
     FThumbDropLine: TShape;
     FThumbDropTarget: Integer;
     FThumbMenu: TPopupMenu;
+    FPageContextMenu: TPopupMenu;
     FOutlineMenu: TPopupMenu;
     FSelectionMenu: TPopupMenu;
     FOutlineExpandItem, FOutlineCollapseItem: TMenuItem;
@@ -2317,6 +2318,8 @@ begin
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
   FThumbMenu.OnPopup := ThumbMenuPopup;
+  FPageContextMenu := TPopupMenu.Create(Self);
+  FPageContextMenu.AutoPopup := False;
   FThumbTimer := TTimer.Create(Self);
   FThumbTimer.Enabled := False;
   FThumbTimer.Interval := 35;
@@ -4573,7 +4576,10 @@ begin
   if (FCore = nil) or (FCore.PageCount = 0) then Exit;
   // Bei Mehrfachauswahl gilt die erste markierte Seite.
   Target := FPage;
-  if FThumbSelected.Count > 0 then
+  if (Sender is TMenuItem) and
+     (TMenuItem(Sender).GetParentMenu = FPageContextMenu) then
+    Target := FPage
+  else if FThumbSelected.Count > 0 then
   begin
     Target := FThumbSelected[0];
     for BeforeCount := 1 to FThumbSelected.Count - 1 do
@@ -4932,7 +4938,10 @@ begin
     Screen.Cursor := crCross;
   end
   else
+  begin
     Screen.Cursor := crDefault;
+    if FImage <> nil then FImage.Cursor := crDefault;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.TextWatermarkClick(Sender: TObject);
@@ -8964,6 +8973,44 @@ begin
       end;
       Exit;
     end;
+    if (Button = mbRight) and (FPageContextMenu <> nil) then
+    begin
+      // Kontextmenue der PDF-Seite, unabhaengig vom Miniaturmenue.
+      // Die vorhandenen Aktionen werden unveraendert wiederverwendet.
+      FPage := Img.Tag;
+      FPageContextMenu.Items.Clear;
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := Tr('PDF davor einfügen ...');
+      NoteItem.Tag := 0;
+      NoteItem.OnClick := InsertPDFAtThumbnail;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := Tr('PDF danach einfügen ...');
+      NoteItem.Tag := 1;
+      NoteItem.OnClick := InsertPDFAtThumbnail;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := '-';
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+      NoteItem.OnClick := ManageLinksClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+      NoteItem.OnClick := LinkMenuClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := '-';
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := Tr('PDF neu laden (Änderungen verwerfen)');
+      NoteItem.Enabled := (FCore.FileName <> '') and FileExists(FCore.FileName);
+      NoteItem.OnClick := ReloadPDFClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      FPageContextMenu.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
+      Exit;
+    end;
     if Button = mbLeft then
     begin
       if FNoteMovePending then
@@ -9614,6 +9661,9 @@ begin
       finally
         FLinkMode := False;
         Screen.Cursor := crDefault;
+        if Sender is TPDFiumImage then
+          TPDFiumImage(Sender).Cursor := crDefault;
+        if FImage <> nil then FImage.Cursor := crDefault;
       end;
       Exit;
     end;
