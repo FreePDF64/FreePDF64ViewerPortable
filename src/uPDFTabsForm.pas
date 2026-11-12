@@ -1620,7 +1620,7 @@ begin
             else if AManual then
             begin
               if PDFLanguage = 'en' then MsgText := 'You are using the latest version.'
-              else MsgText := 'Du verwendest die aktuelle Version.';
+              else MsgText := 'Alles bestens! Die neueste Version ist bereits installiert.';
               MessageDlg(MsgText, mtInformation, [mbOK], 0);
             end;
           end
