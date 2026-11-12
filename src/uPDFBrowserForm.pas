@@ -45,6 +45,9 @@ type
     FImageDisplay: TImage;
     FImageZoom: Double;
     FImageFitMode: Integer; // 0=manuell, 1=ganze Grafik, 2=Breite
+    FImageWorkspacePending: Boolean;
+    FImageWorkspaceZoom: Double;
+    FImageWorkspaceFitMode: Integer;
     FImageModified: Boolean; // Nur echte Bildaenderungen (Drehen), kein Zoom
     FImagePreviewRevision: Cardinal; // Cache-Version fuer Registerkartenvorschau
     FImageButtons: array[0..8] of TSpeedButton;
@@ -177,6 +180,9 @@ type
     function WorkspaceScrollX: Integer;
     function WorkspaceScrollY: Integer;
     procedure SetWorkspaceView(AZoom: Double; AFit: Boolean; AX, AY: Integer);
+    function WorkspaceImageZoom: Double;
+    function WorkspaceImageFitMode: Integer;
+    procedure SetWorkspaceImageView(AZoom: Double; AFitMode: Integer);
     procedure ApplySplitSync(AZoom: Double; AApplyZoom: Boolean; AX, AY: Integer; AApplyScroll: Boolean);
     procedure NextPDFSearchMatch(ADirection: Integer);
     procedure SelectAllPDFText;
@@ -542,17 +548,16 @@ begin
     begin
       FPDFiumView.ShowPage(FStartPage - 1);
     end;
-    if FWorkspaceRestorePending then
-    begin
-      FPDFiumView.RestoreWorkspaceView(FWorkspaceZoom, FWorkspaceFit, FWorkspaceX, FWorkspaceY);
-      FWorkspaceRestorePending := False;
-    end;
+    // Seitenlayout zuerst wiederherstellen, da es den Zoom aendern kann.
     if FWorkspaceLayoutPending then
     begin
       FPDFiumView.RestoreWorkspaceLayout(FWorkspaceViewMode, FWorkspaceTwoPage,
         FWorkspaceContinuous, FWorkspaceSidebar);
       FWorkspaceLayoutPending := False;
     end;
+    // Arbeitsbereich-Zoom erst nach dem ersten gueltigen Tab-Layout anwenden.
+    // RefreshPDFDisplay beim ersten Anzeigen kann zuvor gespeicherte
+    // Zoom-/Scrollwerte sonst wieder durch die Standardansicht ersetzen.
     if Trim(FSearchTerm) <> '' then
     begin
 
@@ -698,6 +703,32 @@ begin
   begin
     FPDFiumView.RestoreWorkspaceView(FWorkspaceZoom, FWorkspaceFit, FWorkspaceX, FWorkspaceY);
     FWorkspaceRestorePending := False;
+  end;
+end;
+
+function TPDFBrowserForm.WorkspaceImageZoom: Double;
+begin
+  Result := FImageZoom;
+  if FImageWorkspacePending then Result := FImageWorkspaceZoom;
+end;
+
+function TPDFBrowserForm.WorkspaceImageFitMode: Integer;
+begin
+  Result := FImageFitMode;
+  if FImageWorkspacePending then Result := FImageWorkspaceFitMode;
+end;
+
+procedure TPDFBrowserForm.SetWorkspaceImageView(AZoom: Double; AFitMode: Integer);
+begin
+  FImageWorkspaceZoom := EnsureRange(AZoom, 0.05, 16.0);
+  FImageWorkspaceFitMode := EnsureRange(AFitMode, 0, 2);
+  FImageWorkspacePending := True;
+  if FImageDisplay <> nil then
+  begin
+    FImageZoom := FImageWorkspaceZoom;
+    FImageFitMode := FImageWorkspaceFitMode;
+    FImageWorkspacePending := False;
+    UpdateImageLayout;
   end;
 end;
 
@@ -1290,6 +1321,12 @@ begin
     begin
 
       FPDFiumView.RefreshPDFDisplay;
+      if FWorkspaceRestorePending then
+      begin
+        FPDFiumView.RestoreWorkspaceView(FWorkspaceZoom, FWorkspaceFit,
+          FWorkspaceX, FWorkspaceY);
+        FWorkspaceRestorePending := False;
+      end;
 
       FPendingFirstDisplay := False;
     end;
@@ -2225,6 +2262,12 @@ begin
     OnMouseWheel := ImageMouseWheel;
     FImageZoom := 1.0;
     FImageFitMode := 1;
+    if FImageWorkspacePending then
+    begin
+      FImageZoom := FImageWorkspaceZoom;
+      FImageFitMode := FImageWorkspaceFitMode;
+      FImageWorkspacePending := False;
+    end;
     CreateImageTools;
     FTIFFPrevButton := TSpeedButton.Create(Self);
     FTIFFPrevButton.Parent := FToolbar;

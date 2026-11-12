@@ -1931,6 +1931,11 @@ begin
         Ini.WriteBool('PDFs', 'Sidebar' + IntToStr(N), Browser.WorkspaceSidebarVisible);
         Ini.WriteInteger('PDFs', 'ScrollX' + IntToStr(N), Browser.WorkspaceScrollX);
         Ini.WriteInteger('PDFs', 'ScrollY' + IntToStr(N), Browser.WorkspaceScrollY);
+        if Browser.IsBasicImage then
+        begin
+          Ini.WriteFloat('PDFs', 'ImageZoom' + IntToStr(N), Browser.WorkspaceImageZoom);
+          Ini.WriteInteger('PDFs', 'ImageFitMode' + IntToStr(N), Browser.WorkspaceImageFitMode);
+        end;
       end;
     end;
     Ini.WriteInteger('PDFs', 'Count', N);
@@ -1993,6 +1998,12 @@ begin
           Ini.ReadBool('PDFs', 'TwoPage' + IntToStr(I), False),
           Ini.ReadBool('PDFs', 'Continuous' + IntToStr(I), True),
           TFreePDF64PDFiumView.GlobalThumbnailsVisible);
+        if PDF.IsBasicImage and
+           Ini.ValueExists('PDFs', 'ImageZoom' + IntToStr(I)) then
+          PDF.SetWorkspaceImageView(
+            Ini.ReadFloat('PDFs', 'ImageZoom' + IntToStr(I), 1.0),
+            Ini.ReadInteger('PDFs', 'ImageFitMode' + IntToStr(I), 1));
+
         PDF.StandalonePDFMode := False;
         AddPDF(PDF);
         AddedToTabs := True;
