@@ -390,6 +390,21 @@ implementation
 uses
   uPDFAttachmentTemp;
 
+// Das PDF-Formular muss nicht Controls[0] sein (z.B. bei Overlays).
+function WorkspaceBrowserInTab(ATab: TTabSheet): TPDFBrowserForm;
+var
+  K: Integer;
+begin
+  Result := nil;
+  if ATab = nil then Exit;
+  for K := 0 to ATab.ControlCount - 1 do
+    if ATab.Controls[K] is TPDFBrowserForm then
+    begin
+      Result := TPDFBrowserForm(ATab.Controls[K]);
+      Exit;
+    end;
+end;
+
 procedure TOutlinedSplitButton.WndProc(var Message: TMessage);
 var
   DC: HDC;
@@ -1840,11 +1855,10 @@ begin
       // Aktuelle Seite je Dateipfad speichern; keine Änderung am PDF-Inhalt.
       for I := 0 to FTabs.PageCount - 1 do
         if (Files.IndexOf(FTabs.Pages[I].Hint) >= 0) and
-           (FTabs.Pages[I].ControlCount > 0) and
-           (FTabs.Pages[I].Controls[0] is TPDFBrowserForm) then
+           (WorkspaceBrowserInTab(FTabs.Pages[I]) <> nil) then
           Ini.WriteInteger('PDFSessionPages',
             'Page_' + IntToStr(Files.IndexOf(FTabs.Pages[I].Hint) + 1),
-            TPDFBrowserForm(FTabs.Pages[I].Controls[0]).WorkspacePage);
+            WorkspaceBrowserInTab(FTabs.Pages[I]).WorkspacePage);
       for I := 0 to Files.Count - 1 do
         Ini.WriteString('PDFSession', 'File' + IntToStr(I + 1), Files[I]);
     finally
@@ -1905,10 +1919,9 @@ begin
       if (S = '') or IsFreePDFTempAttachment(S) then Continue;
       Inc(N);
       Ini.WriteString('PDFs', 'File' + IntToStr(N), S);
-      if (FTabs.Pages[I].ControlCount > 0) and
-         (FTabs.Pages[I].Controls[0] is TPDFBrowserForm) then
+      Browser := WorkspaceBrowserInTab(FTabs.Pages[I]);
+      if Browser <> nil then
       begin
-        Browser := TPDFBrowserForm(FTabs.Pages[I].Controls[0]);
         Ini.WriteInteger('PDFs', 'Page' + IntToStr(N), Browser.WorkspacePage);
         Ini.WriteFloat('PDFs', 'Zoom' + IntToStr(N), Browser.WorkspaceZoom);
         Ini.WriteBool('PDFs', 'Fit' + IntToStr(N), Browser.WorkspaceFit);
@@ -2005,9 +2018,7 @@ begin
         if SameText(FTabs.Pages[J].Hint, ActiveFile) then
         begin
           TargetTab := FTabs.Pages[J];
-          if TargetTab.ControlCount > 0 then
-            if TargetTab.Controls[0] is TPDFBrowserForm then
-              TargetPDF := TPDFBrowserForm(TargetTab.Controls[0]);
+          TargetPDF := WorkspaceBrowserInTab(TargetTab);
           Break;
         end;
     if TargetPDF <> nil then
