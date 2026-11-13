@@ -3081,7 +3081,7 @@ begin
     begin
       AddTOC(['Customizable user interface (themes)', 'Images and multipage TIFF files',
         'Opening and organizing PDFs', 'Viewing and searching', 'Editing and combining PDFs',
-        'Watermarks and hyperlinks', 'PDF measurement tools', 'Interactive forms', 'Document information and tools',
+        'Watermarks and hyperlinks', 'PDF measurement tools', 'Handwritten signatures', 'Interactive forms', 'Document information and tools',
         'Display and Logging']);
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
@@ -3265,6 +3265,22 @@ begin
         + 'PDF readers such as Adobe Reader. After reopening the PDF, '
         + 'choose Manage comments to find the saved measurements; '
         + 'double-click an entry to jump to its page.');
+      AddSection('Handwritten signatures', '');
+      AddSection('Draw or import a signature',
+        'Right-click a PDF page or a PDF thumbnail and choose Add signature. '
+        + 'Draw with the mouse, import a PNG file, or select a previously saved signature. '
+        + 'The signature can be stored locally in the portable Signaturen folder as an unencrypted PNG.');
+      AddSection('Place and adjust a signature',
+        'Choose the width in millimetres (5–200) using the number field or slider. '
+        + 'Click the slider track for 10 mm steps or use the arrow keys for 1 mm steps. '
+        + 'Before confirming, move the signature by dragging or with the arrow keys '
+        + '(Shift plus arrow keys moves 10 pixels); resize proportionally using the corner handles. '
+        + 'Press Enter to insert it into the PDF, or Esc to cancel. '
+        + 'The transparent background is retained; save the PDF to preserve the signature.');
+      AddSection('Manage saved signatures',
+        'Open Saved signatures to select, rename or delete local signatures. '
+        + 'The thumbnail grid rearranges when the window is resized. '
+        + 'Local PNG files are not encrypted and should be protected accordingly.');
       AddSection('Interactive forms', '');
       AddSection('JavaScript (V8) and automatic calculations',
         'Supported AcroForm JavaScript actions can validate field entries and update calculated values, '
@@ -3324,6 +3340,7 @@ begin
       AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Bilder und mehrseitige TIFF-Dateien',
         'PDFs öffnen und organisieren', 'Anzeige, Navigation und Suche',
         'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks', 'PDF-Messwerkzeuge',
+        'Handschriftliche Unterschriften',
         'Interaktive Formulare', 'Dokumentinformationen und Werkzeuge',
         'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
@@ -3552,6 +3569,23 @@ begin
         + 'Nach dem erneuten Öffnen der PDF lassen sich die Messungen unter '
         + '„Kommentare verwalten ...“ anzeigen. Ein Doppelklick auf einen Eintrag '
         + 'springt zur zugehörigen PDF-Seite.');
+      AddSection('Handschriftliche Unterschriften', '');
+      AddSection('Unterschrift zeichnen oder importieren',
+        'Klicken Sie mit der rechten Maustaste auf eine PDF-Seite oder eine PDF-Miniatur '
+        + 'und wählen Sie „Unterschrift hinzufügen ...“. Zeichnen Sie mit der Maus, '
+        + 'importieren Sie eine PNG-Datei oder wählen Sie eine gespeicherte Unterschrift. '
+        + 'Die Signatur kann als unverschlüsselte PNG-Datei im portablen Ordner „Signaturen“ gespeichert werden.');
+      AddSection('Unterschrift platzieren und anpassen',
+        'Stellen Sie die Breite zwischen 5 und 200 mm über Zahlenfeld oder Schieberegler ein. '
+        + 'Ein Klick in die Reglerspur ändert den Wert um 10 mm, die Pfeiltasten um 1 mm. '
+        + 'Vor dem Übernehmen können Sie die Unterschrift mit der Maus oder den Pfeiltasten verschieben '
+        + '(Umschalt + Pfeiltaste: 10 Pixel) und an den Eckpunkten proportional skalieren. '
+        + 'Mit Enter wird die Unterschrift übernommen, mit Esc verworfen. '
+        + 'Der transparente Hintergrund bleibt erhalten. Speichern Sie anschließend die PDF.');
+      AddSection('Gespeicherte Unterschriften verwalten',
+        'Gespeicherte Unterschriften können ausgewählt, umbenannt oder gelöscht werden. '
+        + 'Die Vorschaubilder ordnen sich beim Ändern der Fenstergröße automatisch neu an. '
+        + 'Beachten Sie, dass lokal gespeicherte PNG-Dateien nicht verschlüsselt sind.');
       AddSection('Interaktive Formulare', '');
       AddSection('JavaScript (V8) und automatische Berechnungen',
         'Unterstützte AcroForm-JavaScript-Aktionen können Eingaben prüfen und berechnete Werte aktualisieren, '

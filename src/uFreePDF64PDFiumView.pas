@@ -6,8 +6,8 @@ uses
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
-  Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, System.IniFiles, System.Generics.Collections, Math,
-  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore;
+  Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, Vcl.AppEvnts, System.IniFiles, System.Generics.Collections, Math,
+  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary;
 
 const
   WM_PDF_FINISH_TEXT = WM_APP + $5A2;
@@ -138,7 +138,7 @@ type
     UnitIndex: Integer;
   end;
 
-  // Jede Aktion merkt sich Rechteck und urspr�ngliche Position.
+  // Jede Aktion merkt sich Rechteck und ursprüngliche Position.
   TPDFMeasureAction = record
     Rect: TPDFMeasureRect;
     Index: Integer;
@@ -249,6 +249,23 @@ type
     FLinkMoveEnd: TPoint;
     FWatermarkMenuItem: TMenuItem;
     FImageWatermarkMenuItem: TMenuItem;
+    FSignatureMenuItem: TMenuItem;
+    FSignatureFile: string;
+    FSignatureTemporary: Boolean;
+    FSignatureMode: Boolean;
+    FSignatureKeyEvents: TApplicationEvents;
+    FSignatureWidthMM: Double;
+    FSignaturePreviewPage: Integer;
+    FSignaturePreviewPoint: TPoint;
+    FSignaturePreviewVisible: Boolean;
+    FSignaturePreview: TPicture;
+    FSignaturePlaced: Boolean;
+    FSignatureDragging: Boolean;
+    FSignatureResizing: Boolean;
+    FSignatureResizeCorner: Integer; // 1=oben links, 2=oben rechts, 3=unten links, 4=unten rechts
+    FSignatureDragOrigin: TPoint;
+    FSignatureRectOrigin: TRect;
+    FSignatureRect: TRect;
     FRequiredFieldsMenuItem: TMenuItem;
     FMoveUpItem, FMoveDownItem, FExtractItem: TMenuItem;
     FShapeSelect: TComboBox;
@@ -340,6 +357,7 @@ type
     FViewSelect: TComboBox;
     FInitialRenderDeferred: Boolean;
     FSidebarInitPending: Boolean;
+    procedure CommitSignature;
     procedure UpdateTwoPageIcon;
     procedure UpdateThumbDragVisual(const ScreenPos: TPoint);
     procedure EndThumbDragVisual;
@@ -379,6 +397,9 @@ type
     procedure ManageLinksClick(Sender: TObject);
     procedure TextWatermarkClick(Sender: TObject);
     procedure ImageWatermarkClick(Sender: TObject);
+    procedure SignatureClick(Sender: TObject);
+    procedure CancelSignature;
+    procedure SignatureApplicationMessage(var Msg: TMsg; var Handled: Boolean);
     procedure ReloadPDFClick(Sender: TObject);
     procedure RequiredFieldsReportClick(Sender: TObject);
     procedure RefreshThumbMenuCaptions;
@@ -1578,12 +1599,16 @@ function TFreePDF64PDFiumView.NoteDialog(var AText: string): Boolean;
 var
   D: TForm;
   M: TMemo;
-  B: TButton;
+  B: TPDFDesignButton;
   Footer: TPanel;
+  P: Integer;
 begin
   Result := False;
   D := TForm.CreateNew(Self);
   try
+    P := Max(96, CurrentPPI);
+    D.Font.Name := 'Segoe UI';
+    D.Font.Size := 10;
     D.Caption := ToolbarHint('Kommentar bearbeiten', 'Edit comment');
     D.BorderStyle := bsSizeable;
     D.Position := poScreenCenter;
@@ -1603,19 +1628,32 @@ begin
       Footer.Align := alBottom;
       Footer.Height := MulDiv(44, CurrentPPI, 96);
       Footer.BevelOuter := bvNone;
-      B := TButton.Create(D);
+      B := TPDFDesignButton.Create(D);
       B.Parent := Footer;
       B.SetBounds(MulDiv(235, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96),
         MulDiv(88, CurrentPPI, 96), MulDiv(29, CurrentPPI, 96));
       B.Caption := 'OK';
       B.ModalResult := mrOk;
       B.Default := True;
-      B := TButton.Create(D);
+      B := TPDFDesignButton.Create(D);
       B.Parent := Footer;
       B.SetBounds(MulDiv(330, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96),
         MulDiv(90, CurrentPPI, 96), MulDiv(29, CurrentPPI, 96));
       B.Caption := ToolbarHint('Abbrechen', 'Cancel');
       B.ModalResult := mrCancel;
+    end;
+    // Dialogpalette einmalig beim Erzeugen anwenden.
+    ApplyManagedDialogPalette(D, nil, FEditToggle.FDesign);
+    Footer.ParentColor := False;
+    Footer.Color := D.Color;
+    M.ParentColor := False;
+    case FEditToggle.FDesign of
+      1: begin M.Color := RGB(248,250,253); M.Font.Color := RGB(35,48,65); end;
+      2: begin M.Color := RGB(65,70,79); M.Font.Color := clWhite; end;
+      3: begin M.Color := clWhite; M.Font.Color := clBlack; end;
+      4: begin M.Color := RGB(45,48,54); M.Font.Color := clWhite; end;
+      5: begin M.Color := RGB(246,250,255); M.Font.Color := RGB(24,55,88); end;
+    else begin M.Color := clWindow; M.Font.Color := clWindowText; end;
     end;
     if D.ShowModal = mrOk then
     begin
@@ -1667,6 +1705,63 @@ var
   NX, NY: Integer;
 begin
   DrawMeasurement(Sender);
+  // Transparente Signaturvorschau auf der PDF-Seite (nicht im PDF gespeichert).
+  if FSignatureMode and FSignaturePreviewVisible and
+     (Sender is TPDFiumImage) and (FSignaturePreview <> nil) and
+     (FSignaturePreview.Graphic <> nil) then
+  begin
+    Img := TPDFiumImage(Sender);
+    // Vor der Platzierung folgt die Signatur der aktuellen Mausposition.
+    // Beim Scrollen bleibt der Mauszeiger stehen, aber die PDF-Seite bewegt
+    // sich darunter. Daher die Vorschau auch beim Neuzeichnen der Seite
+    // anhand der Bildschirm-Mausposition aktualisieren, nicht nur bei MouseMove.
+    // Eine bereits platzierte (noch nicht bestätigte) Signatur bleibt dagegen
+    // absichtlich an ihrer PDF-Seitenposition verankert.
+    if not FSignaturePlaced then
+    begin
+      var CursorOnPage := Img.ScreenToClient(Mouse.CursorPos);
+      if PtInRect(Img.ClientRect, CursorOnPage) then
+      begin
+        FSignaturePreviewPage := Img.Tag;
+        FSignaturePreviewPoint := CursorOnPage;
+      end;
+    end;
+    if Img.Tag = FSignaturePreviewPage then
+    begin
+      var PW, PH: Single;
+      if not FCore.PageSize(Img.Tag, PW, PH) then Exit;
+      var PreviewW := Max(1, Round(FSignatureWidthMM * 72 / 25.4 *
+        Img.Width / Max(1.0, Double(PW))));
+      var PreviewH := Max(1, MulDiv(PreviewW,
+        FSignaturePreview.Height, Max(1, FSignaturePreview.Width)));
+      if FSignaturePlaced then
+        R := FSignatureRect
+      else
+      begin
+        R := Rect(EnsureRange(FSignaturePreviewPoint.X, 0, Max(0, Img.Width - PreviewW)),
+          EnsureRange(FSignaturePreviewPoint.Y, 0, Max(0, Img.Height - PreviewH)), 0, 0);
+        R.Right := R.Left + PreviewW;
+        R.Bottom := R.Top + PreviewH;
+      end;
+      TPDFGraphicCanvasAccess(Img).Canvas.StretchDraw(R, FSignaturePreview.Graphic);
+      TPDFGraphicCanvasAccess(Img).Canvas.Brush.Style := bsClear;
+      TPDFGraphicCanvasAccess(Img).Canvas.Pen.Color := RGB(35, 112, 198);
+      TPDFGraphicCanvasAccess(Img).Canvas.Pen.Style := psDash;
+      TPDFGraphicCanvasAccess(Img).Canvas.Rectangle(R);
+      if FSignaturePlaced then
+      begin
+        TPDFGraphicCanvasAccess(Img).Canvas.Brush.Color := clWhite;
+        TPDFGraphicCanvasAccess(Img).Canvas.Brush.Style := bsSolid;
+        TPDFGraphicCanvasAccess(Img).Canvas.Pen.Style := psSolid;
+        TPDFGraphicCanvasAccess(Img).Canvas.Rectangle(R.Left-4,R.Top-4,R.Left+5,R.Top+5);
+        TPDFGraphicCanvasAccess(Img).Canvas.Rectangle(R.Right-4,R.Top-4,R.Right+5,R.Top+5);
+        TPDFGraphicCanvasAccess(Img).Canvas.Rectangle(R.Left-4,R.Bottom-4,R.Left+5,R.Bottom+5);
+        TPDFGraphicCanvasAccess(Img).Canvas.Rectangle(R.Right-4,R.Bottom-4,R.Right+5,R.Bottom+5);
+      end;
+      TPDFGraphicCanvasAccess(Img).Canvas.Pen.Style := psSolid;
+      TPDFGraphicCanvasAccess(Img).Canvas.Brush.Style := bsSolid;
+    end;
+  end;
   // Temporärer Auswahlrahmen: nur auf dem Bildschirm, nicht im PDF.
   if FHighlightAreaDragging and (Sender is TPDFiumImage) then
   begin
@@ -2186,6 +2281,10 @@ begin
   inherited Create(AOwner);
   Parent := AParent; // Vor dem Erzeugen von TPanel, TScrollBox und TEdit
   BevelOuter := bvNone;
+  // Application-level ESC handling: the PDF image is not focusable.
+  // TApplicationEvents preserves other application message subscribers.
+  FSignatureKeyEvents := TApplicationEvents.Create(Self);
+  FSignatureKeyEvents.OnMessage := SignatureApplicationMessage;
   FCore := TFreePDF64PDFiumCore.Create;
   FPage := 0;
   FMatchPage := -1;
@@ -2715,7 +2814,11 @@ begin
   FWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
   FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   FWatermarkMenuItem.OnClick := TextWatermarkClick;
-  FThumbMenu.Items.Add(FWatermarkMenuItem);
+  FThumbMenu.Items.Add(FWatermarkMenuItem);  FSignatureMenuItem := TMenuItem.Create(FThumbMenu);
+  FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  FSignatureMenuItem.OnClick := SignatureClick;
+  FThumbMenu.Items.Add(FSignatureMenuItem);
+
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
   // 3b.57: Vollstaendigen Pflichtfeldbericht auch ohne Speichern aufrufen.
@@ -2792,6 +2895,7 @@ end;
 
 destructor TFreePDF64PDFiumView.Destroy;
 begin
+  CancelSignature;
   if FThumbDeleteRebuildPending and (FThumbScroll <> nil) and
      FThumbScroll.HandleAllocated then
     SendMessage(FThumbScroll.Handle, WM_SETREDRAW, 1, 0);
@@ -3408,6 +3512,23 @@ begin
     else FTextSizeSelect.Font.Style := [];
   end;
   Walk(Self);
+  // Einfuegen und Messen: Fett nur bei aktivem Werkzeugmodus.
+  if FInsertButton <> nil then
+  begin
+    FInsertButton.ParentFont := False;
+    if FTextInsertMode or FNoteMode then
+      FInsertButton.Font.Style := [fsBold]
+    else
+      FInsertButton.Font.Style := [];
+  end;
+  if FMeasureButton <> nil then
+  begin
+    FMeasureButton.ParentFont := False;
+    if FMeasureMode then
+      FMeasureButton.Font.Style := [fsBold]
+    else
+      FMeasureButton.Font.Style := [];
+  end;
   // Der Werkzeuge-Button kann in die gemeinsame Browser-Symbolleiste
   // umgehaengt sein und liegt dann ausserhalb von Self/Walk(Self).
   // Nur beim echten Designwechsel direkt mit der Palette versorgen.
@@ -3830,6 +3951,12 @@ end;
 procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 begin
+  if (Key = VK_ESCAPE) and FSignatureMode then
+  begin
+    CancelSignature;
+    Key := 0;
+    Exit;
+  end;
   if (Key = VK_ESCAPE) and FMeasureMode then
   begin
     FMeasureMode := False;
@@ -4378,6 +4505,8 @@ begin
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   if FImageWatermarkMenuItem <> nil then
     FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
+  if FSignatureMenuItem <> nil then
+    FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
   if FOutlineMenu <> nil then OutlineMenuPopup(nil);
   LayoutToolbar(nil);
 end;
@@ -5123,6 +5252,8 @@ begin
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   if FImageWatermarkMenuItem <> nil then
     FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
+  if FSignatureMenuItem <> nil then
+    FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
   if FRequiredFieldsMenuItem <> nil then
     FRequiredFieldsMenuItem.Caption := Tr('Pflichtfelder prüfen ...') + ' (F7)';
   FReloadMenuItem.Caption :=
@@ -5533,6 +5664,313 @@ begin
   end;
 end;
 
+procedure TFreePDF64PDFiumView.SignatureApplicationMessage(
+  var Msg: TMsg; var Handled: Boolean);
+var
+  SigPageImage: TPDFiumImage;
+  Step, DX, DY, MaxLeft, MaxTop: Integer;
+begin
+  // Eine noch nicht eingebettete Signatur pixelgenau positionieren.
+  // Umschalt + Pfeiltaste verschiebt um zehn statt um einen Bildschirmpixel.
+  if FSignatureMode and FSignaturePlaced and (Msg.message = WM_KEYDOWN) and
+     (Msg.wParam in [VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN]) then
+  begin
+    SigPageImage := nil;
+    if (FSignaturePreviewPage >= 0) and
+       (FSignaturePreviewPage < FPages.Count) then
+      SigPageImage := PageImage(FSignaturePreviewPage);
+    if SigPageImage <> nil then
+    begin
+      Step := 1;
+      if GetKeyState(VK_SHIFT) < 0 then Step := 10;
+      DX := 0;
+      DY := 0;
+      case Msg.wParam of
+        VK_LEFT: DX := -Step;
+        VK_RIGHT: DX := Step;
+        VK_UP: DY := -Step;
+        VK_DOWN: DY := Step;
+      end;
+      MaxLeft := Max(0, SigPageImage.Width - FSignatureRect.Width);
+      MaxTop := Max(0, SigPageImage.Height - FSignatureRect.Height);
+      OffsetRect(FSignatureRect,
+        EnsureRange(FSignatureRect.Left + DX, 0, MaxLeft) - FSignatureRect.Left,
+        EnsureRange(FSignatureRect.Top + DY, 0, MaxTop) - FSignatureRect.Top);
+      SigPageImage.Invalidate;
+    end;
+    Handled := True;
+    Exit;
+  end;
+  // Entf verwirft nur die noch nicht übernommene Signatur.
+  // Bereits gespeicherte PDF-Objekte bleiben unberührt.
+  if FSignatureMode and FSignaturePlaced and (Msg.message = WM_KEYDOWN) and
+     (Msg.wParam = VK_DELETE) then
+  begin
+    SigPageImage := nil;
+    if (FSignaturePreviewPage >= 0) and
+       (FSignaturePreviewPage < FPages.Count) then
+      SigPageImage := PageImage(FSignaturePreviewPage);
+    CancelSignature;
+    if SigPageImage <> nil then SigPageImage.Invalidate;
+    Handled := True;
+    Exit;
+  end;
+  // ESC must cancel BEFORE the active main form or its controls process it.
+  // Never create a PDF image object from a keyboard event.
+  if FSignatureMode and FSignaturePlaced and (Msg.message = WM_KEYDOWN) and
+     (Msg.wParam = VK_RETURN) then
+  begin
+    CommitSignature;
+    Handled := True;
+    Exit;
+  end;
+  if FSignatureMode and (Msg.message = WM_KEYDOWN) and
+     (Msg.wParam = VK_ESCAPE) then
+  begin
+    CancelSignature;
+    Handled := True;
+    if FImage <> nil then FImage.Invalidate;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.CommitSignature;
+var
+  Pg: Integer;
+  Img: TPDFiumImage;
+  PageW, PageH: Single;
+  X1, Y1, X2, Y2: Double;
+  SigW, SigH: Double;
+begin
+  if not FSignaturePlaced or (FCore = nil) or (FSignatureFile = '') then Exit;
+  Pg := FSignaturePreviewPage;
+  if (Pg < 0) or (Pg >= FPages.Count) then Exit;
+  Img := PageImage(Pg);
+  if (Img = nil) or (Img.Width <= 0) or (Img.Height <= 0) then Exit;
+  if not FCore.PageSize(Pg, PageW, PageH) then Exit;
+  if not FCore.DevicePointToPage(Pg, Img.Width, Img.Height,
+    FSignatureRect.Left, FSignatureRect.Top, X1, Y1) then Exit;
+  if not FCore.DevicePointToPage(Pg, Img.Width, Img.Height,
+    FSignatureRect.Right, FSignatureRect.Bottom, X2, Y2) then Exit;
+  SigW := Abs(X2-X1);
+  SigH := Abs(Y2-Y1);
+  if (SigW <= 0) or (SigH <= 0) then Exit;
+  try
+    FCore.InsertSignatureImage(FSignatureFile, Pg,
+      EnsureRange(Min(X1,X2),0.0,Double(PageW)-SigW),
+      EnsureRange(Min(Y1,Y2),0.0,Double(PageH)-SigH), SigW, SigH);
+    CancelSignature;
+    if Pg < Length(FLoadedPages) then FLoadedPages[Pg] := False;
+    if Pg < FPages.Count then PageImage(Pg).Picture.Assign(nil);
+    if Pg < FThumbImages.Count then TImage(FThumbImages[Pg]).Picture.Assign(nil);
+    PaintPage;
+    UpdateSaveState;
+    UpdateTextUndoButtons;
+  except
+    on E: Exception do MessageDlg(E.Message, mtError, [mbOK], 0);
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.CancelSignature;
+begin
+  FSignaturePreviewVisible := False;
+  FSignaturePlaced := False;
+  FSignatureDragging := False;
+  FSignatureResizing := False;
+  FreeAndNil(FSignaturePreview);
+  FSignatureMode := False;
+  Screen.Cursor := crDefault;
+  if FImage <> nil then FImage.Cursor := crDefault;
+  if FSignatureTemporary and (FSignatureFile <> '') then
+    System.SysUtils.DeleteFile(FSignatureFile);
+  FSignatureTemporary := False;
+  FSignatureFile := '';
+end;
+
+procedure TFreePDF64PDFiumView.SignatureClick(Sender: TObject);
+var
+  Choice: Integer;
+  FileDlg: TOpenDialog;
+  FileName: string;
+  WidthMM: Double;
+  Temporary: Boolean;
+  SignatureFolder, SaveName, SavedPath: string;
+  SaveChoice: Integer;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  CancelSignature;
+  Choice := ChoosePDFSignatureSource(Self, FEditToggle.FDesign,
+    ToolbarHint('Unterschrift hinzufügen', 'Add signature'),
+    ToolbarHint('Unterschrift zeichnen', 'Draw signature'),
+    ToolbarHint('PNG importieren', 'Import PNG'),
+    ToolbarHint('Abbrechen', 'Cancel'));
+  if (Choice <> mrYes) and (Choice <> mrNo) and (Choice <> mrRetry) then Exit;
+  FileName := '';
+  Temporary := False;
+  SignatureFolder := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'Signaturen';
+  if Choice = mrRetry then
+  begin
+    ForceDirectories(SignatureFolder);
+    if not SelectStoredPDFSignature(Self, SignatureFolder,
+      ToolbarHint('Gespeicherte Unterschriften', 'Saved signatures'),
+      ToolbarHint('Verwenden', 'Use'),
+      ToolbarHint('Umbenennen', 'Rename'),
+      ToolbarHint('Löschen', 'Delete'),
+      ToolbarHint('Abbrechen', 'Cancel'),
+      ToolbarHint('Name:', 'Name:'),
+      ToolbarHint('Unterschrift wirklich löschen?', 'Delete this signature?'),
+      FileName, FEditToggle.FDesign) then Exit;
+  end
+  else if Choice = mrYes then
+  begin
+    if not CreatePDFSignaturePNG(Self,
+      ToolbarHint('Unterschrift zeichnen', 'Draw signature'),
+      ToolbarHint('Mit gedrückter linker Maustaste unterschreiben',
+        'Draw with the left mouse button pressed'),
+      ToolbarHint('Löschen', 'Clear'), ToolbarHint('OK', 'OK'),
+      ToolbarHint('Abbrechen', 'Cancel'), FileName, FEditToggle.FDesign) then Exit;
+    Temporary := True;
+  end
+  else
+  begin
+    FileDlg := TOpenDialog.Create(Self);
+    try
+      FileDlg.Title := ToolbarHint('Unterschrift als PNG auswählen',
+        'Choose signature PNG');
+      FileDlg.Filter := 'PNG (*.png)|*.png';
+      if not FileDlg.Execute then Exit;
+      FileName := FileDlg.FileName;
+    finally
+      FileDlg.Free;
+    end;
+  end;
+  // Speichern ist optional: eine Unterschrift wird niemals ohne Einwilligung
+  // dauerhaft in das portable Programmverzeichnis kopiert.
+  if Choice <> mrRetry then
+  begin
+    if ConfirmStoreSignature(Self, FEditToggle.FDesign,
+      ToolbarHint('Unterschrift speichern', 'Save signature'),
+      ToolbarHint('Diese Unterschrift für spätere Verwendung lokal speichern?',
+        'Save this signature locally for future use?'),
+      ToolbarHint('Hinweis: Die PNG-Datei wird unverschlüsselt im Ordner Signaturen gespeichert.',
+        'Note: The PNG file is stored unencrypted in the Signaturen folder.'),
+      ToolbarHint('Ja', 'Yes'), ToolbarHint('Nein', 'No')) then
+      SaveChoice := mrYes
+    else
+      SaveChoice := mrNo;
+    if SaveChoice = mrYes then
+    begin
+      SaveName := ToolbarHint('Meine Unterschrift', 'My signature');
+      if InputSignatureName(Self, FEditToggle.FDesign,
+        ToolbarHint('Unterschrift speichern', 'Save signature'),
+        ToolbarHint('Name:', 'Name:'),
+        'OK', ToolbarHint('Abbrechen', 'Cancel'), SaveName) then
+      begin
+        SaveName := Trim(SaveName);
+        // Nur Dateinamen zulassen, niemals Pfade oder Traversal.
+        for var J := 1 to Length(SaveName) do
+          if CharInSet(SaveName[J], ['\', '/', ':', '*', '?', '"', '<', '>', '|']) then
+            SaveName[J] := '_';
+        if SaveName <> '' then
+        begin
+          ForceDirectories(SignatureFolder);
+          SavedPath := IncludeTrailingPathDelimiter(SignatureFolder) + SaveName + '.png';
+          if FileExists(SavedPath) then
+          begin
+            if not ConfirmStoreSignature(Self, FEditToggle.FDesign,
+              ToolbarHint('Unterschrift überschreiben', 'Overwrite signature'),
+              ToolbarHint('Vorhandene Unterschrift überschreiben?',
+                'Overwrite existing signature?'),
+              ToolbarHint('Die gespeicherte Unterschrift wird ersetzt.',
+                'The saved signature will be replaced.'),
+              ToolbarHint('Ja', 'Yes'), ToolbarHint('Nein', 'No')) then
+              SavedPath := '';
+          end;
+          if SavedPath <> '' then
+            if not CopyFile(PChar(FileName), PChar(SavedPath), False) then
+              MessageDlg(ToolbarHint('Unterschrift konnte nicht gespeichert werden.',
+                'Could not save signature.'), mtWarning, [mbOK], 0);
+        end;
+      end;
+    end;
+  end;
+  if not ChooseSignatureWidth(Self, FEditToggle.FDesign,
+    ToolbarHint('Unterschrift platzieren', 'Place signature'),
+    ToolbarHint('Breite in mm (5–200):', 'Width in mm (5–200):'),
+    ToolbarHint('Abbrechen', 'Cancel'),
+    ToolbarHint('Bitte eine Breite zwischen 5 und 200 mm eingeben.',
+      'Enter a width between 5 and 200 mm.'), WidthMM) then
+  begin
+    if Temporary then System.SysUtils.DeleteFile(FileName);
+    Exit;
+  end;
+  FSignatureFile := FileName;
+  FSignatureTemporary := Temporary;
+  FSignatureWidthMM := WidthMM;
+  FSignaturePreview := TPicture.Create;
+  try
+    FSignaturePreview.LoadFromFile(FSignatureFile);
+    // Die Vorschau muss dieselbe Weiß-Transparenz zeigen wie
+    // InsertSignatureImage beim Einbetten in die PDF.
+    // PNGs mit echtem Alphakanal behalten ihren Alphakanal.
+    if not ((FSignaturePreview.Graphic is TPngImage) and
+      (TPngImage(FSignaturePreview.Graphic).TransparencyMode = ptmPartial)) then
+    begin
+      var SourceBmp := TBitmap.Create;
+      var AlphaPng := TPngImage.Create;
+      try
+        SourceBmp.PixelFormat := pf24bit;
+        SourceBmp.SetSize(FSignaturePreview.Width, FSignaturePreview.Height);
+        SourceBmp.Canvas.Brush.Color := clWhite;
+        SourceBmp.Canvas.FillRect(Rect(0, 0, SourceBmp.Width, SourceBmp.Height));
+        SourceBmp.Canvas.Draw(0, 0, FSignaturePreview.Graphic);
+        AlphaPng.Assign(SourceBmp);
+        AlphaPng.CreateAlpha;
+        for var Row := 0 to SourceBmp.Height - 1 do
+        begin
+          var Pixels := PByte(SourceBmp.ScanLine[Row]);
+          var AlphaRow := AlphaPng.AlphaScanline[Row];
+          for var Col := 0 to SourceBmp.Width - 1 do
+          begin
+            // Schwarz: deckend, Weiß: transparent, Grau: teiltransparent.
+            AlphaRow[Col] := 255 - Min(Pixels[0],
+              Min(Pixels[1], Pixels[2]));
+            Inc(Pixels, 3);
+          end;
+        end;
+        FSignaturePreview.Assign(AlphaPng);
+      finally
+        AlphaPng.Free;
+        SourceBmp.Free;
+      end;
+    end;
+  except
+    FreeAndNil(FSignaturePreview);
+    if FSignatureTemporary then System.SysUtils.DeleteFile(FSignatureFile);
+    FSignatureFile := '';
+    FSignatureTemporary := False;
+    raise;
+  end;
+  FSignaturePreviewVisible := False;
+  FSignaturePlaced := False;
+  FSignatureDragging := False;
+  FSignatureResizing := False;
+  FSignatureResizeCorner := 0;
+  FSignaturePreviewPage := -1;
+  FSignatureMode := True;
+  FMeasureMode := False;
+  CancelMeasurement;
+  if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+  FLinkMode := False;
+  FTextInsertMode := False;
+  FHighlightMode := False;
+  FNoteMode := False;
+  FMarkMode := False;
+  Screen.Cursor := crCross;
+  if FImage <> nil then FImage.Cursor := crCross;
+  // ESC wird über den fokussierten Scrollbereich abgefangen.
+  if (FScroll <> nil) and FScroll.CanFocus then FScroll.SetFocus;
+end;
+
 procedure TFreePDF64PDFiumView.ImageWatermarkClick(Sender: TObject);
 var
   FileDlg: TOpenDialog;
@@ -5675,6 +6113,12 @@ begin
      (Owner is TFreePDF64PDFiumView) then
   begin
     Viewer := TFreePDF64PDFiumView(Owner);
+    if Viewer.FSignatureMode then
+    begin
+      Viewer.CancelSignature;
+      Message.Result := 1;
+      Exit;
+    end;
     if Viewer.FLinkMode then
     begin
       Viewer.FLinkMode := False;
@@ -6192,6 +6636,7 @@ begin
        mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
   // Der Benutzer hat das Verwerfen bestaetigt: auch den aktiven Editor
   // schliessen, bevor das PDFium-Dokument ersetzt wird.
+  CancelSignature;
   FinishInlineFormEdit(False);
   if FFormFocusFrame <> nil then FFormFocusFrame.Visible := False;
   FActiveFormWidgetIndex := -1;
@@ -10034,6 +10479,73 @@ var
   PX, PY: Double;
   NoteItem: TMenuItem;
 begin
+  if FSignatureMode and (Sender is TPDFiumImage) then
+  begin
+    Img := TPDFiumImage(Sender);
+    if Button = mbRight then
+    begin
+      CancelSignature;
+      Img.Invalidate;
+      Exit;
+    end;
+    if Button = mbLeft then
+    begin
+      if FSignaturePlaced then
+      begin
+        if Img.Tag <> FSignaturePreviewPage then Exit;
+        // Die Eckgriffe liegen teilweise AUSSERHALB des Rechtecks.
+        // Daher immer zuerst die vier Griffe prüfen, erst danach den Innenbereich.
+        FSignatureResizeCorner := 0;
+        if (Abs(X-FSignatureRect.Left) <= 12) and (Abs(Y-FSignatureRect.Top) <= 12) then
+          FSignatureResizeCorner := 1
+        else if (Abs(X-FSignatureRect.Right) <= 12) and (Abs(Y-FSignatureRect.Top) <= 12) then
+          FSignatureResizeCorner := 2
+        else if (Abs(X-FSignatureRect.Left) <= 12) and (Abs(Y-FSignatureRect.Bottom) <= 12) then
+          FSignatureResizeCorner := 3
+        else if (Abs(X-FSignatureRect.Right) <= 12) and (Abs(Y-FSignatureRect.Bottom) <= 12) then
+          FSignatureResizeCorner := 4;
+        if (FSignatureResizeCorner <> 0) or PtInRect(FSignatureRect, Point(X,Y)) then
+        begin
+          FSignatureDragOrigin := Point(X,Y);
+          FSignatureRectOrigin := FSignatureRect;
+          FSignatureResizing := FSignatureResizeCorner <> 0;
+          FSignatureDragging := not FSignatureResizing;
+          if FSignatureResizing then
+          begin
+            if FSignatureResizeCorner in [1, 4] then
+              Img.Cursor := crSizeNWSE
+            else
+              Img.Cursor := crSizeNESW;
+          end
+          else
+            Img.Cursor := crSizeAll;
+          // Screen.Cursor hat Vorrang vor dem Cursor des Bild-Controls.
+          Screen.Cursor := Img.Cursor;
+          Img.MouseCapture := True;
+        end
+        else
+          CommitSignature;
+      end
+      else if (FSignaturePreview <> nil) and (FSignaturePreview.Width > 0) then
+      begin
+        var PW, PH: Single;
+        if not FCore.PageSize(Img.Tag, PW, PH) then Exit;
+        var W := Max(1, Round(FSignatureWidthMM * 72 / 25.4 *
+          Img.Width / Max(1.0, Double(PW))));
+        var H := Max(1, MulDiv(W, FSignaturePreview.Height,
+          Max(1, FSignaturePreview.Width)));
+        FSignatureRect := Rect(EnsureRange(X,0,Max(0,Img.Width-W)),
+          EnsureRange(Y,0,Max(0,Img.Height-H)),0,0);
+        FSignatureRect.Right := FSignatureRect.Left + W;
+        FSignatureRect.Bottom := FSignatureRect.Top + H;
+        FSignaturePreviewPage := Img.Tag;
+        FSignaturePreviewVisible := True;
+        FSignaturePlaced := True;
+        Img.Invalidate;
+      end;
+    end;
+    Exit;
+  end;
   if FMeasureMode and (Sender is TPDFiumImage) then
   begin
     if Button = mbRight then
@@ -10252,6 +10764,10 @@ begin
       NoteItem.Enabled := CanModifyComments(False);
       NoteItem.Tag := 3;
       NoteItem.OnClick := PageContextToolClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+      NoteItem.OnClick := SignatureClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
@@ -10724,6 +11240,104 @@ var
   Target: TPDFLinkTarget;
   CurrentScreen: TPoint;
 begin
+  if FSignatureMode then
+  begin
+    if Sender is TPDFiumImage then
+    begin
+      var SigImg := TPDFiumImage(Sender);
+      if FSignaturePlaced then
+      begin
+        if SigImg.Tag <> FSignaturePreviewPage then Exit;
+        // Cursor bereits beim Ueberfahren der vier Skalierungsgriffe anzeigen.
+        // Waehrend des Ziehens bleibt die Richtung des aktiven Griffs erhalten.
+        if FSignatureResizing then
+        begin
+          if FSignatureResizeCorner in [1, 4] then
+            SigImg.Cursor := crSizeNWSE
+          else
+            SigImg.Cursor := crSizeNESW;
+        end
+        else if FSignatureDragging then
+          SigImg.Cursor := crSizeAll
+        else if (((Abs(X-FSignatureRect.Left) <= 12) and
+                  (Abs(Y-FSignatureRect.Top) <= 12)) or
+                 ((Abs(X-FSignatureRect.Right) <= 12) and
+                  (Abs(Y-FSignatureRect.Bottom) <= 12))) then
+          SigImg.Cursor := crSizeNWSE
+        else if (((Abs(X-FSignatureRect.Right) <= 12) and
+                  (Abs(Y-FSignatureRect.Top) <= 12)) or
+                 ((Abs(X-FSignatureRect.Left) <= 12) and
+                  (Abs(Y-FSignatureRect.Bottom) <= 12))) then
+          SigImg.Cursor := crSizeNESW
+        else if PtInRect(FSignatureRect, Point(X,Y)) then
+          SigImg.Cursor := crSizeAll
+        else
+          SigImg.Cursor := crDefault;
+        if FSignatureDragging then
+        begin
+          var DX := X-FSignatureDragOrigin.X;
+          var DY := Y-FSignatureDragOrigin.Y;
+          var RW := FSignatureRectOrigin.Right-FSignatureRectOrigin.Left;
+          var RH := FSignatureRectOrigin.Bottom-FSignatureRectOrigin.Top;
+          var LX := EnsureRange(FSignatureRectOrigin.Left+DX,0,Max(0,SigImg.Width-RW));
+          var TY := EnsureRange(FSignatureRectOrigin.Top+DY,0,Max(0,SigImg.Height-RH));
+          FSignatureRect := Rect(LX,TY,LX+RW,TY+RH);
+        end
+        else if FSignatureResizing then
+        begin
+          var RW := Max(12,FSignatureRectOrigin.Right-FSignatureRectOrigin.Left);
+          var RH := Max(12,FSignatureRectOrigin.Bottom-FSignatureRectOrigin.Top);
+          var DX := X-FSignatureDragOrigin.X;
+          var DY := Y-FSignatureDragOrigin.Y;
+          var AnchorX, AnchorY, MaxW, NewW, NewH: Integer;
+          // Die jeweils gegenüberliegende Ecke bleibt beim Skalieren stehen.
+          if FSignatureResizeCorner in [1,3] then
+            AnchorX := FSignatureRectOrigin.Right
+          else
+            AnchorX := FSignatureRectOrigin.Left;
+          if FSignatureResizeCorner in [1,2] then
+            AnchorY := FSignatureRectOrigin.Bottom
+          else
+            AnchorY := FSignatureRectOrigin.Top;
+          if FSignatureResizeCorner in [1,3] then
+            NewW := RW-DX
+          else
+            NewW := RW+DX;
+          if FSignatureResizeCorner in [1,3] then
+            MaxW := AnchorX
+          else
+            MaxW := SigImg.Width-AnchorX;
+          if FSignatureResizeCorner in [1,2] then
+            MaxW := Min(MaxW, MulDiv(AnchorY,RW,RH))
+          else
+            MaxW := Min(MaxW, MulDiv(SigImg.Height-AnchorY,RW,RH));
+          NewW := EnsureRange(NewW, 12, Max(12,MaxW));
+          NewH := Max(12,MulDiv(NewW,RH,RW));
+          if FSignatureResizeCorner = 1 then
+            FSignatureRect := Rect(AnchorX-NewW,AnchorY-NewH,AnchorX,AnchorY)
+          else if FSignatureResizeCorner = 2 then
+            FSignatureRect := Rect(AnchorX,AnchorY-NewH,AnchorX+NewW,AnchorY)
+          else if FSignatureResizeCorner = 3 then
+            FSignatureRect := Rect(AnchorX-NewW,AnchorY,AnchorX,AnchorY+NewH)
+          else
+            FSignatureRect := Rect(AnchorX,AnchorY,AnchorX+NewW,AnchorY+NewH);
+        end;
+      end
+      else
+      begin
+        SigImg.Cursor := crCross;
+        FSignaturePreviewPoint := Point(X,Y);
+        FSignaturePreviewPage := SigImg.Tag;
+        FSignaturePreviewVisible := True;
+      end;
+      // Beim Start des Signaturmodus wird Screen.Cursor auf crCross
+      // gesetzt. Ohne diese Aktualisierung verdeckt der globale
+      // Mauszeiger die lokalen Resize-/Move-Cursor des PDF-Bildes.
+      Screen.Cursor := SigImg.Cursor;
+      SigImg.Invalidate;
+    end;
+    Exit;
+  end;
   if FMeasureMode and (Sender is TPDFiumImage) then
   begin
     TPDFiumImage(Sender).Cursor := crCross;
@@ -10857,6 +11471,17 @@ var
   TextX, TextY, TextWidth: Double;
   LinkTextBounds: TPDFInkRect;
 begin
+  if FSignatureMode and (Sender is TPDFiumImage) then
+  begin
+    FSignatureDragging := False;
+    FSignatureResizing := False;
+    FSignatureResizeCorner := 0;
+    TPDFiumImage(Sender).MouseCapture := False;
+    // Nach dem Loslassen wird der Cursor bei der nächsten Bewegung
+    // anhand der tatsächlichen Position neu bestimmt.
+    Screen.Cursor := TPDFiumImage(Sender).Cursor;
+    Exit;
+  end;
   if FMeasureMode and (Sender is TPDFiumImage) then
   begin
     if (Button = mbLeft) and FMeasureDragging then
@@ -11292,8 +11917,8 @@ begin
   if not HasUnsavedChanges then Exit(True);
   BeforeSave := FSaveSuccessSerial;
   SaveClick(nil);
-  // Eine erfolgreich geschriebene PDF-Kopie gen�gt zum Schlie�en.
-  // Bei Abbruch oder Fehler bleibt der Tab ge�ffnet.
+  // Eine erfolgreich geschriebene PDF-Kopie genügt zum Schließen.
+  // Bei Abbruch oder Fehler bleibt der Tab geöffnet.
   Result := FSaveSuccessSerial <> BeforeSave;
 end;
 

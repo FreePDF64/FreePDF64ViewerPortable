@@ -191,6 +191,8 @@ type
     function ChangeManagedLink(const ALink: TPDFManagedLink; const ATarget: string): Boolean;
     function DeleteManagedLink(const ALink: TPDFManagedLink): Boolean;
     function MoveLinkAtPoint(APageIndex: Integer; AX, AY, DX, DY: Double): Boolean;
+    procedure InsertSignatureImage(const AFileName: string; APageIndex: Integer;
+      AX, AY, AWidth, AHeight: Double);
     procedure AddImageWatermark(const AFileName: string; AAllPages: Boolean;
       ACurrentPage: Integer; AWidthPercent: Integer; AAlpha: Byte;
       AAngleDegrees: Double);
@@ -3666,6 +3668,118 @@ begin
   end;
   finally
     FBatchWatermarkFont := nil;
+  end;
+end;
+
+procedure TFreePDF64PDFiumCore.InsertSignatureImage(const AFileName: string;
+  APageIndex: Integer; AX, AY, AWidth, AHeight: Double);
+var
+  Pic: TPicture;
+  Bmp: TBitmap;
+  PdfBmp, Page, Obj: Pointer;
+  Src, Dst: PByte;
+  Stride, X, Y, J: Integer;
+  Alpha, WhiteAlpha: Byte;
+  Action, OldAction: TPDFInsertedTextAction;
+  PageW, PageH: Single;
+begin
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then
+    raise EPDFiumViewer.Create('Keine gültige PDF-Seite geöffnet.');
+  if not FileExists(AFileName) then
+    raise EPDFiumViewer.Create('Die Unterschriftdatei wurde nicht gefunden.');
+  if not PageSize(APageIndex, PageW, PageH) then
+    raise EPDFiumViewer.Create('Die Seitengröße konnte nicht gelesen werden.');
+  if (AWidth <= 0) or (AHeight <= 0) or (AX < 0) or (AY < 0) or
+     (AX + AWidth > PageW + 0.1) or (AY + AHeight > PageH + 0.1) then
+    raise EPDFiumViewer.Create('Die Unterschrift liegt außerhalb der PDF-Seite.');
+  Pic := TPicture.Create;
+  Bmp := TBitmap.Create;
+  PdfBmp := nil;
+  try
+    Pic.LoadFromFile(AFileName);
+    if (Pic.Width < 1) or (Pic.Height < 1) then
+      raise EPDFiumViewer.Create('Ungültige Unterschriftgrafik.');
+    Bmp.PixelFormat := pf32bit;
+    Bmp.SetSize(Pic.Width, Pic.Height);
+    Bmp.Canvas.Brush.Color := clWhite;
+    Bmp.Canvas.FillRect(Rect(0, 0, Bmp.Width, Bmp.Height));
+    Bmp.Canvas.Draw(0, 0, Pic.Graphic);
+    PdfBmp := FPDFBitmap_Create(Bmp.Width, Bmp.Height, 1);
+    if PdfBmp = nil then raise EPDFiumViewer.Create('PDFium-Bildpuffer nicht verfügbar.');
+    Dst := FPDFBitmap_GetBuffer(PdfBmp);
+    Stride := FPDFBitmap_GetStride(PdfBmp);
+    if (Dst = nil) or (Stride < Bmp.Width * 4) then
+      raise EPDFiumViewer.Create('Ungültiger PDFium-Bildpuffer.');
+    for Y := 0 to Bmp.Height - 1 do
+    begin
+      Src := Bmp.ScanLine[Y];
+      Dst := PByte(NativeUInt(FPDFBitmap_GetBuffer(PdfBmp)) + NativeUInt(Y * Stride));
+      for X := 0 to Bmp.Width - 1 do
+      begin
+        // Weiß wird transparent, schwarze Stiftzüge bleiben deckend.
+        // Damit deckt eine handschriftliche Unterschrift den PDF-Text nicht ab.
+        WhiteAlpha := 255 - Min(Src^, Min(PByte(NativeUInt(Src)+1)^,
+          PByte(NativeUInt(Src)+2)^));
+        Alpha := WhiteAlpha;
+        Move(Src^, Dst^, 3);
+        PByte(NativeUInt(Dst)+3)^ := Alpha;
+        Inc(Src, 4);
+        Inc(Dst, 4);
+      end;
+    end;
+    Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+    if Page = nil then raise EPDFiumViewer.Create('PDF-Seite konnte nicht geöffnet werden.');
+    try
+      Obj := FPDFPageObj_NewImageObj(FDocument);
+      if Obj = nil then raise EPDFiumViewer.Create('PDFium konnte kein Bildobjekt erstellen.');
+      try
+        if FPDFImageObj_SetBitmap(nil, 0, Obj, PdfBmp) = 0 then
+          raise EPDFiumViewer.Create('Unterschrift konnte nicht eingebettet werden.');
+        // Die Signaturvorschau ist immer bildschirmorientiert. Bei einer
+        // PDF-Seite mit /Rotate muss das Bildobjekt die Seitendrehung
+        // kompensieren, sonst erscheint die Unterschrift um 90/180/270 Grad
+        // gedreht. Die Bounding-Box bleibt dabei unverändert.
+        case ((FPDFPage_GetRotation(Page) mod 4) + 4) mod 4 of
+          1: FPDFPageObj_Transform(Obj, 0, AHeight, -AWidth, 0,
+               AX + AWidth, AY);
+          2: FPDFPageObj_Transform(Obj, -AWidth, 0, 0, -AHeight,
+               AX + AWidth, AY + AHeight);
+          3: FPDFPageObj_Transform(Obj, 0, -AHeight, AWidth, 0,
+               AX, AY + AHeight);
+        else
+          FPDFPageObj_Transform(Obj, AWidth, 0, 0, AHeight, AX, AY);
+        end;
+        FPDFPage_InsertObject(Page, Obj);
+        Obj := nil;
+        if FPDFPage_GenerateContent(Page) = 0 then
+          raise EPDFiumViewer.Create('PDF-Seiteninhalt konnte nicht aktualisiert werden.');
+        for J := FTextActions.Count - 1 downto FTextActionPos do
+        begin
+          OldAction := FTextActions[J];
+          if not OldAction.Inserted and not OldAction.IsHighlight and
+             (OldAction.Obj <> nil) then FPDFPageObj_Destroy(OldAction.Obj);
+          if OldAction.IsVisibleLink and not OldAction.Inserted and
+             (OldAction.LinkLineObj <> nil) then FPDFPageObj_Destroy(OldAction.LinkLineObj);
+          FTextActions.Delete(J);
+        end;
+        Action := Default(TPDFInsertedTextAction);
+        Action.PageIndex := PhysicalPage(APageIndex);
+        Action.ObjectIndex := FPDFPage_CountObjects(Page) - 1;
+        Action.Inserted := True;
+        FTextActions.Add(Action);
+        FTextActionPos := FTextActions.Count;
+        FModified := True;
+        InvalidateSearchCache;
+      finally
+        if Obj <> nil then FPDFPageObj_Destroy(Obj);
+      end;
+    finally
+      FPDF_ClosePage(Page);
+    end;
+  finally
+    if PdfBmp <> nil then FPDFBitmap_Destroy(PdfBmp);
+    Bmp.Free;
+    Pic.Free;
   end;
 end;
 
