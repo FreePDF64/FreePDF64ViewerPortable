@@ -138,6 +138,13 @@ type
     UnitIndex: Integer;
   end;
 
+  // Jede Aktion merkt sich Rechteck und ursprüngliche Position.
+  TPDFMeasureAction = record
+    Rect: TPDFMeasureRect;
+    Index: Integer;
+    WasDelete: Boolean;
+  end;
+
   TFreePDF64PDFiumView = class(TPanel)
   private
     FCore: TFreePDF64PDFiumCore;
@@ -252,7 +259,10 @@ type
     FHighlightButton: TButton;
     FHighlightMode: Boolean;
     FMeasureRects: TList<TPDFMeasureRect>;
-    FMeasureRedo: TList<TPDFMeasureRect>;
+    FMeasureRedo: TList<TPDFMeasureAction>;
+    FMeasureUndo: TList<TPDFMeasureAction>;
+    FMeasureDirty: Boolean;
+    FSaveSuccessSerial: Integer;
     FMeasurePopup: TPopupMenu;
     FMeasureMenuItem: TMenuItem;
     FMeasureMode: Boolean;
@@ -433,6 +443,8 @@ type
     procedure HighlightClick(Sender: TObject);
     procedure ShowMeasureReport(Sender: TObject);
     procedure RefreshMeasurePages;
+    procedure RecordMeasureAction(const ARect: TPDFMeasureRect;
+      AIndex: Integer; AWasDelete: Boolean);
     procedure MeasureDropdownClick(Sender: TObject);
     procedure MeasureClick(Sender: TObject);
     procedure MeasureUnitChange(Sender: TObject);
@@ -2383,7 +2395,10 @@ begin
   FTextInsertButton := Btn(Tr('Text einfÃ¼gen'), 1180, 116, TextInsertClick);
   FTextInsertButton.Parent := FEditBar;
   FMeasureRects := TList<TPDFMeasureRect>.Create;
-  FMeasureRedo := TList<TPDFMeasureRect>.Create;
+  FMeasureRedo := TList<TPDFMeasureAction>.Create;
+  FMeasureUndo := TList<TPDFMeasureAction>.Create;
+  FMeasureDirty := False;
+  FSaveSuccessSerial := 0;
   FStrokeRedo := TList<TPDFInkStroke>.Create;
   FStrokeRedoPages := TList<Integer>.Create;
   FMeasureScale := 25.4 / 72.0;
@@ -2802,6 +2817,7 @@ begin
   FStrokeRedo.Free;
   FStrokeRedoPages.Free;
   FMeasureRedo.Free;
+  FMeasureUndo.Free;
   FMeasureRects.Free;
   FPages.Free;
   if Assigned(FThumbTimer) then FThumbTimer.Enabled := False;
@@ -3086,6 +3102,11 @@ end;
 
 procedure TFreePDF64PDFiumView.FinishPreparedOpen;
 begin
+  CancelMeasurement;
+  FMeasureRects.Clear;
+  FMeasureUndo.Clear;
+  FMeasureRedo.Clear;
+  FMeasureDirty := False;
   ClearStrokeRedo;
   FCommentOwnerAuthorized := False;
   // M2.1: nur einmal pro erfolgreich geoeffnetem Dokument abfragen.
@@ -4823,7 +4844,7 @@ procedure TFreePDF64PDFiumView.UpdateSaveState;
   procedure SetButtonState(B: TPDFiumSaveButton);
   begin
     if B = nil then Exit;
-    if FCore.Modified or ((FMeasureRects <> nil) and (FMeasureRects.Count > 0)) then
+    if HasUnsavedChanges then
     begin
       B.Highlighted := True;
       B.Caption := ''; // Schwarzer Statuspunkt wird im Symbol gezeichnet
@@ -6165,7 +6186,7 @@ begin
   if FCore = nil then Exit;
   SourceFile := FCore.FileName;
   if (SourceFile = '') or not FileExists(SourceFile) then Exit;
-  if (FCore.Modified or (FMeasureRects.Count > 0)) and
+  if HasUnsavedChanges and
      (PDFModernMessageDlg(
        Tr('Alle nicht gespeicherten Ã„nderungen verwerfen und den letzten Speicherstand wiederherstellen?'),
        mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
@@ -6188,6 +6209,8 @@ begin
       CancelMeasurement;
       FMeasureRects.Clear;
       FMeasureRedo.Clear;
+      FMeasureUndo.Clear;
+      FMeasureDirty := False;
       UpdateTextUndoButtons;
       SetLength(FPageSizesValid, 0);
       SetLength(FLoadedPages, 0);
@@ -9145,7 +9168,7 @@ begin
       FInsertButton.Font.Style := [];
   end;
   if FTextUndoButton <> nil then
-    FTextUndoButton.Enabled := (FMeasureMode and (FMeasureRects.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
+    FTextUndoButton.Enabled := (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
   if FTextRedoButton <> nil then
     FTextRedoButton.Enabled := (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote;
 end;
@@ -9178,13 +9201,35 @@ begin
   PaintPage;
 end;
 
-procedure TFreePDF64PDFiumView.TextUndoClick(Sender: TObject);
-var Pg: Integer;
+procedure TFreePDF64PDFiumView.RecordMeasureAction(
+  const ARect: TPDFMeasureRect; AIndex: Integer; AWasDelete: Boolean);
+var
+  Action: TPDFMeasureAction;
 begin
-  if FMeasureMode and (FMeasureRects.Count > 0) then
+  Action.Rect := ARect;
+  Action.Index := AIndex;
+  Action.WasDelete := AWasDelete;
+  FMeasureUndo.Add(Action);
+  FMeasureRedo.Clear;
+  FMeasureDirty := True;
+end;
+
+procedure TFreePDF64PDFiumView.TextUndoClick(Sender: TObject);
+var
+  Pg, Index: Integer;
+  Action: TPDFMeasureAction;
+begin
+  if FMeasureMode and (FMeasureUndo.Count > 0) then
   begin
-    FMeasureRedo.Add(FMeasureRects.Last);
-    FMeasureRects.Delete(FMeasureRects.Count - 1);
+    Action := FMeasureUndo.Last;
+    FMeasureUndo.Delete(FMeasureUndo.Count - 1);
+    Index := Min(Action.Index, FMeasureRects.Count);
+    if Action.WasDelete then
+      FMeasureRects.Insert(Index, Action.Rect)
+    else if (Index >= 0) and (Index < FMeasureRects.Count) then
+      FMeasureRects.Delete(Index);
+    FMeasureRedo.Add(Action);
+    FMeasureDirty := True;
     RefreshMeasurePages;
     UpdateTextUndoButtons;
     UpdateSaveState;
@@ -9221,12 +9266,24 @@ begin
 end;
 
 procedure TFreePDF64PDFiumView.TextRedoClick(Sender: TObject);
-var Pg: Integer;
+var
+  Pg, Index: Integer;
+  Action: TPDFMeasureAction;
 begin
   if FMeasureMode and (FMeasureRedo.Count > 0) then
   begin
-    FMeasureRects.Add(FMeasureRedo.Last);
+    Action := FMeasureRedo.Last;
     FMeasureRedo.Delete(FMeasureRedo.Count - 1);
+    Index := Min(Action.Index, FMeasureRects.Count);
+    if Action.WasDelete then
+    begin
+      if (Index >= 0) and (Index < FMeasureRects.Count) then
+        FMeasureRects.Delete(Index);
+    end
+    else
+      FMeasureRects.Insert(Index, Action.Rect);
+    FMeasureUndo.Add(Action);
+    FMeasureDirty := True;
     RefreshMeasurePages;
     UpdateTextUndoButtons;
     UpdateSaveState;
@@ -9992,8 +10049,8 @@ begin
              (PX >= Min(M.X1, M.X2)) and (PX <= Max(M.X1, M.X2)) and
              (PY >= Min(M.Y1, M.Y2)) and (PY <= Max(M.Y1, M.Y2)) then
           begin
+            RecordMeasureAction(M, I, True);
             FMeasureRects.Delete(I);
-            FMeasureRedo.Clear;
             UpdateTextUndoButtons;
             UpdateSaveState;
             TPDFiumImage(Sender).Repaint;
@@ -10822,8 +10879,8 @@ begin
         M.X2 := AX2; M.Y2 := AY2;
         M.Scale := FMeasureScale;
         M.UnitIndex := FMeasureUnit;
+        RecordMeasureAction(M, FMeasureRects.Count, False);
         FMeasureRects.Add(M);
-        FMeasureRedo.Clear;
         UpdateTextUndoButtons;
         UpdateSaveState;
       end;
@@ -11211,6 +11268,7 @@ begin
           FCore.SaveAs(D.FileName)
         else if not CopyFile(PChar(FCore.FileName), PChar(D.FileName), False) then
           RaiseLastOSError;
+        Inc(FSaveSuccessSerial);
         UpdateSaveState;
         PDFModernMessageDlg(Tr('PDF gespeichert: ') + D.FileName, mtInformation, [mbOK], 0);
       except
@@ -11223,31 +11281,37 @@ end;
 
 function TFreePDF64PDFiumView.HasUnsavedChanges: Boolean;
 begin
-  Result := (FCore <> nil) and FCore.Modified;
+  Result := (FCore <> nil) and (FCore.Modified or FMeasureDirty or
+    ((FMeasureRects <> nil) and (FMeasureRects.Count > 0)));
 end;
 
 function TFreePDF64PDFiumView.SaveUnsavedChanges: Boolean;
+var
+  BeforeSave: Integer;
 begin
   if not HasUnsavedChanges then Exit(True);
+  BeforeSave := FSaveSuccessSerial;
   SaveClick(nil);
-  // Abbruch und Fehler muessen das Schliessen verhindern.
-  Result := not HasUnsavedChanges;
+  // Eine erfolgreich geschriebene PDF-Kopie genügt zum Schließen.
+  // Bei Abbruch oder Fehler bleibt der Tab geöffnet.
+  Result := FSaveSuccessSerial <> BeforeSave;
 end;
 
 function TFreePDF64PDFiumView.ConfirmUnsaved: Boolean;
-var A: Integer;
+var A, BeforeSave: Integer;
 begin
   // Noch sichtbare Texteingaben vor der Aenderungspruefung uebernehmen.
   FinishInlineFormEdit(True);
   Result := True;
-  if not FCore.Modified then Exit;
+  if not HasUnsavedChanges then Exit;
   A := PDFModernMessageDlg(Tr('Die PDF wurde geÃ¤ndert. Vor dem Wechsel speichern?'),
     mtConfirmation, [mbYes, mbNo, mbCancel], 0);
   if A = mrCancel then Exit(False);
   if A = mrYes then
   begin
+    BeforeSave := FSaveSuccessSerial;
     SaveClick(nil);
-    Result := not FCore.Modified;
+    Result := FSaveSuccessSerial <> BeforeSave;
   end;
 end;
 
