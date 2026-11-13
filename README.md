@@ -12,9 +12,9 @@
 
 # Deutsch
 
-**Mehr als ein PDF-Reader: PDFs und Grafiken in Registerkarten öffnen, zwei PDFs nebeneinander vergleichen, Dokumente gemeinsam durchsuchen und Arbeitsbereiche speichern.**
+**Mehr als ein PDF-Reader: PDFs und Bilder in Registerkarten öffnen, zwei PDFs nebeneinander vergleichen, Dokumente gemeinsam durchsuchen und Arbeitsbereiche speichern.**
 
-Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Grafik-Viewer für Windows mit Registerkarten, dokumentübergreifender PDF-Suche, interaktiven PDF-Formularen und integrierten Werkzeugen.
+Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Bild-Viewer für Windows mit Registerkarten, dokumentübergreifender PDF-Suche, interaktiven PDF-Formularen und integrierten Werkzeugen.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
 
@@ -46,17 +46,17 @@ Version **3.1.2** erweitert die Formularunterstützung des Viewers:
 
 > **Hinweis zur Kompatibilität:** Nicht jedes PDF-JavaScript und nicht jedes XFA-Formular wird unterstützt. Insbesondere ist die Unterstützung **statischer XFA-Formulare** nicht mit einer vollständigen Unterstützung dynamischer XFA-Layouts gleichzusetzen. Das Verhalten hängt von der Struktur des jeweiligen Dokuments ab.
 
-## Neu: Grafiken und mehrseitige TIFF-Dateien anzeigen und bearbeiten
+## Neu: Bilder und mehrseitige TIFF-Dateien anzeigen und bearbeiten
 
-Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien** direkt im Viewer öffnen. PDFs und Grafiken können gleichzeitig in eigenen Registerkarten geöffnet bleiben.
+Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien** direkt im Viewer öffnen. PDFs und Bilder können gleichzeitig in eigenen Registerkarten geöffnet bleiben.
 
-- **Eigene Grafik-Symbolleiste:** Grafiken vergrößern und verkleinern, auf **100 %** zurücksetzen, an die ganze Ansicht oder die Breite anpassen sowie speichern und drucken.
+- **Eigene Bild-Symbolleiste:** Bilder vergrößern und verkleinern, auf **100 %** zurücksetzen, an die ganze Ansicht oder die Breite anpassen sowie speichern und drucken.
 - **Zoom mit Strg + Mausrad:** Die Zoomstufe lässt sich auch mit der Maus ändern; die aktuelle Vergrößerung wird in Prozent angezeigt.
-- **Schnelles Drehen:** Grafiken um **90° nach links oder rechts** drehen, ohne die PDF-Funktionen zu beeinflussen.
+- **Schnelles Drehen:** Bilder um **90° nach links oder rechts** drehen, ohne die PDF-Funktionen zu beeinflussen.
 - **Mehrseitige TIFFs:** Zwischen den einzelnen Seiten navigieren, Seiten unabhängig voneinander drehen und die bearbeitete mehrseitige TIFF-Datei über **„Speichern unter …“** sichern.
-- **Änderungen erkennen:** Bei bearbeiteten Grafiken zeigt ein orangefarbenes Speichersymbol an, dass noch nicht gespeicherte Änderungen vorliegen.
-- **Registerkartenvorschau:** Beim Zeigen auf eine Grafik-Registerkarte erscheint ein kleines Vorschaubild – auch ohne die Registerkarte zuvor anzuklicken. Bei bereits geladenen Bildern berücksichtigt die Vorschau die aktuelle Drehung beziehungsweise TIFF-Seite.
-- **Gemeinsame Registerkartenverwaltung:** PDFs und Grafiken lassen sich nebeneinander geöffnet halten; **„PDFs zusammenführen …“** listet weiterhin ausschließlich PDF-Dateien auf.
+- **Änderungen erkennen:** Bei bearbeiteten Bilder zeigt ein orangefarbenes Speichersymbol an, dass noch nicht gespeicherte Änderungen vorliegen.
+- **Registerkartenvorschau:** Beim Zeigen auf eine Bild-Registerkarte erscheint ein kleines Vorschaubild – auch ohne die Registerkarte zuvor anzuklicken. Bei bereits geladenen Bildern berücksichtigt die Vorschau die aktuelle Drehung beziehungsweise TIFF-Seite.
+- **Gemeinsame Registerkartenverwaltung:** PDFs und Bilder lassen sich nebeneinander geöffnet halten; **„PDFs zusammenführen …“** listet weiterhin ausschließlich PDF-Dateien auf.
 
 **Hinweis zu TIFF:** Beim Speichern mehrseitiger TIFF-Dateien werden die Bilddaten neu codiert. Die ursprüngliche Kompression und Metadaten bleiben daher nicht zwangsläufig unverändert erhalten.
 
@@ -68,7 +68,7 @@ Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseiti
 - 🔎 **Alle geöffneten PDFs gleichzeitig durchsuchen:** Die globale Volltextsuche durchsucht die Dokumente aller geöffneten Registerkarten. Treffer werden dokumentübergreifend aufgelistet; per Doppelklick springst du direkt zur Fundstelle – auch wenn das betreffende PDF zuvor noch nicht angezeigt wurde. Aufruf über **„Alle PDFs durchsuchen“** oder **Strg+Umschalt+F**.
 - 🗂️ **Arbeitsbereiche speichern und wieder öffnen:** Stelle häufig benötigte PDF-Gruppen zusammen, speichere sie unter einem eigenen Namen und rufe sie später wieder auf. Mehrere Arbeitsbereiche lassen sich verwalten, umbenennen und löschen. So wird aus einer einmaligen PDF-Sitzung ein wiederverwendbarer Dokumentenbestand.
 - ⚡ **Schneller Start und reaktionsfähige Oberfläche:** PDFs werden verzögert beziehungsweise asynchron geladen, damit das Hauptfenster rasch benutzbar ist. Auch die Suche nach eingebetteten PDF-Anlagen wurde auf eine asynchrone Verarbeitung umgestellt. Besonders bei umfangreichen Dokumenten ist das hilfreich.
-- 📑 **PDFs und Grafiken in einer Anwendung:** Registerkarten und Vorschauen erleichtern den Überblick. PDF-Dokumente und unterstützte Bilddateien lassen sich gleichzeitig öffnen.
+- 📑 **PDFs und Bilder in einer Anwendung:** Registerkarten und Vorschauen erleichtern den Überblick. PDF-Dokumente und unterstützte Bilddateien lassen sich gleichzeitig öffnen.
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🧾 **Interaktive Formulare:** AcroForm- und unterstützte statische XFA-Formulare bearbeiten und speichern; unterstützte JavaScript-V8-Berechnungen werden aktualisiert.
 - 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
@@ -128,9 +128,9 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 ## Weitere Funktionen im Überblick
 
 - **Zweifensteransicht:** Zwei PDFs parallel anzeigen; **S** synchronisiert das Scrollen und **Z** den Zoom jeweils vom linken zum rechten Dokument. Beide Funktionen sind unabhängig schaltbar.
-- **PDFs und Grafiken in einem Fenster:** Jedes Dokument beziehungsweise Bild erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
-- **Grafikfunktionen:** JPG, JPEG, PNG, BMP und TIFF öffnen, zoomen, einpassen, um 90° drehen, speichern und drucken; mehrseitige TIFFs seitenweise navigieren und mit individuellen Drehungen speichern.
-- **Registerkartenvorschau für Grafiken:** Bildvorschau beim Überfahren der Registerkarte mit der Maus.
+- **PDFs und Bilder in einem Fenster:** Jedes Dokument beziehungsweise Bild erhält eine eigene Registerkarte. Auch mehrere PDF-Dateien aus dem Windows-Datei-Explorer können im bereits laufenden Viewer geöffnet werden.
+- **Bildfunktionen:** JPG, JPEG, PNG, BMP und TIFF öffnen, zoomen, einpassen, um 90° drehen, speichern und drucken; mehrseitige TIFFs seitenweise navigieren und mit individuellen Drehungen speichern.
+- **Registerkartenvorschau für Bilder:** Bildvorschau beim Überfahren der Registerkarte mit der Maus.
 - **Nur eine Programminstanz:** Ein erneuter Start aktiviert den vorhandenen Viewer, statt ein zweites Fenster zu öffnen.
 - **Registerkarten bequem verwalten:** Tabs über das kleine **×** oder mit **Strg+W** schließen; offene Tabs über die **Lupe** oder **Strg+Umschalt+A** suchen. Die Suche lässt sich mit derselben Tastenkombination oder **Esc** wieder schließen.
 - **Flexible PDF-Anzeige:** Vergrößerbare Seitenminiaturen, Inhaltsverzeichnis, Zoom, Seitennavigation sowie verschiedene Seiten- und Ansichtsmodi. Seiten lassen sich in der Miniaturansicht mit gedrückter linker Maustaste verschieben.
@@ -141,7 +141,7 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 - **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
 - **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
 - **PDF neu laden:** Das aktuelle Dokument über **Datei → PDF neu laden (Änderungen verwerfen)** erneut öffnen; vor dem Verwerfen ungespeicherter Änderungen wird nachgefragt.
-- **Sitzung wiederherstellen:** Zuletzt geöffnete PDF- und Grafikdateien sowie die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
+- **Sitzung wiederherstellen:** Zuletzt geöffnete PDF- und Bilddateien sowie die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
 - **Windows-Integration:** PDF-Dateien optional mit dem Viewer verknüpfen und direkt per Doppelklick öffnen.
 - **Infobereich:** Den Viewer auf Wunsch beim Schließen in den Windows-Infobereich verschieben.
 
@@ -162,7 +162,7 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 
 1. Die Dateien des Viewers gemeinsam in einen Ordner entpacken. Benötigte Bibliotheken und Zusatzprogramme müssen dabei erhalten bleiben.
 2. **`FreePDF64ViewerPortable.exe`** starten.
-3. Über **Datei → PDF öffnen …**, **Strg+O** oder **Drag & Drop** PDF-Dateien öffnen. Unterstützte Grafikdateien können ebenfalls im Viewer geöffnet werden.
+3. Über **Datei → PDF öffnen …**, **Strg+O** oder **Drag & Drop** PDF-Dateien öffnen. Unterstützte Bilddateien können ebenfalls im Viewer geöffnet werden.
 4. Optional unter **Optionen** die PDF-Dateiverknüpfung für Windows einrichten.
 
 > **Hinweis zur Dateiverknüpfung:** Die Registrierung erfolgt für den aktuellen Windows-Benutzer. Unter Windows 10/11 muss der Viewer gegebenenfalls zusätzlich als Standard-App für `.pdf` ausgewählt werden.
@@ -173,9 +173,9 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 | --- | --- |
 | Zweifensteransicht | Zwei PDFs nebeneinander anzeigen; **S** = synchrones Scrollen, **Z** = synchroner Zoom (links → rechts) |
 | PDF-Datei öffnen | **Strg+O** oder **Datei → PDF öffnen …** |
-| Grafiken öffnen | JPG, JPEG, PNG, BMP oder TIFF im Viewer öffnen |
-| Grafik zoomen | Lupen-Schaltflächen, **Strg + Mausrad**, 100 %, ganze Seite oder Seitenbreite |
-| Grafik drehen | 90° nach links oder rechts über die Grafik-Symbolleiste |
+| Bilder öffnen | JPG, JPEG, PNG, BMP oder TIFF im Viewer öffnen |
+| Bild zoomen | Lupen-Schaltflächen, **Strg + Mausrad**, 100 %, ganze Seite oder Seitenbreite |
+| Bild drehen | 90° nach links oder rechts über die Bild-Symbolleiste |
 | Mehrseitige TIFFs | Seiten wechseln, einzeln drehen und über **Speichern unter …** als mehrseitige TIFF sichern |
 | Aktiven Tab schließen | **Strg+W** oder **×** am Tab |
 | Geöffnete Tabs suchen / Suche schließen | **Strg+Umschalt+A**, **Lupe** oder **Esc** zum Schließen |
@@ -223,7 +223,7 @@ Fragen, Fehlerberichte, Ideen oder Anregungen?
 
 <div align="center">
 
-**FreePDF64-Viewer Portable – PDF-Dateien und Grafiken komfortabel anzeigen und verwalten.**
+**FreePDF64-Viewer Portable – PDF-Dateien und Bilder komfortabel anzeigen und verwalten.**
 
 Copyright © 2026 FreePDF64
 
