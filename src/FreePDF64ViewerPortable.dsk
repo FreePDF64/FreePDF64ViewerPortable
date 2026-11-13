@@ -16,27 +16,42 @@ File_13=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Hilfe_Unit.pas
 File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Anleitung_Unit.pas',0,1,16,1,36,0,0,,
 
 [Modules]
-Module0=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
+Module0=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
 Module2=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
-Count=3
+Module3=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
+Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
+Module5=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+Count=6
 EditWindowCount=1
 
-[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
+[D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
 ModuleType=TSourceModule
 
-[D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas]
+[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
 ModuleType=TSourceModule
 
 [c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas]
 ModuleType=TSourceModule
 
+[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas]
+ModuleType=TSourceModule
+
 [EditWindow0]
-ViewCount=3
-CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
+ViewCount=6
+CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 View0=0
 View1=1
 View2=2
+View3=3
+View4=4
+View5=5
 PercentageSizes=1
 Create=1
 Visible=1
@@ -83,6 +98,39 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
 
 [View1]
 CustomEditViewType=TEditView
+Module=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
+CursorX=70
+CursorY=2004
+TopLine=1982
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
+
+[View2]
+CustomEditViewType=TEditView
+Module=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+CursorX=1
+CursorY=1
+TopLine=1
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+
+[View3]
+CustomEditViewType=TEditView
+Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
+CursorX=61
+CursorY=1
+TopLine=1
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
+
+[View4]
+CustomEditViewType=TEditView
 Module=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 CursorX=83
 CursorY=31381
@@ -92,12 +140,12 @@ Elisions=
 Bookmarks=
 EditViewName=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 
-[View2]
+[View5]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
-CursorX=5
-CursorY=2214
-TopLine=2192
+CursorX=1
+CursorY=1
+TopLine=1
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -226,7 +274,7 @@ ClientWidth=1895
 ClientHeight=3312
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -257,8 +305,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=-2039
+Top=336
 Width=273
 Height=362
 MaxLeft=-1
@@ -462,8 +510,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=505
+Top=1083
 Width=2855
 Height=3210
 MaxLeft=-1
@@ -576,8 +624,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=8
-Top=8
+Left=1270
+Top=36
 Width=3824
 Height=1420
 MaxLeft=-1
@@ -612,7 +660,7 @@ ClientWidth=1996
 ClientHeight=4551
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0
@@ -638,7 +686,7 @@ ClientWidth=1895
 ClientHeight=3500
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -664,7 +712,7 @@ ClientWidth=1996
 ClientHeight=2261
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0

@@ -774,7 +774,7 @@ procedure TPDFBrowserForm.RefreshLanguage;
 begin
   TranslatePDFControls(Self);
   if FOpenPDFButton <> nil then
-    FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Grafiken öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
+    FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Bilder öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
   if FWorkspacesButton <> nil then
   begin
     FWorkspacesButton.Caption := '';
@@ -793,17 +793,17 @@ begin
     FPDFiumView.RefreshLanguage;
   if FImageButtons[0] <> nil then
   begin
-    FImageButtons[0].Hint := ToolbarHintBrowser('Grafik verkleinern', 'Zoom image out');
-    FImageButtons[1].Hint := ToolbarHintBrowser('Grafik vergrößern', 'Zoom image in');
-    FImageButtons[2].Hint := ToolbarHintBrowser('Grafik 90° nach links drehen', 'Rotate image 90° left');
-    FImageButtons[3].Hint := ToolbarHintBrowser('Grafik 90° nach rechts drehen', 'Rotate image 90° right');
-    FImageButtons[4].Hint := ToolbarHintBrowser('Ganze Grafik', 'Fit image');
-    FImageButtons[5].Hint := ToolbarHintBrowser('Grafikbreite anpassen', 'Fit image width');
+    FImageButtons[0].Hint := ToolbarHintBrowser('Bild verkleinern', 'Zoom image out');
+    FImageButtons[1].Hint := ToolbarHintBrowser('Bild vergrößern', 'Zoom image in');
+    FImageButtons[2].Hint := ToolbarHintBrowser('Bild 90° nach links drehen', 'Rotate image 90° left');
+    FImageButtons[3].Hint := ToolbarHintBrowser('Bild 90° nach rechts drehen', 'Rotate image 90° right');
+    FImageButtons[4].Hint := ToolbarHintBrowser('Ganze Bild', 'Fit image');
+    FImageButtons[5].Hint := ToolbarHintBrowser('Bildbreite anpassen', 'Fit image width');
     FImageButtons[6].Hint := ToolbarHintBrowser('Originalgröße (100 %)', 'Actual size (100%)');
-    FImageButtons[7].Hint := ToolbarHintBrowser('Grafik speichern unter ...', 'Save image as...');
-    FImageButtons[8].Hint := ToolbarHintBrowser('Grafik drucken ...', 'Print image...');
+    FImageButtons[7].Hint := ToolbarHintBrowser('Bild speichern unter ...', 'Save image as...');
+    FImageButtons[8].Hint := ToolbarHintBrowser('Bild drucken ...', 'Print image...');
     if FImageZoomLabel <> nil then
-      FImageZoomLabel.Hint := ToolbarHintBrowser('Aktueller Grafikzoom', 'Current image zoom');
+      FImageZoomLabel.Hint := ToolbarHintBrowser('Aktueller Bildzoom', 'Current image zoom');
   end;
 end;
 
@@ -921,7 +921,7 @@ begin
   FOpenPDFButton.Font.Size := 10;
   FOpenPDFButton.Width := ScalePx(32);
   FOpenPDFButton.Height := 28;
-  FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Grafiken öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
+  FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Bilder öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
   FOpenPDFButton.ShowHint := True;
   FOpenPDFButton.OnClick := OpenPDFToolbarClick;
 
@@ -2249,13 +2249,13 @@ begin
     ImagePopup.AutoPopup := True;
     FImageDisplay.PopupMenu := ImagePopup;
     // Eigenes Grafik-Kontextmenue, unabhaengig von PDF-Aktionen.
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik um 90° nach rechts drehen', 'Rotate image 90° right'); ContextItem.Tag := 3; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik um 90° nach links drehen', 'Rotate image 90° left'); ContextItem.Tag := 2; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach rechts drehen', 'Rotate image 90° right'); ContextItem.Tag := 3; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild um 90° nach links drehen', 'Rotate image 90° left'); ContextItem.Tag := 2; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Ganze Grafik anzeigen', 'Fit whole image'); ContextItem.Tag := 4; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Ganze Bild anzeigen', 'Fit whole image'); ContextItem.Tag := 4; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := '-'; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik in Zwischenablage kopieren', 'Copy image to clipboard'); ContextItem.Tag := 20; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
-    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Grafik speichern unter ...', 'Save image as ...'); ContextItem.Tag := 7; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild in Zwischenablage kopieren', 'Copy image to clipboard'); ContextItem.Tag := 20; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
+    ContextItem := TMenuItem.Create(ImagePopup); ContextItem.Caption := ToolbarHintBrowser('Bild speichern unter ...', 'Save image as ...'); ContextItem.Tag := 7; ContextItem.OnClick := ImageContextClick; ImagePopup.Items.Add(ContextItem);
     FImageScroll.PopupMenu := ImagePopup;
 
     // Mausrad-Ereignis wird vom Formular empfangen (VCL-Ereignisweitergabe).
@@ -2359,7 +2359,7 @@ begin
   if FToolbar <> nil then FToolbar.BringToFront;
   if FOpenPDFButton <> nil then
     FOpenPDFButton.Hint := ToolbarHintBrowser(
-      'PDFs und Grafiken öffnen ... (Strg+O)',
+      'PDFs und Bilder öffnen ... (Strg+O)',
       'Open PDFs and images... (Ctrl+O)');
   FNavigationDone := True;
   FNavigationSucceeded := True;

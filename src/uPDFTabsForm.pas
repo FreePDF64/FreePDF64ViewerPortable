@@ -2254,7 +2254,7 @@ begin
       MulDiv(710, UIUnit, 96), MulDiv(23, UIUnit, 96));
     if FDesignIndex = 0 then HeaderHint.Font.Color := clGray
     else HeaderHint.Font.Color := ForeColor;
-    HeaderHint.Caption := Tr('Gespeicherte PDF- und Grafik-Sammlungen öffnen und verwalten');
+    HeaderHint.Caption := Tr('Gespeicherte PDF- und Bild-Sammlungen öffnen und verwalten');
     HeaderHint.AutoSize := True;
     HeaderTitle.AutoSize := True;
     Header.Height := HeaderHint.Top + HeaderHint.Height + MulDiv(16, UIUnit, 96);
@@ -3143,7 +3143,7 @@ begin
     end
     else
     begin
-      AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Grafiken und mehrseitige TIFF-Dateien',
+      AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Bilder und mehrseitige TIFF-Dateien',
         'PDFs öffnen und organisieren', 'Anzeige, Navigation und Suche',
         'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks',
         'Interaktive Formulare', 'Dokumentinformationen und Werkzeuge',
@@ -3153,20 +3153,20 @@ begin
         'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Modern Dunkel, Windows Klassik und Klassisch Blau. '
         + 'Symbolleisten, Schaltflächen und Bedienelemente werden farblich an das gewählte Design angepasst. '
         + 'Wählen Sie das gewünschte Design unter Optionen → Design.');
-      AddSection('Grafiken und mehrseitige TIFF-Dateien', '');
-      AddSection('Grafikdateien öffnen',
+      AddSection('Bilder und mehrseitige TIFF-Dateien', '');
+      AddSection('Bilddateien öffnen',
         'JPG-, JPEG-, PNG-, BMP-, TIF- und TIFF-Dateien können zusammen mit PDFs geöffnet werden. '
-        + 'Jede Datei erhält eine eigene Registerkarte. Beim Wechsel zwischen Grafik- und PDF-Registerkarten '
+        + 'Jede Datei erhält eine eigene Registerkarte. Beim Wechsel zwischen Bild- und PDF-Registerkarten '
         + 'müssen die Dateien nicht erneut geöffnet werden.');
-      AddSection('Grafik-Symbolleiste und Zoom',
-        'Über die Grafik-Symbolleiste können Sie vergrößern, verkleinern, 100 % wählen, die ganze Grafik '
-        + 'an den Anzeigebereich oder an dessen Breite anpassen. Beim Einpassen wird die Grafik zentriert. '
-        + 'Mit Strg + Mausrad zoomen Sie die Grafik; ohne Strg wird wie gewohnt gescrollt.');
-      AddSection('Grafiken drehen, speichern und drucken',
-        'Mit den Symbolen drehen Sie Grafiken um 90° nach links oder rechts. Nach einer Änderung '
+      AddSection('Bild-Symbolleiste und Zoom',
+        'Über die Bild-Symbolleiste können Sie vergrößern, verkleinern, 100 % wählen, das ganze Bild '
+        + 'an den Anzeigebereich oder an dessen Breite anpassen. Beim Einpassen wird das Bild zentriert. '
+        + 'Mit Strg + Mausrad zoomen Sie das Bild; ohne Strg wird wie gewohnt gescrollt.');
+      AddSection('Bilder drehen, speichern und drucken',
+        'Mit den Symbolen drehen Sie Bilder um 90° nach links oder rechts. Nach einer Änderung '
         + 'wird der Speichern-Button orange. Zoomen, Scrollen und Einpassen gelten nicht als Änderung. '
-        + 'Einzelne Grafiken lassen sich über „Speichern unter ...“ sichern; bei Abbruch bleibt die '
-        + 'Änderungsanzeige bestehen. Die Grafik-Symbolleiste bietet auch eine Druckfunktion.');
+        + 'Einzelne Bilder lassen sich über „Speichern unter ...“ sichern; bei Abbruch bleibt die '
+        + 'Änderungsanzeige bestehen. Die Bild-Symbolleiste bietet auch eine Druckfunktion.');
       AddSection('Mehrseitige TIFF-Dateien',
         'Bei mehrseitigen TIFFs wechseln Sie mit den Pfeilschaltflächen zwischen den Seiten; '
         + 'die Seitenanzeige zeigt die aktuelle Position. Zoomen und Drehen sind auch hier möglich. '
@@ -3327,7 +3327,7 @@ begin
         + 'Beim Überfahren zeigt ein Hinweis das Linkziel und der Mauszeiger wird zur Hand. '
         + 'Mit gedrückter Strg-Taste und linker Maustaste verschieben Sie Text, Unterstrich und '
         + 'anklickbaren Linkbereich gemeinsam. Speichern Sie die PDF, um die Änderungen zu übernehmen. '
-        + 'Diese Bearbeitungsfunktionen stehen nur für PDF-Dateien zur Verfügung, nicht für Grafiken.');
+        + 'Diese Bearbeitungsfunktionen stehen nur für PDF-Dateien zur Verfügung, nicht für Bilder.');
       AddSection('Wasserzeichen rückgängig machen und wiederholen',
         'Nach dem Einfügen eines Text- oder Bildwasserzeichens wird die Symbolleiste „Werkzeuge“ ' +
         'eingeblendet, damit Rückgängig und Wiederholen erreichbar sind. Ein Wasserzeichen auf ' +
@@ -4277,6 +4277,17 @@ begin
   if FGermanMenuItem <> nil then FGermanMenuItem.Checked := PDFLanguage = 'de';
   if FEnglishMenuItem <> nil then FEnglishMenuItem.Checked := PDFLanguage = 'en';
 
+  // Startseite auch bei einem Sprachwechsel ohne Neustart aktualisieren.
+  if FWelcomeHint <> nil then
+    FWelcomeHint.Caption := Tr('PDFs und Bilder öffnen oder hierher ziehen (Strg+O)');
+  if FWelcomeOpenButton <> nil then
+  begin
+    FWelcomeOpenButton.Caption := Tr('PDFs und Bilder öffnen ...');
+    FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Bilder öffnen (Strg+O)');
+  end;
+  if FWelcomeWorkspaceButton <> nil then
+    FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereich öffnen ...');
+
   // Hilfe bleibt rechts, unabhängig von der gewählten Sprache.
   AlignHelpMenuRight;
   DrawMenuBar(Handle);
@@ -4413,7 +4424,7 @@ begin
   FFileMenu.Caption := Tr('Datei');
   FHelpMainMenu.Items.Add(FFileMenu);
   HelpItem := TMenuItem.Create(FHelpMainMenu);
-  HelpItem.Caption := Tr('PDFs und Grafiken öffnen ...');
+  HelpItem.Caption := Tr('PDFs und Bilder öffnen ...');
   HelpItem.ShortCut := ShortCut(Ord('O'), [ssCtrl]);
   HelpItem.OnClick := OpenPDFClick;
   FFileMenu.Add(HelpItem);
@@ -4723,17 +4734,17 @@ begin
   FWelcomeHint.Font.Size := 11;
   FWelcomeHint.Font.Name := 'Segoe UI';
   FWelcomeHint.Font.Color := RGB(94, 108, 126);
-  FWelcomeHint.Caption := Tr('PDFs und Grafiken öffnen oder hierher ziehen (Strg+O)');
+  FWelcomeHint.Caption := Tr('PDFs und Bilder öffnen oder hierher ziehen (Strg+O)');
 
   FWelcomeOpenButton := TButton.Create(Self);
   FWelcomeOpenButton.Parent := FWelcomePanel;
   FWelcomeOpenButton.PopupMenu := FTabContextMenu;
-  FWelcomeOpenButton.Caption := Tr('PDFs und Grafiken öffnen ...');
+  FWelcomeOpenButton.Caption := Tr('PDFs und Bilder öffnen ...');
   FWelcomeOpenButton.Width := MulDiv(260, Dpi, 96);
   FWelcomeOpenButton.Height := MulDiv(44, Dpi, 96);
   FWelcomeOpenButton.Font.Name := 'Segoe UI';
   FWelcomeOpenButton.Font.Style := [fsBold];
-  FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Grafiken öffnen (Strg+O)');
+  FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Bilder öffnen (Strg+O)');
   FWelcomeOpenButton.ShowHint := True;
   FWelcomeOpenButton.OnClick := OpenPDFClick;
   FWelcomeWorkspaceButton := TButton.Create(Self);
@@ -5211,7 +5222,7 @@ begin
       // Beschädigten Cache-Eintrag neu erstellen.
     end;
   end;
-  // Grafikvorschauen ohne PDFium erzeugen; TIFF (auch mehrseitig) zeigt
+  // Bildvorschauen ohne PDFium erzeugen; TIFF (auch mehrseitig) zeigt
   // die erste Seite. Derselbe BMP-Cache bleibt fuer alle Dateitypen nutzbar.
   if not SameText(ExtractFileExt(AFileName), '.pdf') then
   begin
@@ -5263,7 +5274,7 @@ begin
         except
         end;
       except
-        // Nicht lesbare Grafiken ohne Vorschau belassen.
+        // Nicht lesbare Bilder ohne Vorschau belassen.
       end;
     finally
       if HB <> 0 then DeleteObject(HB);
@@ -7638,7 +7649,7 @@ begin
     end;
 end;
 
-// Grafiktyp anhand der Registerkarten-Metadaten bestimmen.
+// Bildtyp anhand der Registerkarten-Metadaten bestimmen.
 // Nicht die PDFFileName-Eigenschaft einer eventuell gerade wechselnden
 // BrowserForm abfragen (Fehlerpfad LoadSelectedPDF/IsBasicImage).
 function IsImageTabFile(const ATab: TTabSheet): Boolean;
@@ -8048,7 +8059,7 @@ begin
           Exit;
         end;
       end;
-      // Grafiken niemals fuer eine Teilung markieren oder einsetzen.
+      // Bilder niemals fuer eine Teilung markieren oder einsetzen.
       if not IsSplitPDFTab(FTabs.Pages[TargetIndex]) or
          ((FSplitHost = nil) and not IsSplitPDFTab(FTabs.ActivePage)) then
       begin
@@ -8770,7 +8781,7 @@ begin
   // oder Anzeige eines bislang ungeladenen PDF-Viewers.
   if FAddingPDF then Exit;
   
-  // Grafikregister sind eigenstaendige Bildansichten. Beim Wechsel keine
+  // Bildregister sind eigenstaendige Bildansichten. Beim Wechsel keine
   // PDF-spezifischen Aktualisierungen, Ladeauftraege oder Refit-Timer ausfuehren.
   // Die vorhandene TImage-Instanz bleibt dabei im jeweiligen Tab erhalten.
   if (FTabs <> nil) and (FTabs.ActivePage <> nil) and

@@ -188,6 +188,13 @@ begin
   AddPair('Arbeitsbereiche speichern und verwalten', 'Save and manage workspaces');
   AddPair('Optionen', 'Options');
   AddPair('Hilfe', 'Help');
+  AddPair('PDFs und Bilder öffnen ...', 'Open PDFs and images...');
+  AddPair('PDFs und Bilder öffnen oder hierher ziehen (Strg+O)',
+    'Open PDFs and images or drag them here (Ctrl+O)');
+  AddPair('Eine oder mehrere PDFs und Bilder öffnen (Strg+O)',
+    'Open one or more PDFs and images (Ctrl+O)');
+  AddPair('Gespeicherte PDF- und Bild-Sammlungen öffnen und verwalten',
+    'Open and manage saved PDF and image collections');
   AddPair('PDF öffnen ...', 'Open PDF...');
   AddPair('PDF neu laden (Änderungen verwerfen)', 'Reload PDF (discard changes)');
   AddPair('FreePDF64 öffnen', 'Open FreePDF64');
