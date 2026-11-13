@@ -51,7 +51,16 @@ FreePDF64-Viewer Portable vereint einen schnellen PDF- und Bildbetrachter mit Re
 
 ## Portabilität und Lizenz
 
-Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeichert. FreePDF64-Viewer Portable steht unter der **GNU GPL v3 (GPL-3.0-only)**. Die Lizenztexte und Hinweise zu **PDFium, V8, QPDF und Xpdf** sind in der Distribution enthalten; insbesondere gelten die jeweiligen Drittanbieter-Lizenzen. Das Programm ist kein offizielles Produkt von PDFium, V8 oder Google.
+Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeichert.
+
+**FreePDF64-Viewer Portable** ist freie und quelloffene Software unter der **GNU GPL v3 (GPL-3.0-only)**. Nutzung, Änderung und Weitergabe richten sich nach dieser Lizenz. Der deutsche Lizenzhinweis steht in **`LIZENZ_DE.txt`**, der englische in **`LICENSE_NOTICE_EN.txt`**.
+
+**Zusatzprogramme und Bibliotheken:**
+- **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF-Darstellung und -Verarbeitung, © The PDFium Authors.
+- **[V8](https://v8.dev/):** JavaScript-Engine, © The V8 Project Authors.
+- **QPDF und Xpdf:** Zusatzwerkzeuge mit jeweils eigenen Lizenzbedingungen.
+
+Die Lizenztexte und Copyright-Hinweise zu PDFium, V8 und eingebundenen Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner **`PDFium`** (Datei **`LICENSE`** und Ordner **`licenses`**). Bei der Weitergabe sind die jeweiligen Lizenzbedingungen zu beachten. FreePDF64-Viewer Portable ist **kein offizielles Produkt von PDFium, V8 oder Google**.
 
 **Kontakt:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
@@ -94,7 +103,16 @@ FreePDF64-Viewer Portable combines a fast PDF and image viewer with tabs, cross-
 
 ## Portable use and license
 
-Settings are stored in **`FreePDFViewer.ini`** in the application folder. FreePDF64-Viewer Portable is licensed under **GNU GPL v3 (GPL-3.0-only)**. The distribution includes license texts and notices for **PDFium, V8, QPDF, and Xpdf**; their respective third-party licenses apply. This is not an official PDFium, V8, or Google product.
+Settings are stored in **`FreePDFViewer.ini`** in the application folder.
+
+**FreePDF64-Viewer Portable** is free and open-source software licensed under **GNU GPL v3 (GPL-3.0-only)**. Use, modification, and redistribution are subject to this license. See **`LIZENZ_DE.txt`** (German) and **`LICENSE_NOTICE_EN.txt`** (English).
+
+**Third-party libraries and tools:**
+- **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF rendering and processing, © The PDFium Authors.
+- **[V8](https://v8.dev/):** JavaScript engine, © The V8 Project Authors.
+- **QPDF and Xpdf:** Auxiliary tools governed by their own licenses.
+
+License texts and copyright notices for PDFium, V8, and bundled third-party libraries are included in the **`PDFium`** subfolder (**`LICENSE`** file and **`licenses`** directory). Their respective license terms must be observed when redistributing the software. FreePDF64-Viewer Portable is **not an official product of PDFium, V8, or Google**.
 
 **Contact:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
