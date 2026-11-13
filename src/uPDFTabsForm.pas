@@ -4,7 +4,7 @@ interface
 
 uses
   uPDFLanguage,
-  System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.ShellAPI, Winapi.ShlObj,
+  System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.RichEdit, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
   Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.IniFiles, System.Win.Registry, Math,
   uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
@@ -21,8 +21,14 @@ type
   TViewerHelpForm = class(TForm)
   public
     HelpScroll: TScrollBox;
+    HelpSearch: TEdit;
+    HelpSearchIndex: Integer;
+    HelpHighlight: TRichEdit;
     procedure OpenProjectLink(Sender: TObject);
     procedure OpenContactMail(Sender: TObject);
+    procedure FindNextHelp(Sender: TObject);
+    procedure HelpSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure HelpFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure JumpToHelpSection(Sender: TObject);
   protected
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
@@ -2592,12 +2598,131 @@ begin
     HelpScroll.VertScrollBar.Position := TLabel(Sender).Tag;
 end;
 
+procedure TViewerHelpForm.FindNextHelp(Sender: TObject);
+var
+  I, J, K, Count, MatchPos, TargetTop, CurrentTop, ScrollDelta: Integer;
+  L: TLabel;
+  Matches, Positions: TList;
+  S, LowerCaption: string;
+  CF: TCharFormat2;
+begin
+  if (HelpScroll = nil) or (HelpSearch = nil) then Exit;
+  // Die vorherige Markierung entfernen, auch wenn das Suchfeld geleert wird.
+  if HelpHighlight <> nil then
+    FreeAndNil(HelpHighlight);
+  S := Trim(HelpSearch.Text);
+  if S = '' then
+  begin
+    HelpSearchIndex := -1;
+    Exit;
+  end;
+  Matches := TList.Create;
+  Positions := TList.Create;
+  try
+    for I := 0 to HelpScroll.ControlCount - 1 do
+      if HelpScroll.Controls[I] is TWinControl then
+        for J := 0 to TWinControl(HelpScroll.Controls[I]).ControlCount - 1 do
+          if HelpScroll.Controls[I] is TPanel then
+            if TWinControl(HelpScroll.Controls[I]).Controls[J] is TLabel then
+            begin
+              L := TLabel(TWinControl(HelpScroll.Controls[I]).Controls[J]);
+              if L.Cursor = crHandPoint then Continue;
+              LowerCaption := AnsiLowerCase(L.Caption);
+              K := 1;
+              while K <= Length(LowerCaption) do
+              begin
+                MatchPos := Pos(AnsiLowerCase(S), Copy(LowerCaption, K, MaxInt));
+                if MatchPos = 0 then Break;
+                MatchPos := K + MatchPos - 1;
+                Matches.Add(L);
+                Positions.Add(Pointer(NativeInt(MatchPos)));
+                K := MatchPos + Max(1, Length(S));
+              end;
+            end;
+    Count := Matches.Count;
+    if Count = 0 then
+    begin
+      HelpSearchIndex := -1;
+      if Sender <> HelpSearch then MessageBeep(MB_ICONINFORMATION);
+      Exit;
+    end;
+    if Sender = HelpSearch then HelpSearchIndex := -1;
+    HelpSearchIndex := (HelpSearchIndex + 1) mod Count;
+    L := TLabel(Matches[HelpSearchIndex]);
+    MatchPos := NativeInt(Positions[HelpSearchIndex]);
+
+    // Ein RichEdit liegt nur während der Suche über dem betreffenden Label.
+    // Dadurch wird ausschließlich das gefundene Wort gelb markiert;
+    // Layout und die übrigen Labels bleiben unverändert.
+    HelpHighlight := TRichEdit.Create(Self);
+    HelpHighlight.Parent := L.Parent;
+    HelpHighlight.SetBounds(L.Left, L.Top, L.Width, L.Height);
+    HelpHighlight.BorderStyle := bsNone;
+    HelpHighlight.ReadOnly := True;
+    HelpHighlight.TabStop := False;
+    HelpHighlight.WantReturns := False;
+    HelpHighlight.ScrollBars := ssNone;
+    HelpHighlight.WordWrap := L.WordWrap;
+    HelpHighlight.Font.Assign(L.Font);
+    HelpHighlight.Color := TPanel(L.Parent).Color;
+    HelpHighlight.PlainText := True;
+    HelpHighlight.Text := L.Caption;
+    HelpHighlight.HideSelection := False;
+    HelpHighlight.SelStart := MatchPos - 1;
+    HelpHighlight.SelLength := Length(S);
+    FillChar(CF, SizeOf(CF), 0);
+    CF.cbSize := SizeOf(CF);
+    CF.dwMask := CFM_BACKCOLOR or CFM_COLOR;
+    CF.crBackColor := RGB(255, 235, 90);
+    CF.crTextColor := clBlack;
+    SendMessage(HelpHighlight.Handle, EM_SETCHARFORMAT, SCF_SELECTION, LPARAM(@CF));
+    HelpHighlight.SelLength := 0;
+    HelpHighlight.BringToFront;
+    // Die absolute Top-Koordinate der Karte ist bei bereits gescrollter
+    // ScrollBox nicht stabil. Deshalb die tatsaechliche Bildschirmposition
+    // des markierten Textfelds relativ zum sichtbaren ScrollBox-Bereich
+    // bestimmen und nur um diese Differenz scrollen.
+    HelpScroll.HandleNeeded;
+    HelpHighlight.HandleNeeded;
+    CurrentTop := HelpHighlight.ClientToScreen(Point(0, 0)).Y;
+    TargetTop := HelpScroll.ClientToScreen(Point(0, HelpScroll.ClientHeight div 3)).Y;
+    ScrollDelta := CurrentTop - TargetTop;
+    HelpScroll.VertScrollBar.Position := EnsureRange(
+      HelpScroll.VertScrollBar.Position + ScrollDelta,
+      0, Max(0, HelpScroll.VertScrollBar.Range - HelpScroll.ClientHeight));
+  finally
+    Positions.Free;
+    Matches.Free;
+  end;
+end;
+
+procedure TViewerHelpForm.HelpFormKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+  if (Key = VK_F3) and (Shift = []) and Assigned(HelpSearch) then
+  begin
+    FindNextHelp(nil);
+    Key := 0;
+  end;
+end;
+
+procedure TViewerHelpForm.HelpSearchKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_RETURN then
+  begin
+    FindNextHelp(nil);
+    Key := 0;
+  end;
+end;
+
 procedure TPDFTabsForm.ShowModernInfo(AAbout, AMergeHelp: Boolean);
 var
   D: TForm;
   TopPanel, BottomPanel, BodyPanel: TPanel;
   Scroll: TScrollBox;
   TitleLabel, SubLabel: TLabel;
+  HelpSearchButton: TButton;
   Btn: TButton;
   Img: TImage;
   Y, Scale: Integer;
@@ -2761,7 +2886,8 @@ begin
     TopPanel := TPanel.Create(D);
     TopPanel.Parent := D;
     TopPanel.Align := alTop;
-    TopPanel.Height := Px(112);
+    if not (AAbout or AMergeHelp) then TopPanel.Height := Px(150)
+    else TopPanel.Height := Px(112);
     TopPanel.BevelOuter := bvNone;
     TopPanel.ParentBackground := False;
     TopPanel.Color := RGB(19, 93, 169);
@@ -2803,6 +2929,29 @@ begin
         SubLabel.Caption := 'Version ' + ViewerExeVersion + ' · Portable PDF-Anwendung für Windows 64-Bit';
     end
     else SubLabel.Caption := Tr('Alles Wichtige auf einen Blick');
+
+    if not (AAbout or AMergeHelp) then
+    begin
+      D.OnKeyDown := TViewerHelpForm(D).HelpFormKeyDown;
+      TViewerHelpForm(D).HelpSearchIndex := -1;
+      TViewerHelpForm(D).HelpHighlight := nil;
+      TViewerHelpForm(D).HelpSearch := TEdit.Create(D);
+      with TViewerHelpForm(D).HelpSearch do
+      begin
+        Parent := TopPanel;
+        SetBounds(Px(97), Px(105), Px(380), Px(28));
+        if PDFLanguage = 'en' then TextHint := 'Search feature overview...'
+        else TextHint := 'Funktionsübersicht durchsuchen ...';
+        OnKeyDown := TViewerHelpForm(D).HelpSearchKeyDown;
+        OnChange := TViewerHelpForm(D).FindNextHelp;
+      end;
+      HelpSearchButton := TButton.Create(D);
+      HelpSearchButton.Parent := TopPanel;
+      if PDFLanguage = 'en' then HelpSearchButton.Caption := 'Find next'
+      else HelpSearchButton.Caption := 'Weitersuchen';
+      HelpSearchButton.SetBounds(Px(488), Px(105), Px(125), Px(28));
+      HelpSearchButton.OnClick := TViewerHelpForm(D).FindNextHelp;
+    end;
 
     BottomPanel := TPanel.Create(D);
     BottomPanel.Parent := D;
@@ -2932,7 +3081,7 @@ begin
     begin
       AddTOC(['Customizable user interface (themes)', 'Images and multipage TIFF files',
         'Opening and organizing PDFs', 'Viewing and searching', 'Editing and combining PDFs',
-        'Watermarks and hyperlinks', 'Interactive forms', 'Document information and tools',
+        'Watermarks and hyperlinks', 'PDF measurement tools', 'Interactive forms', 'Document information and tools',
         'Display and Logging']);
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
@@ -3041,6 +3190,9 @@ begin
         + 'Hold Shift while dragging with the left mouse button to select a freely sized rectangular area, including image areas. '
         + 'A blue outline shows the selected rectangle while dragging and disappears when the mouse button is released. '
         + 'Choose the highlight color using Color .... Highlights are saved as PDF annotations; save changes with Save As.');
+      AddSection('Comment overview',
+        'Right-click a PDF page or a thumbnail and choose Manage comments to list all PDF notes with their page numbers. '
+        + 'Double-click a comment to jump to its page. Edit and Delete use the existing PDF annotation functions.');
       AddSection('Text comments on PDF pages',
         'Enable Comment in the tools toolbar, click a position on the PDF page and enter your comment '
         + 'in the multiline text field. A yellow speech-bubble icon marks the comment. '
@@ -3087,6 +3239,32 @@ begin
         'with page number, display text and destination. Select a link to jump to its page, ' +
         'change its destination or delete the clickable link annotation. When deleting a link, ' +
         'the visible text remains. Save the PDF to preserve your changes.');
+      AddSection('PDF measurement tools', '');
+      AddSection('Measure rectangles on PDF pages',
+        'Show the Tools toolbar and choose Measure from the Measure drop-down. '
+        + 'Drag a rectangle on a PDF page with the left mouse button. '
+        + 'Its width is displayed above the rectangle and its height beside the left edge. '
+        + 'You can create multiple measurement rectangles on a document. Press Esc to exit measurement mode.');
+      AddSection('Measurement units and drawing scale',
+        'Select millimetres (mm), centimetres (cm) or inches (in) in the measurement toolbar. '
+        + 'Use Drawing scale to enter a ratio such as 1:1 or 1:50. '
+        + 'The displayed dimensions take the selected scale and unit into account.');
+      AddSection('Edit measurements and undo or redo',
+        'Right-click a measurement rectangle to remove it. '
+        + 'Use Undo and Redo in the Tools toolbar to reverse or restore measurement changes. '
+        + 'When the Tools toolbar is hidden, measurement overlays are hidden temporarily; '
+        + 'select Measure again to display them.');
+      AddSection('Measurement report and CSV export',
+        'Open Measurement report from the Measure drop-down. '
+        + 'The report lists the page, measurement number, width, height, unit and scale. '
+        + 'Use Copy report to copy the table or Save as CSV to export it. '
+        + 'Close returns to the PDF without changing the measurements.');
+      AddSection('Save measurements and manage comments',
+        'Save the PDF with Save As to retain measurement rectangles and their dimensions '
+        + 'as PDF annotations. Saved measurements can also be displayed in compatible '
+        + 'PDF readers such as Adobe Reader. After reopening the PDF, '
+        + 'choose Manage comments to find the saved measurements; '
+        + 'double-click an entry to jump to its page.');
       AddSection('Interactive forms', '');
       AddSection('JavaScript (V8) and automatic calculations',
         'Supported AcroForm JavaScript actions can validate field entries and update calculated values, '
@@ -3145,7 +3323,7 @@ begin
     begin
       AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Bilder und mehrseitige TIFF-Dateien',
         'PDFs öffnen und organisieren', 'Anzeige, Navigation und Suche',
-        'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks',
+        'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks', 'PDF-Messwerkzeuge',
         'Interaktive Formulare', 'Dokumentinformationen und Werkzeuge',
         'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
@@ -3287,6 +3465,9 @@ begin
         + 'aufziehen, beispielsweise über Bildern. Während des Ziehens zeigt ein blauer Rahmen den gewählten Bereich; '
         + 'beim Loslassen verschwindet er. Die Hervorhebungsfarbe über „Farbe ...“ auswählen. '
         + 'Hervorhebungen werden als PDF-Annotationen gespeichert; Änderungen über „Speichern unter ...“ sichern.');
+      AddSection('Kommentarübersicht',
+        'Über das Kontextmenü einer PDF-Seite oder der Miniaturansicht → „Kommentare verwalten ...“ werden alle PDF-Notizen mit Seitenzahl und Text angezeigt. '
+        + 'Ein Doppelklick springt zur Seite. Bearbeiten und Löschen verwenden die vorhandene Kommentarfunktion.');
       AddSection('Textkommentare auf PDF-Seiten',
         'In der Werkzeugleiste „Kommentar“ aktivieren, auf die gewünschte Stelle der PDF-Seite klicken '
         + 'und den Kommentar mehrzeilig eingeben. Eine gelbe Sprechblase kennzeichnet die Notiz. '
@@ -3342,6 +3523,35 @@ begin
         'Anzeigetext und Linkziel. Sie können zur betreffenden Seite springen, das Linkziel ' +
         'ändern oder die anklickbare Linkannotation löschen. Beim Löschen bleibt der sichtbare ' +
         'Text erhalten. Speichern Sie die PDF, um die Änderungen zu übernehmen.');
+      AddSection('PDF-Messwerkzeuge', '');
+      AddSection('Rechtecke auf PDF-Seiten messen',
+        'Die Werkzeug-Symbolleiste öffnen und im Dropdown „Messen“ den Eintrag „Messen“ wählen. '
+        + 'Mit gedrückter linker Maustaste ein Rechteck auf der PDF-Seite aufziehen. '
+        + 'Die Breite erscheint oberhalb des Rechtecks, die Höhe links daneben. '
+        + 'Pro Dokument können mehrere Messrechtecke erstellt werden. Mit Esc den Messmodus beenden.');
+      AddSection('Maßeinheiten und Zeichnungsmaßstab',
+        'In der Messwerkzeugleiste Millimeter (mm), Zentimeter (cm) oder Zoll (in) auswählen. '
+        + 'Über „Maßstab ...“ ein Verhältnis wie 1:1 oder 1:50 festlegen. '
+        + 'Die angezeigten Maße berücksichtigen die gewählte Einheit und den Maßstab.');
+      AddSection('Messungen bearbeiten und rückgängig machen',
+        'Ein Messrechteck mit der rechten Maustaste anklicken, um es zu löschen. '
+        + 'Über „Rückgängig“ und „Wiederholen“ in der Werkzeug-Symbolleiste '
+        + 'lassen sich Messänderungen zurücknehmen oder wiederherstellen. '
+        + 'Beim Schließen der Werkzeug-Symbolleiste werden Messrechtecke vorübergehend ausgeblendet; '
+        + 'durch erneutes Aktivieren von „Messen“ werden sie wieder angezeigt.');
+      AddSection('Messbericht und CSV-Export',
+        'Im Dropdown „Messen“ den Eintrag „Messbericht ...“ öffnen. '
+        + 'Der Bericht zeigt Seite, Nummer, Breite, Höhe, Einheit und Maßstab. '
+        + 'Mit „Bericht kopieren“ die Tabelle in die Zwischenablage übernehmen '
+        + 'oder mit „Als CSV speichern“ exportieren. '
+        + '„Schließen“ beendet den Bericht, ohne die Messungen zu verändern.');
+      AddSection('Messungen speichern und Kommentare verwalten',
+        'Über „Speichern unter ...“ die Messrechtecke einschließlich der Maßangaben '
+        + 'als PDF-Anmerkungen sichern. Die gespeicherten Messungen sind auch '
+        + 'in kompatiblen PDF-Anzeigeprogrammen wie Adobe Reader sichtbar. '
+        + 'Nach dem erneuten Öffnen der PDF lassen sich die Messungen unter '
+        + '„Kommentare verwalten ...“ anzeigen. Ein Doppelklick auf einen Eintrag '
+        + 'springt zur zugehörigen PDF-Seite.');
       AddSection('Interaktive Formulare', '');
       AddSection('JavaScript (V8) und automatische Berechnungen',
         'Unterstützte AcroForm-JavaScript-Aktionen können Eingaben prüfen und berechnete Werte aktualisieren, '
@@ -4482,6 +4692,7 @@ begin
   FLocalSearchMenuItem.ShortCut := ShortCut(Ord('F'), [ssCtrl]);
   FLocalSearchMenuItem.OnClick := LocalSearchMenuClick;
   FEditMenu.Add(FLocalSearchMenuItem);
+  HelpItem := TMenuItem.Create(FHelpMainMenu);
   FGlobalSearchMenuItem := TMenuItem.Create(FHelpMainMenu);
   FGlobalSearchMenuItem.Caption := Tr('Globale PDF-Suche');
   FGlobalSearchMenuItem.ShortCut := ShortCut(Ord('F'), [ssCtrl, ssShift]);

@@ -101,6 +101,14 @@ type
     property OnMouseWheel;
   end;
 
+  // Zugriff auf die von TGraphicControl verwendete Paint-Zeichenflaeche.
+  // TImage.Canvas selbst ist die Picture-Bitmap und darf fuer Overlays
+  // nicht verwendet werden.
+  TPDFGraphicCanvasAccess = class(TGraphicControl)
+  public
+    property Canvas;
+  end;
+
   TPDFiumImage = class(TImage)
   private
     FAfterPaint: TNotifyEvent;
@@ -121,6 +129,13 @@ type
   TInlineFormMemo = class(TMemo)
   protected
     procedure WndProc(var Message: TMessage); override;
+  end;
+
+  TPDFMeasureRect = record
+    Page: Integer;
+    X1, Y1, X2, Y2: Double;
+    Scale: Double;
+    UnitIndex: Integer;
   end;
 
   TFreePDF64PDFiumView = class(TPanel)
@@ -184,6 +199,8 @@ type
     FLayoutViewportHeight: Integer;
     FLastResizeTick: UInt64;
     FStrokePage: Integer;
+    FStrokeRedo: TList<TPDFInkStroke>;
+    FStrokeRedoPages: TList<Integer>;
     FBar: TPanel;
     FEditBar: TPanel;
     FEditToggle: TPDFToolsButton;
@@ -234,6 +251,19 @@ type
     FMarkColor: TColor;
     FHighlightButton: TButton;
     FHighlightMode: Boolean;
+    FMeasureRects: TList<TPDFMeasureRect>;
+    FMeasureRedo: TList<TPDFMeasureRect>;
+    FMeasurePopup: TPopupMenu;
+    FMeasureMenuItem: TMenuItem;
+    FMeasureMode: Boolean;
+    FMeasureDragging: Boolean;
+    FMeasurePage: Integer;
+    FMeasureStart, FMeasureEnd: TPoint;
+    FMeasureScale: Double; // real-world millimetres per PDF point
+    FMeasureUnit: Integer; // 0 mm, 1 cm, 2 in
+    FMeasureButton: TButton;
+    FMeasureUnitSelect: TComboBox;
+    FMeasureScaleButton: TButton;
     FNoteMode: Boolean;
     FCommentOwnerAuthorized: Boolean;
     FNoteButton: TButton;
@@ -246,6 +276,9 @@ type
     FHighlightAreaEndX, FHighlightAreaEndY: Integer;
     FTextInsertSeparator: TBevel;
     FTextInsertButton: TButton;
+    FInsertButton: TButton;
+    FInsertPopup: TPopupMenu;
+    FInsertTextItem, FInsertNoteItem: TMenuItem;
     FTextUndoButton, FTextRedoButton: TBitBtn;
     FUndoRedoGlyphPPI: Integer;
     FTextInsertMode: Boolean;
@@ -392,9 +425,24 @@ type
     procedure MarkerClick(Sender: TObject);
     procedure LinkMenuClick(Sender: TObject);
     procedure TextInsertClick(Sender: TObject);
+    procedure PopupMeasureItem(Sender: TObject; ACanvas: TCanvas; var Width, Height: Integer);
+    procedure PopupDrawItem(Sender: TObject; ACanvas: TCanvas; ARect: TRect; Selected: Boolean);
+    procedure InsertDropdownClick(Sender: TObject);
+    procedure InsertTextMenuClick(Sender: TObject);
+    procedure InsertNoteMenuClick(Sender: TObject);
     procedure HighlightClick(Sender: TObject);
+    procedure ShowMeasureReport(Sender: TObject);
+    procedure RefreshMeasurePages;
+    procedure MeasureDropdownClick(Sender: TObject);
+    procedure MeasureClick(Sender: TObject);
+    procedure MeasureUnitChange(Sender: TObject);
+    procedure MeasureScaleClick(Sender: TObject);
+    procedure DrawMeasurement(Sender: TObject);
+    procedure CancelMeasurement;
+
     procedure TextUndoClick(Sender: TObject);
     procedure TextRedoClick(Sender: TObject);
+    procedure ClearStrokeRedo;
     procedure UpdateTextUndoButtons;
     procedure RefreshTextPage(APageIndex: Integer);
     procedure TextStyleChange(Sender: TObject);
@@ -452,6 +500,8 @@ type
     procedure ApplySavedThumbnailsAfterLoad;
     class procedure SetGlobalThumbnailSplitMode(AEnabled: Boolean); static;
     class function GlobalThumbnailsVisible: Boolean; static;
+    procedure ShowCommentOverview;
+    procedure ShowCommentOverviewMenuClick(Sender: TObject);
     procedure ShowRequiredFieldsReport;
     procedure FocusAdjacentFormWidget(ADirection: Integer);
     function HasActiveFormWidget: Boolean;
@@ -525,7 +575,66 @@ procedure ApplyPDFGlyphContrast(AButton: TBitBtn; ADesign: Integer);
 
 implementation
 
+function ToolbarHint(const ADeutsch, AEnglish: string): string; forward;
+
+// Designpalette fuer die drei Verwaltungsdialoge einmalig beim Oeffnen.
+// Verwendet die bereits global konfigurierte PDF-Dialogpalette.
+procedure ApplyManagedDialogPalette(AForm: TForm; AList: TListView;
+  ADesign: Integer);
+var
+  ListBack, ListText: TColor;
+  procedure StyleButtons(AParent: TWinControl);
+  var
+    I: Integer;
+    C: TControl;
+  begin
+    for I := 0 to AParent.ControlCount - 1 do
+    begin
+      C := AParent.Controls[I];
+      if C is TPDFDesignButton then
+        TPDFDesignButton(C).SetDesign(ADesign);
+      if C is TWinControl then StyleButtons(TWinControl(C));
+    end;
+  end;
+begin
+  ApplyPDFDialogDesign(AForm);
+  case ADesign of
+    1: begin ListBack := RGB(248, 250, 253); ListText := RGB(35, 48, 65); end;
+    2: begin ListBack := RGB(65, 70, 79); ListText := clWhite; end;
+    3: begin ListBack := clWhite; ListText := clBlack; end;
+    4: begin ListBack := RGB(45, 48, 54); ListText := clWhite; end;
+    5: begin ListBack := RGB(246, 250, 255); ListText := RGB(24, 55, 88); end;
+  else
+    begin ListBack := clWindow; ListText := clWindowText; end;
+  end;
+  if AList <> nil then
+  begin
+    AList.ParentColor := False;
+    AList.Color := ListBack;
+    AList.Font.Color := ListText;
+  end;
+  StyleButtons(AForm);
+end;
+
 type
+  // Dialogeigene Verwaltung; keine neuen Felder in TFreePDF64PDFiumView.
+  TPDFCommentOverview = class(TComponent)
+  private
+    FView: TFreePDF64PDFiumView;
+    FList: TListView;
+    FNotes: TArray<TPDFNote>;
+    FRowNoteIndex: TArray<Integer>;
+    FRowPages: TArray<Integer>;
+    procedure Reload;
+    function SelectedNote(out N: TPDFNote): Boolean;
+    procedure JumpClick(Sender: TObject);
+    procedure EditClick(Sender: TObject);
+    procedure DeleteClick(Sender: TObject);
+  public
+    constructor Create(AOwner: TComponent; AView: TFreePDF64PDFiumView;
+      AList: TListView); reintroduce;
+  end;
+
   // Seitenwechsel direkt im geöffneten Dialog, ohne ShowModal neu zu starten.
   TPDFLinkListNavigator = class(TComponent)
   private
@@ -538,6 +647,186 @@ type
     constructor Create(AOwner: TComponent; AView: TFreePDF64PDFiumView;
       AList: TListView); reintroduce;
   end;
+
+constructor TPDFCommentOverview.Create(AOwner: TComponent;
+  AView: TFreePDF64PDFiumView; AList: TListView);
+begin
+  inherited Create(AOwner);
+  FView := AView;
+  FList := AList;
+  Reload;
+end;
+
+procedure TPDFCommentOverview.Reload;
+var
+  Page, I, Count: Integer;
+  Notes: TArray<TPDFNote>;
+  Measurements: TArray<string>;
+  Row: Integer;
+  Item: TListItem;
+  S: string;
+begin
+  SetLength(FNotes, 0);
+  SetLength(FRowNoteIndex, 0);
+  SetLength(FRowPages, 0);
+  FList.Items.BeginUpdate;
+  try
+    FList.Items.Clear;
+    if (FView = nil) or (FView.FCore = nil) then Exit;
+    for Page := 0 to FView.FCore.PageCount - 1 do
+    begin
+      Notes := FView.FCore.GetNotes(Page);
+      for I := 0 to High(Notes) do
+      begin
+        Count := Length(FNotes);
+        SetLength(FNotes, Count + 1);
+        FNotes[Count] := Notes[I];
+        Row := Length(FRowNoteIndex);
+        SetLength(FRowNoteIndex, Row + 1);
+        SetLength(FRowPages, Row + 1);
+        FRowNoteIndex[Row] := Count;
+        FRowPages[Row] := Page;
+        Item := FList.Items.Add;
+        Item.Caption := IntToStr(Page + 1);
+        S := StringReplace(Notes[I].Contents, #13, ' ', [rfReplaceAll]);
+        S := StringReplace(S, #10, ' ', [rfReplaceAll]);
+        Item.SubItems.Add(S);
+      end;
+      Measurements := FView.FCore.GetMeasurementComments(Page);
+      for I := 0 to High(Measurements) do
+      begin
+        Row := Length(FRowNoteIndex);
+        SetLength(FRowNoteIndex, Row + 1);
+        SetLength(FRowPages, Row + 1);
+        FRowNoteIndex[Row] := -1;
+        FRowPages[Row] := Page;
+        Item := FList.Items.Add;
+        Item.Caption := IntToStr(Page + 1);
+        Item.SubItems.Add(ToolbarHint('Messung: ', 'Measurement: ') + Measurements[I]);
+      end;
+    end;
+  finally
+    FList.Items.EndUpdate;
+  end;
+end;
+
+function TPDFCommentOverview.SelectedNote(out N: TPDFNote): Boolean;
+var I: Integer;
+begin
+  I := FList.ItemIndex;
+  Result := (I >= 0) and (I < Length(FRowNoteIndex)) and
+    (FRowNoteIndex[I] >= 0) and (FRowNoteIndex[I] < Length(FNotes));
+  if Result then N := FNotes[FRowNoteIndex[I]];
+end;
+
+procedure TPDFCommentOverview.JumpClick(Sender: TObject);
+var N: TPDFNote;
+begin
+  if SelectedNote(N) then
+    FView.ShowPage(N.PageIndex)
+  else if (FList.ItemIndex >= 0) and (FList.ItemIndex < Length(FRowPages)) then
+    FView.ShowPage(FRowPages[FList.ItemIndex]);
+end;
+
+procedure TPDFCommentOverview.EditClick(Sender: TObject);
+var N: TPDFNote; S: string;
+begin
+  if not SelectedNote(N) or not FView.CanModifyComments then Exit;
+  S := N.Contents;
+  if FView.NoteDialog(S) and FView.FCore.ChangeNote(N, S, 0, 0, False) then
+  begin
+    FView.RefreshTextPage(N.PageIndex);
+    FView.UpdateSaveState;
+    Reload;
+  end;
+end;
+
+procedure TPDFCommentOverview.DeleteClick(Sender: TObject);
+var N: TPDFNote;
+begin
+  if not SelectedNote(N) or not FView.CanModifyComments then Exit;
+  if PDFModernMessageDlg(ToolbarHint('Kommentar wirklich löschen?',
+      'Delete this comment?'), mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  if FView.FCore.DeleteNote(N) then
+  begin
+    FView.RefreshTextPage(N.PageIndex);
+    FView.UpdateSaveState;
+    Reload;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.ShowCommentOverviewMenuClick(Sender: TObject);
+begin
+  ShowCommentOverview;
+end;
+
+procedure TFreePDF64PDFiumView.ShowCommentOverview;
+var
+  D: TForm;
+  L: TListView;
+  Footer: TPanel;
+  B: TButton;
+  Controller: TPDFCommentOverview;
+  P: Integer;
+  procedure AddButton(const Caption: string; ALeft: Integer;
+    AClick: TNotifyEvent; AClose: Boolean = False);
+  begin
+    B := TPDFDesignButton.Create(D);
+    B.Parent := Footer;
+    B.Caption := Caption;
+    B.SetBounds(MulDiv(ALeft, P, 96), MulDiv(7, P, 96),
+      MulDiv(105, P, 96), MulDiv(30, P, 96));
+    if AClose then
+    begin
+      B.ModalResult := mrCancel;
+      B.Cancel := True;
+    end
+    else B.OnClick := AClick;
+  end;
+begin
+  if FCore = nil then Exit;
+  P := Max(96, CurrentPPI);
+  D := TForm.CreateNew(Self);
+  try
+    D.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments...');
+    D.Position := poOwnerFormCenter;
+    D.BorderStyle := bsSizeable;
+    D.Font.Name := 'Segoe UI';
+    D.Font.Size := 10;
+    D.ClientWidth := MulDiv(700, P, 96);
+    D.ClientHeight := MulDiv(410, P, 96);
+    D.Constraints.MinWidth := MulDiv(510, P, 96);
+    D.Constraints.MinHeight := MulDiv(290, P, 96);
+    D.KeyPreview := True;
+    D.Color := Color;
+    Footer := TPanel.Create(D);
+    Footer.Parent := D;
+    Footer.Align := alBottom;
+    Footer.Height := MulDiv(47, P, 96);
+    Footer.BevelOuter := bvNone;
+    Footer.ParentBackground := True;
+    L := TListView.Create(D);
+    L.Parent := D;
+    L.Align := alClient;
+    L.ViewStyle := vsReport;
+    L.RowSelect := True;
+    L.ReadOnly := True;
+    L.Columns.Add.Caption := ToolbarHint('Seite', 'Page');
+    L.Columns[0].Width := MulDiv(75, P, 96);
+    L.Columns.Add.Caption := ToolbarHint('Kommentartext', 'Comment text');
+    L.Columns[1].Width := MulDiv(570, P, 96);
+    Controller := TPDFCommentOverview.Create(D, Self, L);
+    L.OnDblClick := Controller.JumpClick;
+    AddButton(ToolbarHint('Anzeigen', 'Go to page'), 8, Controller.JumpClick);
+    AddButton(ToolbarHint('Bearbeiten', 'Edit'), 121, Controller.EditClick);
+    AddButton(ToolbarHint('Löschen', 'Delete'), 234, Controller.DeleteClick);
+    AddButton(ToolbarHint('Schließen', 'Close'), 347, nil, True);
+    ApplyManagedDialogPalette(D, L, FEditToggle.FDesign);
+    D.ShowModal;
+  finally
+    D.Free;
+  end;
+end;
 
 constructor TPDFLinkListNavigator.Create(AOwner: TComponent;
   AView: TFreePDF64PDFiumView; AList: TListView);
@@ -1209,9 +1498,19 @@ end;
 procedure TFreePDF64PDFiumView.NoteButtonClick(Sender: TObject);
 begin
   if not CanModifyComments then Exit;
+  // Vor dem direkten Wechsel vom Text- zum Kommentarmodus das noch
+  // sichtbare Texteingabefeld abschliessen und entfernen.
+  if (not FNoteMode) and (FTextEditor <> nil) then
+    FinishTextEditor(True);
   FNoteMode := not FNoteMode;
   if FNoteMode then
   begin
+    if FMeasureMode then
+    begin
+      FMeasureMode := False;
+      CancelMeasurement;
+      if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+    end;
     FTextInsertMode := False;
     FHighlightMode := False;
     FTextInsertButton.Caption := Tr('Text einfügen');
@@ -1221,6 +1520,8 @@ begin
     FNoteButton.Caption := ToolbarHint('Kommentar: EIN', 'Comment: ON')
   else
     FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
+  UpdateTextUndoButtons;
+  LayoutToolbar(nil);
 end;
 
 function TFreePDF64PDFiumView.NoteScreenRect(Img: TPDFiumImage;
@@ -1353,6 +1654,7 @@ var
   NoteRect: TRect;
   NX, NY: Integer;
 begin
+  DrawMeasurement(Sender);
   // Temporärer Auswahlrahmen: nur auf dem Bildschirm, nicht im PDF.
   if FHighlightAreaDragging and (Sender is TPDFiumImage) then
   begin
@@ -1674,6 +1976,7 @@ begin
       DeleteObject(Brush);
     end;
     DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
+
   end
   else if FDesign <> 0 then
   begin
@@ -1730,6 +2033,24 @@ begin
         DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
     end;
   end;
+  // Der blaue Akzentrahmen bleibt in jedem Zustand sichtbar.
+  // Statischer Akzentrahmen: keine Timer oder Animation.
+  C := TCanvas.Create;
+  try
+    C.Handle := DC;
+      case FDesign of
+        3: C.Pen.Color := RGB(25, 80, 145);
+        5: C.Pen.Color := RGB(24, 93, 170);
+      else
+        C.Pen.Color := RGB(35, 105, 205);
+      end;
+      C.Pen.Width := Max(2, MulDiv(2, CurrentPPI, 96));
+      C.Brush.Style := bsClear;
+      C.Rectangle(R.Left + 1, R.Top + 1, R.Right - 1, R.Bottom - 1);
+      C.Handle := 0;
+    finally
+      C.Free;
+    end;
   if (Glyph <> nil) and not Glyph.Empty then
   begin
     GX := (R.Left + R.Right - Glyph.Width) div 2;
@@ -1889,7 +2210,8 @@ begin
   FEditToggle.SetBounds(8, 4, 34, 28);
   FEditToggle.OnClick := ToggleEditBar;
   FEditToggle.Name := 'PDFEditToggleButton';
-  FEditToggle.Hint := Tr('Werkzeuge ein-/ausblenden');
+  FEditToggle.Hint := ToolbarHint('Werkzeuge ein-/ausblenden – PDF bearbeiten, kommentieren, messen und markieren',
+    'Show/hide tools – Edit, comment, measure and highlight PDFs');
   FEditToggle.ShowHint := True;
   FOutlineButton := Btn('☷', 8, 36, ToggleOutline);
   FOutlineButton.Hint := Tr('Seitenminiaturen / Inhaltsverzeichnis');
@@ -2060,10 +2382,76 @@ begin
   FTextInsertSeparator.Shape := bsLeftLine;
   FTextInsertButton := Btn(Tr('Text einfügen'), 1180, 116, TextInsertClick);
   FTextInsertButton.Parent := FEditBar;
+  FMeasureRects := TList<TPDFMeasureRect>.Create;
+  FMeasureRedo := TList<TPDFMeasureRect>.Create;
+  FStrokeRedo := TList<TPDFInkStroke>.Create;
+  FStrokeRedoPages := TList<Integer>.Create;
+  FMeasureScale := 25.4 / 72.0;
+  FMeasureUnit := 0;
+  FMeasurePage := -1;
+  FMeasureButton := Btn(ToolbarHint('Messen', 'Measure') + ' ' + #$25BE,
+    1180, 94, MeasureDropdownClick);
+  FMeasureButton.Parent := FEditBar;
+  FMeasureButton.Hint := ToolbarHint('Messfunktion oder Messbericht auswählen',
+    'Choose measurement tool or measurement report');
+  FMeasureButton.ShowHint := True;
+  FMeasurePopup := TPopupMenu.Create(Self);
+  FMeasurePopup.OwnerDraw := True;
+  FMeasureMenuItem := TMenuItem.Create(FMeasurePopup);
+  FMeasureMenuItem.Caption := ToolbarHint('Messen', 'Measure');
+  FMeasureMenuItem.OnClick := MeasureClick;
+  FMeasureMenuItem.OnDrawItem := PopupDrawItem;
+  FMeasureMenuItem.OnMeasureItem := PopupMeasureItem;
+  FMeasurePopup.Items.Add(FMeasureMenuItem);
+  FMeasurePopup.Items.Add(TMenuItem.Create(FMeasurePopup));
+  with FMeasurePopup.Items[FMeasurePopup.Items.Count - 1] do
+  begin
+    Caption := ToolbarHint('Messbericht ...', 'Measurement report ...');
+    OnClick := ShowMeasureReport;
+    OnDrawItem := PopupDrawItem;
+    OnMeasureItem := PopupMeasureItem;
+  end;
+  FMeasureUnitSelect := TComboBox.Create(Self);
+  FMeasureUnitSelect.Parent := FEditBar;
+  FMeasureUnitSelect.Style := csDropDownList;
+  FMeasureUnitSelect.Items.Add('mm');
+  FMeasureUnitSelect.Items.Add('cm');
+  FMeasureUnitSelect.Items.Add('in');
+  FMeasureUnitSelect.ItemIndex := 0;
+  FMeasureUnitSelect.OnChange := MeasureUnitChange;
+  FMeasureScaleButton := Btn(ToolbarHint('Maßstab ...', 'Scale ...'), 1180, 90, MeasureScaleClick);
+  FMeasureScaleButton.Parent := FEditBar;
+  FMeasureScaleButton.Hint := ToolbarHint('Maßstab eingeben, z. B. 1:50',
+    'Enter drawing scale, e.g. 1:50');
+  FMeasureScaleButton.ShowHint := True;
   FNoteButton := Btn(ToolbarHint('Kommentar', 'Comment'), 1180, 94, NoteButtonClick);
   FNoteButton.Parent := FEditBar;
   FNoteButton.Hint := ToolbarHint('Textkommentar einfügen', 'Insert text comment');
   FNoteButton.ShowHint := True;
+  // Kompaktes Dropdown fuer Text und Kommentare. Die bisherigen Buttons
+  // bleiben als interne Aktionsziele bestehen, werden aber nicht angeordnet.
+  FInsertButton := Btn(ToolbarHint('Einfügen', 'Insert') + ' ' + #$25BE,
+    1180, 94, InsertDropdownClick);
+  FInsertButton.Parent := FEditBar;
+  FInsertButton.Hint := ToolbarHint('Text oder Kommentar einfügen',
+    'Insert text or comment');
+  FInsertButton.ShowHint := True;
+  FInsertPopup := TPopupMenu.Create(Self);
+  FInsertPopup.OwnerDraw := True;
+  FInsertTextItem := TMenuItem.Create(FInsertPopup);
+  FInsertTextItem.Caption := ToolbarHint('Text einfügen', 'Insert text');
+  FInsertTextItem.OnClick := InsertTextMenuClick;
+  FInsertTextItem.OnDrawItem := PopupDrawItem;
+  FInsertTextItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertTextItem);
+  FInsertNoteItem := TMenuItem.Create(FInsertPopup);
+  FInsertNoteItem.Caption := ToolbarHint('Kommentar hinzufügen', 'Add comment');
+  FInsertNoteItem.OnClick := InsertNoteMenuClick;
+  FInsertNoteItem.OnDrawItem := PopupDrawItem;
+  FInsertNoteItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertNoteItem);
+  FTextInsertButton.Visible := False;
+  FNoteButton.Visible := False;
   FTextInsertButton.Hint := Tr('Textwerkzeug: Auf eine PDF-Seite klicken');
   FTextInsertButton.ShowHint := True;
   FTextUndoButton := ArrowButton(True, 1181, TextUndoClick);
@@ -2180,7 +2568,8 @@ begin
   FOutlineHeader.OnResize := OutlineHeaderResize;
   FOutlineTitle := TLabel.Create(Self);
   FOutlineTitle.Parent := FOutlineHeader;
-  FOutlineTitle.Caption := Tr('Inhaltsverzeichnis');
+  FOutlineTitle.Caption := '';
+  FOutlineTitle.Visible := False; // Die Tabs benennen die Inhalte bereits.
   FOutlineTitle.SetBounds(12, 8, 200, 22);
   FOutlineTitle.Font.Style := [fsBold];
   FOutlineClose := TPDFDesignButton.Create(Self);
@@ -2201,6 +2590,7 @@ begin
   FBookmarksTab.Tag := 0;
   FBookmarksTab.SetBounds(105, 40, 91, 28);
   FBookmarksTab.OnClick := OutlineTabClick;
+  OutlineHeaderResize(nil);
   FOutlineTree := TPDFiumOutlineTree.Create(Self);
   FOutlineTree.Parent := FOutlinePanel;
   FOutlineTree.Align := alClient;
@@ -2296,6 +2686,13 @@ begin
   FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   FLinkMenuItem.OnClick := LinkMenuClick;
   FThumbMenu.Items.Add(FLinkMenuItem);
+  // Kommentaruebersicht direkt unter "Hyperlink hinzufuegen".
+  FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
+  with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
+  begin
+    Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
+    OnClick := ShowCommentOverviewMenuClick;
+  end;
   FImageWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
   FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   FImageWatermarkMenuItem.OnClick := ImageWatermarkClick;
@@ -2401,6 +2798,11 @@ begin
   FreeAndNil(FFormFocusFrame);
   FPreviewBitmap.Free;
   FCurrentStroke.Free;
+  ClearStrokeRedo;
+  FStrokeRedo.Free;
+  FStrokeRedoPages.Free;
+  FMeasureRedo.Free;
+  FMeasureRects.Free;
   FPages.Free;
   if Assigned(FThumbTimer) then FThumbTimer.Enabled := False;
   if Assigned(FThumbResizeTimer) then FThumbResizeTimer.Enabled := False;
@@ -2684,6 +3086,7 @@ end;
 
 procedure TFreePDF64PDFiumView.FinishPreparedOpen;
 begin
+  ClearStrokeRedo;
   FCommentOwnerAuthorized := False;
   // M2.1: nur einmal pro erfolgreich geoeffnetem Dokument abfragen.
   // Kein Widget-Scan, keine Aenderung an Render-/Zoom-/Scrollpfaden.
@@ -2909,6 +3312,10 @@ begin
         MulDiv(6, FViewSelect.CurrentPPI, 96);
     end;
   end;
+  // Schrift der Miniatur-Registerkarten nach einem Designwechsel angleichen.
+  if (FOutlineHeader <> nil) and (FThumbTab <> nil) and
+     (FBookmarksTab <> nil) and (FOutlineClose <> nil) then
+    OutlineHeaderResize(nil);
   if FFlowSelect <> nil then
   begin
     FFlowSelect.ParentFont := False;
@@ -3402,6 +3809,14 @@ end;
 procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 begin
+  if (Key = VK_ESCAPE) and FMeasureMode then
+  begin
+    FMeasureMode := False;
+    CancelMeasurement;
+    FMeasureButton.Font.Style := [];
+    Key := 0;
+    Exit;
+  end;
   // ESC beendet zuerst den aktiven Hyperlink-Einfuegemodus.
   if (Key = VK_ESCAPE) and FLinkMode then
   begin
@@ -3934,6 +4349,10 @@ begin
     FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  if (FLinkMenuItem <> nil) and (FThumbMenu <> nil) and
+     (FLinkMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
+    FThumbMenu.Items[FLinkMenuItem.MenuIndex + 1].Caption :=
+      ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   if FImageWatermarkMenuItem <> nil then
@@ -4404,7 +4823,7 @@ procedure TFreePDF64PDFiumView.UpdateSaveState;
   procedure SetButtonState(B: TPDFiumSaveButton);
   begin
     if B = nil then Exit;
-    if FCore.Modified then
+    if FCore.Modified or ((FMeasureRects <> nil) and (FMeasureRects.Count > 0)) then
     begin
       B.Highlighted := True;
       B.Caption := ''; // Schwarzer Statuspunkt wird im Symbol gezeichnet
@@ -4675,6 +5094,10 @@ begin
     FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  if (FLinkMenuItem <> nil) and (FThumbMenu <> nil) and
+     (FLinkMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
+    FThumbMenu.Items[FLinkMenuItem.MenuIndex + 1].Caption :=
+      ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   if FImageWatermarkMenuItem <> nil then
@@ -4867,25 +5290,25 @@ begin
     LV.OnDblClick := nil;
     Navigator := TPDFLinkListNavigator.Create(Dlg, Self, LV);
     LV.OnClick := Navigator.ListClick;
-    BtnJump := TButton.Create(Dlg);
+    BtnJump := TPDFDesignButton.Create(Dlg);
     BtnJump.Parent := Dlg;
     BtnJump.Caption := ToolbarHint('Zur Seite', 'Go to page');
     BtnJump.SetBounds(Px(12), Dlg.ClientHeight - Px(49), Px(108), Px(32));
     BtnJump.Anchors := [akLeft, akBottom];
     BtnJump.OnClick := Navigator.JumpClick;
-    BtnEdit := TButton.Create(Dlg);
+    BtnEdit := TPDFDesignButton.Create(Dlg);
     BtnEdit.Parent := Dlg;
     BtnEdit.Caption := ToolbarHint('Linkziel ändern ...', 'Edit target ...');
     BtnEdit.SetBounds(Px(128), Dlg.ClientHeight - Px(49), Px(150), Px(32));
     BtnEdit.Anchors := [akLeft, akBottom];
     BtnEdit.ModalResult := mrRetry;
-    BtnDelete := TButton.Create(Dlg);
+    BtnDelete := TPDFDesignButton.Create(Dlg);
     BtnDelete.Parent := Dlg;
     BtnDelete.Caption := ToolbarHint('Link löschen', 'Delete link');
     BtnDelete.SetBounds(Px(286), Dlg.ClientHeight - Px(49), Px(122), Px(32));
     BtnDelete.Anchors := [akLeft, akBottom];
     BtnDelete.ModalResult := mrNo;
-    BtnClose := TButton.Create(Dlg);
+    BtnClose := TPDFDesignButton.Create(Dlg);
     BtnClose.Parent := Dlg;
     BtnClose.Caption := ToolbarHint('Schließen', 'Close');
     BtnClose.SetBounds(Dlg.ClientWidth - Px(112),
@@ -4895,6 +5318,7 @@ begin
     BtnClose.Cancel := True;
     Changed := False;
     FillList;
+    ApplyManagedDialogPalette(Dlg, LV, FEditToggle.FDesign);
     repeat
       Choice := Dlg.ShowModal;
       if Choice = mrCancel then Break;
@@ -4944,6 +5368,9 @@ begin
     FTextInsertMode := False;
     FHighlightMode := False;
     FNoteMode := False;
+    FMeasureMode := False;
+    CancelMeasurement;
+    FMeasureButton.Font.Style := [];
     FMarkMode := False;
     if FTextEditor <> nil then FinishTextEditor(False);
     Screen.Cursor := crCross;
@@ -5738,7 +6165,7 @@ begin
   if FCore = nil then Exit;
   SourceFile := FCore.FileName;
   if (SourceFile = '') or not FileExists(SourceFile) then Exit;
-  if FCore.Modified and
+  if (FCore.Modified or (FMeasureRects.Count > 0)) and
      (PDFModernMessageDlg(
        Tr('Alle nicht gespeicherten Änderungen verwerfen und den letzten Speicherstand wiederherstellen?'),
        mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
@@ -5757,6 +6184,11 @@ begin
       // OpenFile verwirft den geaenderten PDFium-Dokumentzustand und
       // liest die zuletzt gespeicherte Originaldatei erneut ein.
       FCore.OpenFile(SourceFile);
+      // Nicht gespeicherte Messungen erst nach erfolgreichem Neuladen verwerfen.
+      CancelMeasurement;
+      FMeasureRects.Clear;
+      FMeasureRedo.Clear;
+      UpdateTextUndoButtons;
       SetLength(FPageSizesValid, 0);
       SetLength(FLoadedPages, 0);
       FPage := 0;
@@ -5996,17 +6428,73 @@ end;
 
 procedure TFreePDF64PDFiumView.OutlineHeaderResize(Sender: TObject);
 var
-  Available, ButtonW: Integer;
+  Margin, Gap, CloseW, TabH, ButtonW, TabsWidth, DesiredH, FirstW, SecondW, NeededW: Integer;
+  MeasureBitmap: TBitmap;
 begin
   if (FOutlineHeader = nil) or (FThumbTab = nil) or
-     (FBookmarksTab = nil) then Exit;
-  // Beide Registerschaltflaechen stets innerhalb der schmalen Seitenleiste.
-  Available := Max(80, FOutlineHeader.ClientWidth - 24);
-  ButtonW := (Available - 6) div 2;
-  FThumbTab.SetBounds(8, 40, ButtonW, 28);
-  FBookmarksTab.SetBounds(14 + ButtonW, 40, ButtonW, 28);
-  if FOutlineClose <> nil then
-    FOutlineClose.Left := Max(8, FOutlineHeader.ClientWidth - FOutlineClose.Width - 5);
+     (FBookmarksTab = nil) or (FOutlineClose = nil) then Exit;
+
+  // Dieselbe Schrift wie in der Ansichtsauswahl ("Seitenbreite") verwenden.
+  // Designfarben bleiben erhalten; nur Schriftfamilie, Groesse und Stil
+  // werden uebernommen. Nur bei Aenderung zuweisen (kein Flackern).
+  if FViewSelect <> nil then
+  begin
+    if (FThumbTab.Font.Name <> FViewSelect.Font.Name) or
+       (FThumbTab.Font.Size <> FViewSelect.Font.Size) or
+       (FThumbTab.Font.Style <> FViewSelect.Font.Style) then
+    begin
+      FThumbTab.ParentFont := False;
+      FThumbTab.Font.Name := FViewSelect.Font.Name;
+      FThumbTab.Font.Size := FViewSelect.Font.Size;
+      FThumbTab.Font.Style := FViewSelect.Font.Style;
+    end;
+    if (FBookmarksTab.Font.Name <> FViewSelect.Font.Name) or
+       (FBookmarksTab.Font.Size <> FViewSelect.Font.Size) or
+       (FBookmarksTab.Font.Style <> FViewSelect.Font.Style) then
+    begin
+      FBookmarksTab.ParentFont := False;
+      FBookmarksTab.Font.Name := FViewSelect.Font.Name;
+      FBookmarksTab.Font.Size := FViewSelect.Font.Size;
+      FBookmarksTab.Font.Style := FViewSelect.Font.Style;
+    end;
+  end;
+
+  // Nur eine Zeile: Seiten | Inhalte                          X
+  // Alle Abmessungen an aktuelle DPI und Schriftgroesse anpassen.
+  Margin := Max(5, MulDiv(6, CurrentPPI, 96));
+  Gap := Max(3, MulDiv(4, CurrentPPI, 96));
+  MeasureBitmap := TBitmap.Create;
+  try
+    MeasureBitmap.Canvas.Font.Assign(FThumbTab.Font);
+    TabH := Max(MeasureBitmap.Canvas.TextHeight('Ag') + Gap * 3,
+      MulDiv(28, CurrentPPI, 96));
+    CloseW := Max(TabH, MulDiv(28, CurrentPPI, 96));
+    CloseW := Min(CloseW, Max(18, FOutlineHeader.ClientWidth div 4));
+    TabsWidth := Max(0, FOutlineHeader.ClientWidth - 2 * Margin - CloseW - 2 * Gap);
+    // Englisch "Bookmarks" braucht mehr Platz als "Pages".
+    // Reale Textbreiten statt starrer 50/50-Aufteilung verwenden.
+    FirstW := MeasureBitmap.Canvas.TextWidth(FThumbTab.Caption) + 2 * Gap + MulDiv(14, CurrentPPI, 96);
+    MeasureBitmap.Canvas.Font.Assign(FBookmarksTab.Font);
+    SecondW := MeasureBitmap.Canvas.TextWidth(FBookmarksTab.Caption) + 2 * Gap + MulDiv(14, CurrentPPI, 96);
+    NeededW := FirstW + SecondW + Gap;
+    if NeededW > TabsWidth then
+    begin
+      // Bei sehr schmaler Seitenleiste bekommt der laengere Text Vorrang.
+      FirstW := Max(0, TabsWidth - Gap) * FirstW div Max(1, FirstW + SecondW);
+      SecondW := Max(0, TabsWidth - Gap - FirstW);
+    end;
+    ButtonW := FirstW;
+    FThumbTab.SetBounds(Margin, Margin, ButtonW, TabH);
+    FBookmarksTab.SetBounds(Margin + ButtonW + Gap, Margin,
+      SecondW, TabH);
+    FOutlineClose.SetBounds(FOutlineHeader.ClientWidth - Margin - CloseW,
+      Margin, CloseW, TabH);
+    DesiredH := TabH + 2 * Margin;
+    if FOutlineHeader.Height <> DesiredH then
+      FOutlineHeader.Height := DesiredH;
+  finally
+    MeasureBitmap.Free;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ThumbAreaResize(Sender: TObject);
@@ -6568,12 +7056,19 @@ begin
     FTextInsertMode := False;
     FHighlightMode := False;
     FNoteMode := False;
+    FMeasureMode := False;
+    CancelMeasurement;
+    if FMeasureButton <> nil then
+      FMeasureButton.Font.Style := [];
     FMarkMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
     Screen.Cursor := crDefault;
     FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
     FTextInsertButton.Caption := Tr('Text einfügen');
   end;
+  // Nach dem Schliessen und erneuten Oeffnen die Schrift des
+  // Einfuegen-Dropdowns an den nun inaktiven Modi ausrichten.
+  UpdateTextUndoButtons;
   // Align dauerhaft beibehalten. Ein Wechsel zwischen alNone/alTop
   // waehrend des Layouts kann unvorhersehbare Leerzeilen erzeugen.
   FEditBar.DisableAlign;
@@ -6598,6 +7093,11 @@ begin
   FEditToggle.Caption := '';
   LayoutToolbar(nil);
   Realign;
+  // Messungen beim Schließen der Werkzeuge nur ausblenden.
+  if not FEditVisible then
+    for var MeasurePageIndex := 0 to FPages.Count - 1 do
+      if TObject(FPages[MeasurePageIndex]) is TPDFiumImage then
+        TPDFiumImage(FPages[MeasurePageIndex]).Invalidate;
 end;
 
 procedure TFreePDF64PDFiumView.HelpClick(Sender: TObject);
@@ -7058,14 +7558,28 @@ begin
     PlaceControl(FColorButton, Px(60), EditH);
     PlaceControl(FColorSwatch, Px(22), EditH);
     PlaceControl(FTextInsertSeparator, Px(8), EditH);
-    PlaceControl(FTextInsertButton, Px(92), EditH);
-    PlaceControl(FNoteButton, Px(108), EditH);
+    PlaceControl(FInsertButton, Px(94), EditH);
+    PlaceControl(FMeasureButton, Px(94), EditH);
+    PlaceControl(FMeasureUnitSelect, Px(52), EditH);
+    PlaceControl(FMeasureScaleButton, Px(90), EditH);
     PlaceControl(FTextUndoButton, Px(36), EditH);
     PlaceControl(FTextRedoButton, Px(36), EditH);
-    PlaceControl(FTextFontSelect, Px(128), EditH);
-    PlaceControl(FTextSizeSelect, Px(48), EditH);
-    PlaceControl(FTextColorButton, Px(84), EditH);
-    PlaceControl(FTextColorSwatch, Px(22), EditH);
+    // Text-Eingabezeile waehrend der Messung vollstaendig ausblenden.
+    // Beim Wechsel zurueck wird sie im bestehenden Layout restauriert.
+    if FMeasureMode then
+    begin
+      FTextFontSelect.Visible := False;
+      FTextSizeSelect.Visible := False;
+      FTextColorButton.Visible := False;
+      FTextColorSwatch.Visible := False;
+    end
+    else
+    begin
+      PlaceControl(FTextFontSelect, Px(128), EditH);
+      PlaceControl(FTextSizeSelect, Px(48), EditH);
+      PlaceControl(FTextColorButton, Px(84), EditH);
+      PlaceControl(FTextColorSwatch, Px(22), EditH);
+    end;
     H := Y + RowH + Px(1);
     if FEditBar.Height <> H then FEditBar.Height := H;
   end;
@@ -8608,12 +9122,32 @@ begin
   end;
 end;
 
+procedure TFreePDF64PDFiumView.ClearStrokeRedo;
+var
+  I: Integer;
+begin
+  if FStrokeRedo <> nil then
+  begin
+    for I := 0 to FStrokeRedo.Count - 1 do FStrokeRedo[I].Free;
+    FStrokeRedo.Clear;
+  end;
+  if FStrokeRedoPages <> nil then FStrokeRedoPages.Clear;
+end;
+
 procedure TFreePDF64PDFiumView.UpdateTextUndoButtons;
 begin
+  // Gleiche Aktiv-Kennzeichnung wie beim Dropdown "Messen".
+  if FInsertButton <> nil then
+  begin
+    if FTextInsertMode or FNoteMode then
+      FInsertButton.Font.Style := [fsBold]
+    else
+      FInsertButton.Font.Style := [];
+  end;
   if FTextUndoButton <> nil then
-    FTextUndoButton.Enabled := FCore.CanUndoInsertedText or FCore.CanUndoNote;
+    FTextUndoButton.Enabled := (FMeasureMode and (FMeasureRects.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
   if FTextRedoButton <> nil then
-    FTextRedoButton.Enabled := FCore.CanRedoInsertedText or FCore.CanRedoNote;
+    FTextRedoButton.Enabled := (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote;
 end;
 
 procedure TFreePDF64PDFiumView.RefreshTextPage(APageIndex: Integer);
@@ -8647,6 +9181,16 @@ end;
 procedure TFreePDF64PDFiumView.TextUndoClick(Sender: TObject);
 var Pg: Integer;
 begin
+  if FMeasureMode and (FMeasureRects.Count > 0) then
+  begin
+    FMeasureRedo.Add(FMeasureRects.Last);
+    FMeasureRects.Delete(FMeasureRects.Count - 1);
+    RefreshMeasurePages;
+    UpdateTextUndoButtons;
+    UpdateSaveState;
+    Exit;
+  end;
+
   if FTextEditor <> nil then FinishTextEditor(True);
   try
     if FCore.CanUndoNote then
@@ -8654,19 +9198,41 @@ begin
       if not CanModifyComments then Exit;
       if FCore.UndoNote(Pg) then RefreshTextPage(Pg);
     end
-    else if FCore.UndoInsertedText(Pg) then
+    else if FCore.CanUndoInsertedText then
     begin
+      if FCore.UndoInsertedText(Pg) then
+      begin
+        InvalidateAllWatermarkPages;
+        RefreshTextPage(Pg);
+      end;
+    end
+    else if FCore.Strokes.Count > 0 then
+    begin
+      Pg := FCore.Strokes.Count - 1;
+      FStrokeRedoPages.Add(FCore.StrokePages[Pg]);
+      FStrokeRedo.Add(FCore.Strokes.Extract(FCore.Strokes[Pg]));
+      FCore.StrokePages.Delete(Pg);
       InvalidateAllWatermarkPages;
-      RefreshTextPage(Pg);
     end;
   except
     on E: Exception do PDFModernMessageDlg(E.Message, mtError, [mbOK], 0);
   end;
+  UpdateTextUndoButtons;
 end;
 
 procedure TFreePDF64PDFiumView.TextRedoClick(Sender: TObject);
 var Pg: Integer;
 begin
+  if FMeasureMode and (FMeasureRedo.Count > 0) then
+  begin
+    FMeasureRects.Add(FMeasureRedo.Last);
+    FMeasureRedo.Delete(FMeasureRedo.Count - 1);
+    RefreshMeasurePages;
+    UpdateTextUndoButtons;
+    UpdateSaveState;
+    Exit;
+  end;
+
   if FTextEditor <> nil then FinishTextEditor(True);
   try
     if FCore.CanRedoNote then
@@ -8674,23 +9240,36 @@ begin
       if not CanModifyComments then Exit;
       if FCore.RedoNote(Pg) then RefreshTextPage(Pg);
     end
-    else if FCore.RedoInsertedText(Pg) then
+    else if FCore.CanRedoInsertedText then
     begin
+      if FCore.RedoInsertedText(Pg) then
+      begin
+        InvalidateAllWatermarkPages;
+        RefreshTextPage(Pg);
+      end;
+    end
+    else if FStrokeRedo.Count > 0 then
+    begin
+      Pg := FStrokeRedo.Count - 1;
+      FCore.Strokes.Add(FStrokeRedo[Pg]);
+      FCore.StrokePages.Add(FStrokeRedoPages[Pg]);
+      FStrokeRedo.Delete(Pg);
+      FStrokeRedoPages.Delete(Pg);
       InvalidateAllWatermarkPages;
-      RefreshTextPage(Pg);
     end;
   except
     on E: Exception do PDFModernMessageDlg(E.Message, mtError, [mbOK], 0);
   end;
+  UpdateTextUndoButtons;
 end;
 
 procedure TFreePDF64PDFiumView.PageContextToolClick(Sender: TObject);
 begin
   if not FEditVisible then ToggleEditBar(nil);
   case (Sender as TMenuItem).Tag of
-    1: if not FTextInsertMode then TextInsertClick(Sender);
-    2: if not FHighlightMode then HighlightClick(Sender);
-    3: if not FNoteMode then NoteButtonClick(Sender);
+    1: TextInsertClick(Sender);
+    2: HighlightClick(Sender);
+    3: NoteButtonClick(Sender);
   end;
 end;
 
@@ -8711,6 +9290,84 @@ begin
     FHighlightButton.Caption := ToolbarHint('Hervorheben: EIN', 'Highlight: ON')
   else
     FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
+  UpdateTextUndoButtons;
+end;
+
+procedure TFreePDF64PDFiumView.PopupMeasureItem(Sender: TObject;
+  ACanvas: TCanvas; var Width, Height: Integer);
+var
+  Item: TMenuItem;
+  PPI: Integer;
+begin
+  if not (Sender is TMenuItem) then Exit;
+  Item := TMenuItem(Sender);
+  PPI := CurrentPPI;
+  Width := ACanvas.TextWidth(Item.Caption) + MulDiv(48, PPI, 96);
+  Height := Max(ACanvas.TextHeight('Ag') + MulDiv(12, PPI, 96),
+    MulDiv(27, PPI, 96));
+end;
+
+procedure TFreePDF64PDFiumView.PopupDrawItem(Sender: TObject;
+  ACanvas: TCanvas; ARect: TRect; Selected: Boolean);
+var
+  BackColor, TextColor, AccentColor: TColor;
+  Item: TMenuItem;
+  MarkRect, TextRect: TRect;
+  PPI: Integer;
+begin
+  if not (Sender is TMenuItem) then Exit;
+  Item := TMenuItem(Sender);
+  PPI := CurrentPPI;
+  case FEditToggle.FDesign of
+    1: begin BackColor := RGB(245,247,250); TextColor := RGB(35,48,65); AccentColor := RGB(215,228,244); end;
+    2: begin BackColor := RGB(65,70,79); TextColor := clWhite; AccentColor := RGB(83,105,135); end;
+    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := RGB(166,189,215); end;
+    4: begin BackColor := RGB(45,48,54); TextColor := clWhite; AccentColor := RGB(69,91,124); end;
+    5: begin BackColor := RGB(205,225,245); TextColor := RGB(24,55,88); AccentColor := RGB(161,198,233); end;
+  else
+    begin BackColor := clMenu; TextColor := clMenuText; AccentColor := clHighlight; end;
+  end;
+  ACanvas.Brush.Style := bsSolid;
+  if Selected then ACanvas.Brush.Color := AccentColor
+  else ACanvas.Brush.Color := BackColor;
+  ACanvas.FillRect(ARect);
+  ACanvas.Font.Color := TextColor;
+  ACanvas.Font.Style := [];
+  if Item.Checked then
+  begin
+    MarkRect := ARect;
+    MarkRect.Left := ARect.Left + MulDiv(9, PPI, 96);
+    MarkRect.Right := MarkRect.Left + MulDiv(15, PPI, 96);
+    DrawText(ACanvas.Handle, PChar('✓'), 1, MarkRect,
+      DT_LEFT or DT_VCENTER or DT_SINGLELINE);
+  end;
+  TextRect := ARect;
+  Inc(TextRect.Left, MulDiv(32, PPI, 96));
+  DrawText(ACanvas.Handle, PChar(Item.Caption), Length(Item.Caption),
+    TextRect, DT_LEFT or DT_VCENTER or DT_SINGLELINE);
+end;
+
+procedure TFreePDF64PDFiumView.InsertDropdownClick(Sender: TObject);
+var
+  P: TPoint;
+begin
+  if (FInsertPopup = nil) or (FInsertButton = nil) then Exit;
+  UpdateTextUndoButtons;
+  FInsertTextItem.Checked := FTextInsertMode;
+  FInsertNoteItem.Checked := FNoteMode;
+  FInsertNoteItem.Enabled := CanModifyComments(False);
+  P := FInsertButton.ClientToScreen(Point(0, FInsertButton.Height));
+  FInsertPopup.Popup(P.X, P.Y);
+end;
+
+procedure TFreePDF64PDFiumView.InsertTextMenuClick(Sender: TObject);
+begin
+  TextInsertClick(FTextInsertButton);
+end;
+
+procedure TFreePDF64PDFiumView.InsertNoteMenuClick(Sender: TObject);
+begin
+  NoteButtonClick(FNoteButton);
 end;
 
 procedure TFreePDF64PDFiumView.TextInsertClick(Sender: TObject);
@@ -8719,6 +9376,12 @@ begin
   FTextInsertMode := not FTextInsertMode;
   if FTextInsertMode then
   begin
+    if FMeasureMode then
+    begin
+      FMeasureMode := False;
+      CancelMeasurement;
+      if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+    end;
     FNoteMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
     FHighlightMode := False;
@@ -8730,6 +9393,8 @@ begin
     FTextInsertButton.Caption := Tr('Text: EIN')
   else
     FTextInsertButton.Caption := Tr('Text einfügen');
+  UpdateTextUndoButtons;
+  LayoutToolbar(nil);
 end;
 
 procedure TFreePDF64PDFiumView.FinishTextEditor(ACommit: Boolean);
@@ -8888,6 +9553,407 @@ begin
   if FTextEditor <> nil then FTextEditor.SetFocus;
 end;
 
+procedure TFreePDF64PDFiumView.RefreshMeasurePages;
+var I: Integer;
+begin
+  for I := 0 to FPages.Count - 1 do
+    if TObject(FPages[I]) is TPDFiumImage then
+      TPDFiumImage(FPages[I]).Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.ShowMeasureReport(Sender: TObject);
+var
+  D: TForm;
+  LV: TListView;
+  Footer: TPanel;
+  Info: TLabel;
+  BCopy, BCSV, BClose: TButton;
+  Lines: TStringList;
+  I, PPI, Choice: Integer;
+  M: TPDFMeasureRect;
+  Item: TListItem;
+  U, ScaleText, Line: string;
+  Factor, WidthValue, HeightValue: Double;
+  SD: TSaveDialog;
+  function DP(N: Integer): Integer;
+  begin
+    Result := MulDiv(N, PPI, 96);
+  end;
+  procedure AddColumn(const ACaption: string; AWidth: Integer);
+  var
+    Col: TListColumn;
+  begin
+    Col := LV.Columns.Add;
+    Col.Caption := ACaption;
+    Col.Width := DP(AWidth);
+  end;
+begin
+  Lines := TStringList.Create;
+  try
+    Lines.Add(ToolbarHint('Seite;Nr.;Breite;Höhe;Einheit;Maßstab',
+      'Page;No.;Width;Height;Unit;Scale'));
+    D := TForm.Create(Self);
+    try
+      D.Caption := ToolbarHint('Messbericht', 'Measurement report');
+      D.Position := poScreenCenter;
+      D.Scaled := True;
+      D.BorderStyle := bsSizeable;
+      PPI := CurrentPPI;
+      D.ClientWidth := DP(620);
+      D.ClientHeight := DP(330);
+      D.Constraints.MinWidth := DP(500);
+      D.Constraints.MinHeight := DP(250);
+
+      Footer := TPanel.Create(D);
+      Footer.Parent := D;
+      Footer.Align := alBottom;
+      Footer.Height := DP(64);
+      Footer.BevelOuter := bvNone;
+
+      Info := TLabel.Create(D);
+      Info.Parent := D;
+      Info.Align := alTop;
+      Info.AutoSize := False;
+      Info.Height := DP(42);
+      Info.Layout := tlCenter;
+      Info.Margins.Left := DP(14);
+      Info.Caption := '  ' + ToolbarHint('Messungen: ', 'Measurements: ') +
+        IntToStr(FMeasureRects.Count);
+      Info.Font.Style := [fsBold];
+
+      LV := TListView.Create(D);
+      LV.Parent := D;
+      LV.Align := alClient;
+      LV.ViewStyle := vsReport;
+      LV.ReadOnly := True;
+      LV.RowSelect := True;
+      LV.GridLines := False;
+      LV.HideSelection := False;
+      AddColumn(ToolbarHint('Seite', 'Page'), 70);
+      AddColumn(ToolbarHint('Nr.', 'No.'), 55);
+      AddColumn(ToolbarHint('Breite', 'Width'), 100);
+      AddColumn(ToolbarHint('Höhe', 'Height'), 100);
+      AddColumn(ToolbarHint('Einheit', 'Unit'), 85);
+      AddColumn(ToolbarHint('Maßstab', 'Scale'), 110);
+      LV.Items.BeginUpdate;
+      try
+        for I := 0 to FMeasureRects.Count - 1 do
+        begin
+          M := FMeasureRects[I];
+          case M.UnitIndex of
+            1: begin U := 'cm'; Factor := 10; end;
+            2: begin U := 'in'; Factor := 25.4; end;
+          else
+            U := 'mm'; Factor := 1;
+          end;
+          WidthValue := Abs(M.X2 - M.X1) * M.Scale / Factor;
+          HeightValue := Abs(M.Y2 - M.Y1) * M.Scale / Factor;
+          ScaleText := '1:' + FormatFloat('0.##', M.Scale / (25.4 / 72.0));
+          Item := LV.Items.Add;
+          Item.Caption := IntToStr(M.Page + 1);
+          Item.SubItems.Add(IntToStr(I + 1));
+          Item.SubItems.Add(FormatFloat('0.##', WidthValue));
+          Item.SubItems.Add(FormatFloat('0.##', HeightValue));
+          Item.SubItems.Add(U);
+          Item.SubItems.Add(ScaleText);
+          Line := IntToStr(M.Page + 1) + ';' + IntToStr(I + 1) + ';' +
+            FormatFloat('0.##', WidthValue) + ';' +
+            FormatFloat('0.##', HeightValue) + ';' + U + ';' + ScaleText;
+          Lines.Add(Line);
+        end;
+      finally
+        LV.Items.EndUpdate;
+      end;
+
+      BClose := TButton.Create(D);
+      BClose.Parent := Footer;
+      BClose.SetBounds(DP(484), DP(15), DP(120), DP(34));
+      BClose.Anchors := [akRight, akTop];
+      BClose.Caption := ToolbarHint('Schließen', 'Close');
+      BClose.ModalResult := mrClose;
+      BClose.Default := True;
+      BClose.Cancel := True;
+
+      BCSV := TButton.Create(D);
+      BCSV.Parent := Footer;
+      BCSV.SetBounds(DP(167), DP(15), DP(160), DP(34));
+      BCSV.Caption := ToolbarHint('Als CSV speichern', 'Save as CSV');
+      BCSV.ModalResult := mrNo;
+
+      BCopy := TButton.Create(D);
+      BCopy.Parent := Footer;
+      BCopy.SetBounds(DP(12), DP(15), DP(145), DP(34));
+      BCopy.Caption := ToolbarHint('Bericht kopieren', 'Copy report');
+      BCopy.ModalResult := mrYes;
+
+      ApplyManagedDialogPalette(D, LV, FEditToggle.FDesign);
+      Footer.ParentColor := False;
+      Footer.Color := D.Color;
+      Info.ParentFont := False;
+      Info.Font.Color := D.Font.Color;
+      repeat
+        Choice := D.ShowModal;
+        case Choice of
+          mrYes: Clipboard.AsText := Lines.Text;
+          mrNo:
+            begin
+              SD := TSaveDialog.Create(D);
+              try
+                SD.Filter := 'CSV (*.csv)|*.csv';
+                SD.DefaultExt := 'csv';
+                SD.FileName := ToolbarHint('Messbericht.csv', 'Measurement_report.csv');
+                if SD.Execute then Lines.SaveToFile(SD.FileName, TEncoding.UTF8);
+              finally
+                SD.Free;
+              end;
+            end;
+        end;
+      until not (Choice in [mrYes, mrNo]);
+    finally
+      D.Free;
+    end;
+  finally
+    Lines.Free;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.CancelMeasurement;
+var
+  I: Integer;
+begin
+  FMeasureDragging := False;
+  FMeasurePage := -1;
+  Screen.Cursor := crDefault;
+  for I := 0 to FPages.Count - 1 do
+    if TObject(FPages[I]) is TPDFiumImage then
+    begin
+      TPDFiumImage(FPages[I]).MouseCapture := False;
+      TPDFiumImage(FPages[I]).Cursor := crDefault;
+      TPDFiumImage(FPages[I]).Invalidate;
+    end;
+end;
+
+procedure TFreePDF64PDFiumView.MeasureDropdownClick(Sender: TObject);
+var
+  P: TPoint;
+begin
+  if (FMeasurePopup = nil) or (FMeasureButton = nil) then Exit;
+  FMeasureMenuItem.Checked := FMeasureMode;
+  P := FMeasureButton.ClientToScreen(Point(0, FMeasureButton.Height));
+  FMeasurePopup.Popup(P.X, P.Y);
+end;
+
+procedure TFreePDF64PDFiumView.MeasureClick(Sender: TObject);
+begin
+  // Einen noch offenen Texteingabe-Editor vor dem Moduswechsel schliessen.
+  if FTextEditor <> nil then FinishTextEditor(True);
+  FMeasureMode := not FMeasureMode;
+  CancelMeasurement;
+  if FMeasureMode then
+  begin
+    FLinkMode := False;
+    FTextInsertMode := False;
+    FHighlightMode := False;
+    FNoteMode := False;
+    if FNoteButton <> nil then
+      FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
+    if FTextInsertButton <> nil then
+      FTextInsertButton.Caption := Tr('Text einfügen');
+    if FHighlightButton <> nil then
+      FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
+    FMarkMode := False;
+  end;
+  FMeasureButton.Caption := ToolbarHint(
+    'Messen', 'Measure') + ' ' + #$25BE;
+  UpdateTextUndoButtons;
+  // Layout muss die Text-Steuerelemente im Messmodus ausblenden.
+  LayoutToolbar(nil);
+  if FMeasureMode then
+    FMeasureButton.Font.Style := [fsBold]
+  else
+    FMeasureButton.Font.Style := [];
+  // Erst nach der Modusumschaltung zeichnen, nicht vorher.
+  for var I := 0 to FPages.Count - 1 do
+    if TObject(FPages[I]) is TPDFiumImage then
+      TPDFiumImage(FPages[I]).Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.MeasureUnitChange(Sender: TObject);
+begin
+  FMeasureUnit := FMeasureUnitSelect.ItemIndex;
+  if (FMeasurePage >= 0) and (FMeasurePage < FPages.Count) then
+    TPDFiumImage(FPages[FMeasurePage]).Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.MeasureScaleClick(Sender: TObject);
+var
+  S: string;
+  N, A, B: Double;
+  P, PPI: Integer;
+  D: TForm;
+  Prompt: TLabel;
+  Edit: TEdit;
+  OKButton, CancelButton: TButton;
+  function DP(Value: Integer): Integer;
+  begin
+    Result := MulDiv(Value, PPI, 96);
+  end;
+begin
+  D := TForm.Create(Self);
+  try
+    PPI := CurrentPPI;
+    D.Caption := ToolbarHint('Maßstab', 'Drawing scale');
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsDialog;
+    D.Scaled := True;
+    D.ClientWidth := DP(300);
+    D.ClientHeight := DP(145);
+
+    Prompt := TLabel.Create(D);
+    Prompt.Parent := D;
+    Prompt.SetBounds(DP(24), DP(20), DP(252), DP(22));
+    Prompt.Caption := ToolbarHint('Maßstab eingeben (z. B. 1:50):',
+      'Enter scale (e.g. 1:50):');
+
+    Edit := TEdit.Create(D);
+    Edit.Parent := D;
+    Edit.SetBounds(DP(24), DP(48), DP(252), DP(27));
+    Edit.Text := '1:1';
+    Edit.SelectAll;
+
+    OKButton := TButton.Create(D);
+    OKButton.Parent := D;
+    OKButton.SetBounds(DP(104), DP(96), DP(80), DP(32));
+    OKButton.Caption := 'OK';
+    OKButton.ModalResult := mrOk;
+    OKButton.Default := True;
+
+    CancelButton := TButton.Create(D);
+    CancelButton.Parent := D;
+    CancelButton.SetBounds(DP(196), DP(96), DP(80), DP(32));
+    CancelButton.Caption := ToolbarHint('Abbrechen', 'Cancel');
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+
+    ApplyManagedDialogPalette(D, nil, FEditToggle.FDesign);
+    Prompt.ParentFont := False;
+    Prompt.Font.Color := D.Font.Color;
+    Edit.ParentColor := False;
+    case FEditToggle.FDesign of
+      1: begin Edit.Color := RGB(245,247,250); Edit.Font.Color := RGB(35,48,65); end;
+      2: begin Edit.Color := RGB(65,70,79); Edit.Font.Color := clWhite; end;
+      3: begin Edit.Color := clWhite; Edit.Font.Color := clBlack; end;
+      4: begin Edit.Color := RGB(45,48,54); Edit.Font.Color := clWhite; end;
+      5: begin Edit.Color := RGB(246,250,255); Edit.Font.Color := RGB(24,55,88); end;
+    else
+      begin Edit.Color := clWindow; Edit.Font.Color := clWindowText; end;
+    end;
+    D.ActiveControl := Edit;
+    if D.ShowModal <> mrOk then Exit;
+    S := Trim(Edit.Text);
+  finally
+    D.Free;
+  end;
+  P := Pos(':', S);
+  if P > 0 then
+  begin
+    if not TryStrToFloat(Trim(Copy(S, 1, P - 1)), A) or
+       not TryStrToFloat(Trim(Copy(S, P + 1, MaxInt)), B) or
+       (A <= 0) or (B <= 0) then
+    begin
+      MessageBeep(MB_ICONWARNING);
+      Exit;
+    end;
+    N := B / A;
+  end
+  else if not TryStrToFloat(S, N) or (N <= 0) then
+  begin
+    MessageBeep(MB_ICONWARNING);
+    Exit;
+  end;
+  FMeasureScale := (25.4 / 72.0) * N;
+  if (FMeasurePage >= 0) and (FMeasurePage < FPages.Count) then
+    TPDFiumImage(FPages[FMeasurePage]).Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.DrawMeasurement(Sender: TObject);
+var
+  Img: TPDFiumImage;
+  C: TCanvas;
+  M: TPDFMeasureRect;
+  I: Integer;
+  AX, AY, BX, BY: Double;
+  P1, P2: TPoint;
+
+  procedure PaintOne(const A, B: TPoint; AScale: Double; AUnit: Integer;
+    const PAX, PAY, PBX, PBY: Double);
+  var
+    WMM, HMM, Factor: Double;
+    UnitName, WT, HT: string;
+    R: TRect;
+    MX, MY, TW, TH: Integer;
+  begin
+    WMM := Abs(PBX - PAX) * AScale;
+    HMM := Abs(PBY - PAY) * AScale;
+    case AUnit of
+      1: begin Factor := 10; UnitName := ' cm'; end;
+      2: begin Factor := 25.4; UnitName := ' in'; end;
+    else
+      Factor := 1; UnitName := ' mm';
+    end;
+    WT := FormatFloat('0.##', WMM / Factor) + UnitName;
+    HT := FormatFloat('0.##', HMM / Factor) + UnitName;
+    R := Rect(Min(A.X, B.X), Min(A.Y, B.Y),
+      Max(A.X, B.X), Max(A.Y, B.Y));
+    C.Pen.Color := clRed;
+    C.Pen.Width := Max(2, MulDiv(2, CurrentPPI, 96));
+    C.Brush.Style := bsClear;
+    C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+    C.Font.Color := clRed;
+    C.Brush.Style := bsClear;
+    TW := C.TextWidth(WT);
+    TH := C.TextHeight(WT);
+    MX := (R.Left + R.Right) div 2;
+    C.TextOut(Max(0, Min(Max(0, Img.Width - TW), MX - TW div 2)),
+      Max(0, R.Top - TH - 3), WT);
+    TW := C.TextWidth(HT);
+    TH := C.TextHeight(HT);
+    MY := (R.Top + R.Bottom) div 2;
+    C.TextOut(Max(0, Min(Max(0, Img.Width - TW), R.Left - TW - 9)),
+      Max(0, Min(Max(0, Img.Height - TH), MY - TH div 2)), HT);
+  end;
+begin
+  if not (Sender is TPDFiumImage) or
+     (FCore = nil) then Exit;
+  Img := TPDFiumImage(Sender);
+  // Im AfterPaint-Callback die echte Paint-Canvas des TGraphicControl
+  // verwenden. TControlCanvas zeichnet direkt auf das Parent-Fenster und
+  // wird durch dessen DoubleBuffer-Paint unmittelbar wieder uebermalt.
+  C := TPDFGraphicCanvasAccess(Img).Canvas;
+  try
+    for I := 0 to FMeasureRects.Count - 1 do
+    begin
+      M := FMeasureRects[I];
+      if M.Page <> Img.Tag then Continue;
+      if FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+          M.X1, M.Y1, P1.X, P1.Y) and
+         FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+          M.X2, M.Y2, P2.X, P2.Y) then
+        PaintOne(P1, P2, M.Scale, M.UnitIndex,
+          M.X1, M.Y1, M.X2, M.Y2);
+    end;
+    if FMeasureMode and (FMeasurePage = Img.Tag) and
+       FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height,
+         FMeasureStart.X, FMeasureStart.Y, AX, AY) and
+       FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height,
+         FMeasureEnd.X, FMeasureEnd.Y, BX, BY) then
+      PaintOne(FMeasureStart, FMeasureEnd, FMeasureScale,
+        FMeasureUnit, AX, AY, BX, BY);
+  finally
+    C.Brush.Style := bsSolid;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.ImageMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
@@ -8911,6 +9977,43 @@ var
   PX, PY: Double;
   NoteItem: TMenuItem;
 begin
+  if FMeasureMode and (Sender is TPDFiumImage) then
+  begin
+    if Button = mbRight then
+    begin
+      // Rechtsklick in ein Messrechteck entfernt genau diese Messung.
+      if (FCore <> nil) and FCore.DevicePointToPage(
+        TPDFiumImage(Sender).Tag, TPDFiumImage(Sender).Width,
+        TPDFiumImage(Sender).Height, X, Y, PX, PY) then
+        for I := FMeasureRects.Count - 1 downto 0 do
+        begin
+          var M := FMeasureRects[I];
+          if (M.Page = TPDFiumImage(Sender).Tag) and
+             (PX >= Min(M.X1, M.X2)) and (PX <= Max(M.X1, M.X2)) and
+             (PY >= Min(M.Y1, M.Y2)) and (PY <= Max(M.Y1, M.Y2)) then
+          begin
+            FMeasureRects.Delete(I);
+            FMeasureRedo.Clear;
+            UpdateTextUndoButtons;
+            UpdateSaveState;
+            TPDFiumImage(Sender).Repaint;
+            Break;
+          end;
+        end;
+      Exit;
+    end;
+    if Button = mbLeft then
+    begin
+      FMeasurePage := TPDFiumImage(Sender).Tag;
+      FMeasureStart := Point(X, Y);
+      FMeasureEnd := FMeasureStart;
+      FMeasureDragging := True;
+      TPDFiumImage(Sender).MouseCapture := True;
+      TPDFiumImage(Sender).Cursor := crCross;
+      TPDFiumImage(Sender).Invalidate;
+    end;
+    Exit;
+  end;
   if (Button = mbLeft) and (ssCtrl in Shift) and
      (Sender is TPDFiumImage) and (FCore <> nil) and
      LinkAtImagePoint(Sender, X, Y, Target) and
@@ -9067,21 +10170,28 @@ begin
       NoteItem.OnClick := LinkMenuClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
+      NoteItem.OnClick := ShowCommentOverviewMenuClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
       FPageContextMenu.Items.Add(NoteItem);
       // Vorhandene Werkzeug-Modi verwenden; kein zweiter Bearbeitungspfad.
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Text einfügen ...', 'Insert text ...');
+      NoteItem.Checked := FTextInsertMode;
       NoteItem.Tag := 1;
       NoteItem.OnClick := PageContextToolClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Text hervorheben ...', 'Highlight text ...');
+      NoteItem.Checked := FHighlightMode;
       NoteItem.Tag := 2;
       NoteItem.OnClick := PageContextToolClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Kommentar hinzufügen ...', 'Add comment ...');
+      NoteItem.Checked := FNoteMode;
       NoteItem.Enabled := CanModifyComments(False);
       NoteItem.Tag := 3;
       NoteItem.OnClick := PageContextToolClick;
@@ -9557,6 +10667,21 @@ var
   Target: TPDFLinkTarget;
   CurrentScreen: TPoint;
 begin
+  if FMeasureMode and (Sender is TPDFiumImage) then
+  begin
+    TPDFiumImage(Sender).Cursor := crCross;
+    if FMeasureDragging and (TPDFiumImage(Sender).Tag = FMeasurePage) then
+    begin
+      if (FMeasureEnd.X <> X) or (FMeasureEnd.Y <> Y) then
+      begin
+        FMeasureEnd := Point(X, Y);
+        // Vollständiges synchrones Zeichnen der PDF-Bitmap und danach
+        // des Messrahmens verhindert ruckelnde, verspätete Overlays.
+        TPDFiumImage(Sender).Repaint;
+      end;
+    end;
+    Exit;
+  end;
   if FLinkMovePending and (Sender is TPDFiumImage) then
   begin
     FLinkMoveEnd := Point(X, Y);
@@ -9675,6 +10800,40 @@ var
   TextX, TextY, TextWidth: Double;
   LinkTextBounds: TPDFInkRect;
 begin
+  if FMeasureMode and (Sender is TPDFiumImage) then
+  begin
+    if (Button = mbLeft) and FMeasureDragging then
+    begin
+      FMeasureDragging := False;
+      FMeasureEnd := Point(X, Y);
+      if (FCore <> nil) and
+         ((Abs(FMeasureStart.X - X) > 2) or
+          (Abs(FMeasureStart.Y - Y) > 2)) and
+         FCore.DevicePointToPage(TPDFiumImage(Sender).Tag,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           FMeasureStart.X, FMeasureStart.Y, AX1, AY1) and
+         FCore.DevicePointToPage(TPDFiumImage(Sender).Tag,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           X, Y, AX2, AY2) then
+      begin
+        var M: TPDFMeasureRect;
+        M.Page := TPDFiumImage(Sender).Tag;
+        M.X1 := AX1; M.Y1 := AY1;
+        M.X2 := AX2; M.Y2 := AY2;
+        M.Scale := FMeasureScale;
+        M.UnitIndex := FMeasureUnit;
+        FMeasureRects.Add(M);
+        FMeasureRedo.Clear;
+        UpdateTextUndoButtons;
+        UpdateSaveState;
+      end;
+      FMeasurePage := -1;
+      TPDFiumImage(Sender).MouseCapture := False;
+      // Die fertige Messung bleibt nach Loslassen sichtbar.
+      TPDFiumImage(Sender).Repaint;
+    end;
+    Exit;
+  end;
   if FLinkMovePending then
   begin
     FLinkMovePending := False;
@@ -9825,8 +10984,10 @@ begin
   FreeAndNil(FPreviewBitmap);
   if FCurrentStroke.Count >= 2 then
   begin
+    ClearStrokeRedo;
     FCore.AddStroke(FStrokePage, FCurrentStroke);
     FCurrentStroke := nil;
+    UpdateTextUndoButtons;
   end
   else FreeAndNil(FCurrentStroke);
   if (FStrokePage >= 0) and (FStrokePage < Length(FLoadedPages)) and
@@ -9974,6 +11135,7 @@ var
   MissingFields: TStringList;
   DetailsText: string;
   I: Integer;
+  Measurements: TArray<TPDFMeasureAnnotation>;
 begin
   FinishInlineFormEdit(True);
   if (FCore = nil) or (FCore.PageCount = 0) then Exit;
@@ -10030,7 +11192,22 @@ begin
       try
         if SameText(ExpandFileName(D.FileName), ExpandFileName(FCore.FileName)) then
           raise EPDFiumViewer.Create('Bitte einen anderen Dateinamen wählen.');
-        if FCore.Modified then
+        if FMeasureRects.Count > 0 then
+        begin
+          SetLength(Measurements, FMeasureRects.Count);
+          for I := 0 to FMeasureRects.Count - 1 do
+          begin
+            Measurements[I].PageIndex := FMeasureRects[I].Page;
+            Measurements[I].X1 := FMeasureRects[I].X1;
+            Measurements[I].Y1 := FMeasureRects[I].Y1;
+            Measurements[I].X2 := FMeasureRects[I].X2;
+            Measurements[I].Y2 := FMeasureRects[I].Y2;
+            Measurements[I].Scale := FMeasureRects[I].Scale;
+            Measurements[I].UnitIndex := FMeasureRects[I].UnitIndex;
+          end;
+          FCore.SaveAsWithMeasurements(D.FileName, Measurements);
+        end
+        else if FCore.Modified then
           FCore.SaveAs(D.FileName)
         else if not CopyFile(PChar(FCore.FileName), PChar(D.FileName), False) then
           RaiseLastOSError;

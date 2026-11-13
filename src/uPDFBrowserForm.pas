@@ -150,6 +150,7 @@ type
     procedure PlaceSplitButton(AButton: TButton; AVisible: Boolean);
     procedure UpdateAttachmentWindowPosition;
     procedure TogglePageThumbnails;
+    procedure ShowCommentOverview;
     procedure ShowRequiredFieldsReport;
     procedure FocusAdjacentFormWidget(ADirection: Integer);
     function HandleFormDialogKey(AKey: Word): Boolean;
@@ -3323,6 +3324,12 @@ end;
 procedure TPDFBrowserForm.FocusAdjacentFormWidget(ADirection: Integer);
 begin
   if FPDFiumView <> nil then FPDFiumView.FocusAdjacentFormWidget(ADirection);
+end;
+
+procedure TPDFBrowserForm.ShowCommentOverview;
+begin
+  if FPDFiumView <> nil then
+    FPDFiumView.ShowCommentOverview;
 end;
 
 procedure TPDFBrowserForm.ShowRequiredFieldsReport;

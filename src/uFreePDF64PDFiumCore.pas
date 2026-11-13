@@ -69,6 +69,12 @@ type
   TPDFQuadPoints = packed record
     X1, Y1, X2, Y2, X3, Y3, X4, Y4: Single;
   end;
+  TPDFMeasureAnnotation = record
+    PageIndex: Integer;
+    X1, Y1, X2, Y2: Double;
+    Scale: Double;
+    UnitIndex: Integer;
+  end;
   TPDFTextMatch = record
     PageIndex: Integer;
     CharIndex: Integer;
@@ -202,6 +208,9 @@ type
     function CanUndoNote: Boolean;
     function CanRedoNote: Boolean;
     procedure SaveAs(const AFileName: string);
+    function GetMeasurementComments(APageIndex: Integer): TArray<string>;
+    procedure SaveAsWithMeasurements(const AFileName: string;
+      const AMeasurements: TArray<TPDFMeasureAnnotation>);
     procedure ExportPages(const AVisiblePages: TArray<Integer>; const ATargetFile: string);
     procedure DeletePages(const APageIndices: TArray<Integer>);
     procedure ImportPDFPages(const AFileName: string; AVisibleIndex: Integer);
@@ -487,6 +496,9 @@ function FPDF_PageToDevice(Page: Pointer; StartX, StartY, SizeX, SizeY,
   Rotate: Integer; PageX, PageY: Double; var DeviceX, DeviceY: Integer): Integer;
   stdcall; external 'pdfium.dll';
 function FPDFPage_CreateAnnot(Page: Pointer; Subtype: Integer): Pointer; stdcall; external 'pdfium.dll';
+// PDFium public/fpdf_annot.h: appearance stream for stamp annotations.
+function FPDFAnnot_AppendObject(Annot, Obj: Pointer): Integer; stdcall; external 'pdfium.dll';
+
 procedure FPDFPage_CloseAnnot(Annot: Pointer); stdcall; external 'pdfium.dll';
 function FPDFAnnot_AddInkStroke(Annot: Pointer; Points: Pointer; Count: NativeUInt): Integer; stdcall; external 'pdfium.dll';
 function FPDFAnnot_AppendAttachmentPoints(Annot: Pointer; const Quad: TPDFQuadPoints): Integer; stdcall; external 'pdfium.dll';
@@ -3784,6 +3796,184 @@ begin
     if PdfBmp <> nil then FPDFBitmap_Destroy(PdfBmp);
     Bmp.Free;
     Picture.Free;
+  end;
+end;
+
+function TFreePDF64PDFiumCore.GetMeasurementComments(APageIndex: Integer): TArray<string>;
+var
+  Page, Annot: Pointer;
+  I, N: Integer;
+  Needed: Cardinal;
+  Buf: TBytes;
+  S: string;
+begin
+  SetLength(Result, 0);
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= PageCount) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    for I := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
+    begin
+      Annot := FPDFPage_GetAnnot(Page, I);
+      if Annot = nil then Continue;
+      try
+        if FPDFAnnot_GetSubtype(Annot) <> 13 then Continue;
+        Needed := FPDFAnnot_GetStringValue(Annot, PAnsiChar(AnsiString('Contents')), nil, 0);
+        if Needed < 4 then Continue;
+        SetLength(Buf, Needed);
+        if FPDFAnnot_GetStringValue(Annot, PAnsiChar(AnsiString('Contents')),
+          @Buf[0], Needed) = 0 then Continue;
+        S := PWideChar(@Buf[0]);
+        if Pos('FreePDF64: ', S) <> 1 then Continue;
+        N := Length(Result);
+        SetLength(Result, N + 1);
+        Result[N] := S;
+      finally
+        FPDFPage_CloseAnnot(Annot);
+      end;
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+procedure TFreePDF64PDFiumCore.SaveAsWithMeasurements(
+  const AFileName: string; const AMeasurements: TArray<TPDFMeasureAnnotation>);
+var
+  I, J, N, PageIndex, CountBefore: Integer;
+  Page, Annot, Font, Obj: Pointer;
+  R: TPDFInkRect;
+  M: TPDFMeasureAnnotation;
+  L, B, RR, T, W, H, Factor: Double;
+  UnitName, WidthText, HeightText: string;
+  Added: TList<TPair<Integer, Integer>>;
+
+  procedure AddPath(const X1, Y1, X2, Y2: Double);
+  var
+    P: Pointer;
+  begin
+    P := FPDFPageObj_CreateNewPath(X1, Y1);
+    if P = nil then raise EPDFiumViewer.Create('Messlinie konnte nicht erzeugt werden.');
+    if (FPDFPath_LineTo(P, X2, Y2) = 0) or
+       (FPDFPageObj_SetStrokeColor(P, 220, 25, 25, 255) = 0) or
+       (FPDFPageObj_SetStrokeWidth(P, 1.4) = 0) or
+       (FPDFPath_SetDrawMode(P, 0, 1) = 0) then
+    begin
+      FPDFPageObj_Destroy(P);
+      raise EPDFiumViewer.Create('Messlinie konnte nicht konfiguriert werden.');
+    end;
+    if FPDFAnnot_AppendObject(Annot, P) = 0 then
+    begin
+      FPDFPageObj_Destroy(P);
+      raise EPDFiumViewer.Create('Messlinie konnte nicht in PDF-Anmerkung eingefuegt werden.');
+    end;
+  end;
+
+  procedure AddText(const S: string; X, Y: Double);
+  var
+    P: Pointer;
+  begin
+    P := FPDFPageObj_CreateTextObj(FDocument, Font, 9);
+    if P = nil then raise EPDFiumViewer.Create('Messbeschriftung konnte nicht erzeugt werden.');
+    if (FPDFText_SetText(P, PWideChar(S)) = 0) or
+       (FPDFPageObj_SetFillColor(P, 220, 25, 25, 255) = 0) then
+    begin
+      FPDFPageObj_Destroy(P);
+      raise EPDFiumViewer.Create('Messbeschriftung konnte nicht gesetzt werden.');
+    end;
+    FPDFPageObj_Transform(P, 1, 0, 0, 1, X, Y);
+    if FPDFAnnot_AppendObject(Annot, P) = 0 then
+    begin
+      FPDFPageObj_Destroy(P);
+      raise EPDFiumViewer.Create('Messbeschriftung konnte nicht eingefuegt werden.');
+    end;
+  end;
+
+begin
+  if Length(AMeasurements) = 0 then
+  begin
+    SaveAs(AFileName);
+    Exit;
+  end;
+  if FDocument = nil then raise EPDFiumViewer.Create('Kein PDF-Dokument geladen.');
+  Added := TList<TPair<Integer, Integer>>.Create;
+  try
+    Font := FPDFText_LoadStandardFont(FDocument, PAnsiChar(AnsiString('Helvetica')));
+    if Font = nil then raise EPDFiumViewer.Create('PDFium konnte Helvetica nicht laden.');
+    try
+      for I := 0 to High(AMeasurements) do
+      begin
+        M := AMeasurements[I];
+        if (M.PageIndex < 0) or (M.PageIndex >= PageCount) then
+          raise EPDFiumViewer.Create('Ungueltige Messungs-Seitennummer.');
+        PageIndex := PhysicalPage(M.PageIndex);
+        Page := FPDF_LoadPage(FDocument, PageIndex);
+        if Page = nil then raise EPDFiumViewer.Create('PDF-Seite konnte nicht geladen werden.');
+        try
+          CountBefore := FPDFPage_GetAnnotCount(Page);
+          Annot := FPDFPage_CreateAnnot(Page, 13); // FPDF_ANNOT_STAMP
+          if Annot = nil then raise EPDFiumViewer.Create('PDF-Stempelanmerkung konnte nicht erstellt werden.');
+          Added.Add(TPair<Integer, Integer>.Create(PageIndex, CountBefore));
+          try
+            L := Min(M.X1, M.X2); RR := Max(M.X1, M.X2);
+            B := Min(M.Y1, M.Y2); T := Max(M.Y1, M.Y2);
+            W := Abs(M.X2 - M.X1) * M.Scale;
+            H := Abs(M.Y2 - M.Y1) * M.Scale;
+            case M.UnitIndex of
+              1: begin Factor := 10; UnitName := ' cm'; end;
+              2: begin Factor := 25.4; UnitName := ' in'; end;
+            else
+              Factor := 1; UnitName := ' mm';
+            end;
+            WidthText := FormatFloat('0.##', W / Factor) + UnitName;
+            HeightText := FormatFloat('0.##', H / Factor) + UnitName;
+            // Text steht oberhalb und links vom Rechteck. Grosszuegige
+            // Anmerkungsgrenzen sichern die Appearance auch in Adobe Reader.
+            R.Left := Max(0, L - (Length(HeightText) * 5.2) - 13); R.Bottom := B - 3;
+            R.Right := RR + 8; R.Top := T + 18;
+            if FPDFAnnot_SetRect(Annot, R) = 0 then
+              raise EPDFiumViewer.Create('Mess-Anmerkungsrechteck konnte nicht gesetzt werden.');
+            if FPDFAnnot_SetFlags(Annot, 4) = 0 then // Print
+              raise EPDFiumViewer.Create('Druckkennzeichen konnte nicht gesetzt werden.');
+            AddPath(L, B, RR, B);
+            AddPath(RR, B, RR, T);
+            AddPath(RR, T, L, T);
+            AddPath(L, T, L, B);
+            AddText(WidthText, (L + RR) / 2 - 18, T + 4);
+            // Helvetica 9pt: approx. 4.6 PDF-Punkte je Zeichen.
+            // Rechtskante der Maßzahl liegt 3 Punkte vor dem Rechteck.
+            AddText(HeightText, Max(2, L - (Length(HeightText) * 4.6) - 8),
+              (B + T) / 2);
+            if FPDFAnnot_SetStringValue(Annot, PAnsiChar(AnsiString('Contents')),
+                PWideChar('FreePDF64: ' + WidthText + ' x ' + HeightText)) = 0 then
+              raise EPDFiumViewer.Create('Messungsbeschreibung konnte nicht gespeichert werden.');
+          finally
+            FPDFPage_CloseAnnot(Annot);
+          end;
+        finally
+          FPDF_ClosePage(Page);
+        end;
+      end;
+      // Die bestehende SaveAs-Routine samt XFA- und Formularpruefungen bleibt erhalten.
+      SaveAs(AFileName);
+    finally
+      // Temporäre Annotationen aus dem geladenen Dokument entfernen.
+      // Sonst würden weitere Speichervorgänge dieselben Messungen duplizieren.
+      for J := Added.Count - 1 downto 0 do
+      begin
+        Page := FPDF_LoadPage(FDocument, Added[J].Key);
+        if Page <> nil then
+        try
+          N := Added[J].Value;
+          if N < FPDFPage_GetAnnotCount(Page) then
+            FPDFPage_RemoveAnnot(Page, N);
+        finally
+          FPDF_ClosePage(Page);
+        end;
+      end;
+    end;
+  finally
+    Added.Free;
   end;
 end;
 

@@ -16,8 +16,8 @@ File_13=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Hilfe_Unit.pas
 File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Anleitung_Unit.pas',0,1,16,1,36,0,0,,
 
 [Modules]
-Module0=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
+Module0=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 Module2=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 Module3=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
 Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
@@ -25,10 +25,10 @@ Module5=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
 Count=6
 EditWindowCount=1
 
-[D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
+[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
 ModuleType=TSourceModule
 
-[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
+[D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
 ModuleType=TSourceModule
 
 [c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas]
@@ -45,7 +45,7 @@ ModuleType=TSourceModule
 
 [EditWindow0]
 ViewCount=6
-CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
+CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
 View0=0
 View1=1
 View2=2
@@ -88,9 +88,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-CursorX=1
-CursorY=1
-TopLine=1
+CursorX=47
+CursorY=822
+TopLine=800
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -99,9 +99,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
 [View1]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-CursorX=70
-CursorY=2004
-TopLine=1982
+CursorX=5
+CursorY=26
+TopLine=4
 LeftCol=1
 Elisions=
 Bookmarks=
