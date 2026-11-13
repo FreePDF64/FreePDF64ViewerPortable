@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64ViewerPortable – Program icon / Programmsymbol" width="250">
 
-# FreePDF64-Viewer Portable 3.1.3
+# FreePDF64-Viewer Portable 3.1.4
 
 [Deutsch](#deutsch) · [English](#english)
 
@@ -17,6 +17,22 @@
 Ein kostenloser, eigenständig nutzbarer und portabler PDF- und Bild-Viewer für Windows mit Registerkarten, dokumentübergreifender PDF-Suche, interaktiven PDF-Formularen und integrierten Werkzeugen.
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Fragen und Anregungen**](mailto:FreePDF64@outlook.com?subject=Fragen%2FAnregungen%20zu%20FreePDF64ViewerPortable)
+
+## Neu in Version 3.1.4: PDF-Messwerkzeuge und überarbeitete Werkzeugleiste
+
+Version **3.1.4** erweitert die PDF-Bearbeitung um **Messwerkzeuge für technische Zeichnungen und Dokumente** und verbessert die Bedienung der Zeichen- und Einfügefunktionen. Diese Werkzeuge stehen für **PDF-Dateien** zur Verfügung.
+
+- **Rechtecke messen:** Mit der Maus einen Messbereich aufziehen. Die **Breite** wird oberhalb, die **Höhe** links am Rechteck angezeigt.
+- **Einheiten und Maßstab:** Zwischen **Millimeter (mm), Zentimeter (cm) und Zoll (in)** wählen und den Zeichnungsmaßstab einstellen, beispielsweise **1:50**. Die angezeigten Maße berücksichtigen den gewählten Maßstab.
+- **Mehrere Messungen:** Mehrere Messrechtecke auf unterschiedlichen PDF-Seiten anlegen und einzelne Messungen bei Bedarf entfernen.
+- **Messbericht:** Messungen mit **Seite, Nummer, Breite, Höhe, Einheit und Maßstab** übersichtlich auflisten, den Bericht kopieren oder **als CSV-Datei speichern**.
+- **Messungen in der PDF speichern:** Messrechtecke und Maßangaben werden als PDF-Anmerkungen gespeichert und bleiben nach erneutem Öffnen sichtbar, auch in kompatiblen PDF-Readern wie Adobe Acrobat Reader. Gespeicherte Messungen erscheinen unter **„Kommentare verwalten …“**; von dort lässt sich zur betreffenden Seite springen.
+- **Zeichnen und Bearbeiten:** **Freihand, Linie, Rechteck und Ellipse** sowie die optische Schwärzung sind über die Zeichenwerkzeuge erreichbar. **Rückgängig/Wiederholen** unterstützt die Bearbeitung der Zeichnungen und Messungen.
+- **Übersichtlichere Werkzeugleiste:** Die Dropdowns **„Einfügen“** (Text einfügen, Kommentar hinzufügen) und **„Messen“** bündeln zusammengehörige Funktionen. Der aktive Modus wird durch Häkchen und Fettschrift angezeigt; Einfügen und Messen können nicht gleichzeitig aktiv sein.
+- **Verbesserte Darstellung:** Werkzeug-Button mit dauerhaftem blauem Akzentrahmen, vereinfachte Miniatur-Kopfzeile, überarbeitete Dialogfarben und DPI-gerechte Bedienelemente für hochauflösende Bildschirme.
+- **Aktualisierte Hilfe:** Die deutsche und englische Funktionsübersicht dokumentiert die neuen Messwerkzeuge.
+
+**Hinweis:** Messwerte hängen vom eingestellten Maßstab und der zugrunde liegenden PDF-Seitengröße ab. Bei maßstäblich ungenauen Vorlagen sind sie nicht als kalibrierte Präzisionsmessungen zu verstehen. Die optische Schwärzung entfernt weiterhin keine vertraulichen PDF-Inhalte.
 
 ## Neu in Version 3.1.3: Wasserzeichen, Hyperlinks und verbesserte Bedienung
 
@@ -71,7 +87,7 @@ Neben PDFs lassen sich jetzt auch **JPG, JPEG, PNG, BMP sowie ein- und mehrseiti
 - 📑 **PDFs und Bilder in einer Anwendung:** Registerkarten und Vorschauen erleichtern den Überblick. PDF-Dokumente und unterstützte Bilddateien lassen sich gleichzeitig öffnen.
 - 🖼️ **Flexible Miniaturansichten:** Seitenvorschauen lassen sich vergrößern, um Details leichter zu erkennen. Seiten können mit gedrückter linker Maustaste neu angeordnet werden. Über das Kontextmenü lassen sich ausgewählte Seiten außerdem löschen, drehen oder extrahieren.
 - 🧾 **Interaktive Formulare:** AcroForm- und unterstützte statische XFA-Formulare bearbeiten und speichern; unterstützte JavaScript-V8-Berechnungen werden aktualisiert.
-- 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
+- 🛠️ **PDF-Werkzeuge direkt integriert:** Seiten drehen, verschieben, löschen oder extrahieren, Anlagen verwalten, Markierungen, Messungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen – ohne für jede Aufgabe zu einer anderen Ansicht wechseln zu müssen.
 
 ## Warum FreePDF64-Viewer Portable statt Browser oder gewöhnlichem PDF-Reader?
 
@@ -138,7 +154,8 @@ Die Aktionen stehen über das **Kontextmenü der Miniaturansicht** zur Verfügun
 - **PDF-Wasserzeichen:** Text- oder Bildwasserzeichen mit Größe, Deckkraft und Drehwinkel auf der aktuellen oder allen PDF-Seiten hinzufügen.
 - **PDF-Hyperlinks:** Blauen, unterstrichenen Linktext mit Web- oder E-Mail-Ziel einfügen, Linkziel-Hint anzeigen und den Link mit **Strg + linker Maustaste** verschieben.
 - **Formulare ausfüllen:** AcroForm- und unterstützte statische XFA-Felder bearbeiten und speichern; JavaScript-V8-Aktionen und automatische Berechnungen werden unterstützt.
-- **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen.
+- **PDF bearbeiten:** Freihandzeichnungen, Linien, Rechtecke und Ellipsen als Markierungen hinzufügen; Zeichnungen mit Rückgängig/Wiederholen bearbeiten.
+- **PDF messen:** Rechteckmessungen mit Breite und Höhe, mm/cm/Zoll und frei wählbarem Zeichnungsmaßstab; Messbericht kopieren oder als CSV exportieren. Messungen als PDF-Anmerkungen speichern und über „Kommentare verwalten …“ wiederfinden.
 - **Optische Schwärzung:** Textbereiche mit schwarzen Rechtecken überdecken (keine sichere Entfernung des Textes).
 - **PDF neu laden:** Das aktuelle Dokument über **Datei → PDF neu laden (Änderungen verwerfen)** erneut öffnen; vor dem Verwerfen ungespeicherter Änderungen wird nachgefragt.
 - **Sitzung wiederherstellen:** Zuletzt geöffnete PDF- und Bilddateien sowie die letzte Sitzung über das Kontextmenü der leeren Startseite erneut öffnen.
@@ -183,6 +200,8 @@ Diese Maßnahmen verbessern insbesondere Start und Bedienbarkeit. Sie bedeuten n
 | Lokale Textsuche im aktuellen PDF | **Text suchen**, **F3** für die weitere Suche |
 | Gespeicherte PDF-Arbeitsbereiche verwalten | Menü **Arbeitsbereiche** oder Startseite |
 | PDF neu laden | **Datei → PDF neu laden (Änderungen verwerfen)** |
+| Messungen / Messbericht | **Werkzeuge → Messen**: Rechteck aufziehen, Einheit und Maßstab wählen; **Messbericht** kopieren oder als CSV speichern |
+| Text / Kommentar einfügen | **Werkzeuge → Einfügen**: **Text einfügen** oder **Kommentar hinzufügen** auswählen |
 | Markierungen / optische Schwärzung | **Bearbeiten** → Werkzeug auswählen |
 | Text- oder Bildwasserzeichen hinzufügen | Rechtsklick in die PDF-Miniaturansicht → **Textwasserzeichen hinzufügen …** / **Bildwasserzeichen hinzufügen …** |
 | Hyperlink hinzufügen | Rechtsklick in die PDF-Miniaturansicht → **Hyperlink hinzufügen …**; Linkbereich aufziehen und Text/Ziel eingeben |
@@ -239,6 +258,22 @@ A free, standalone, portable PDF and image viewer for Windows with tabs, cross-d
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable) · [**Questions and feedback**](mailto:FreePDF64@outlook.com?subject=Questions%2FFeedback%20about%20FreePDF64ViewerPortable)
 
+## New in version 3.1.4: PDF measurement tools and improved toolbar
+
+Version **3.1.4** adds **measurement tools for technical drawings and documents** and improves access to drawing and insertion features. These tools are available for **PDF files**.
+
+- **Measure rectangles:** Drag out a measurement area on a PDF page. Its **width** appears above the rectangle and its **height** to the left.
+- **Units and drawing scale:** Choose **millimeters (mm), centimeters (cm), or inches (in)** and set a drawing scale such as **1:50**. Displayed measurements take the selected scale into account.
+- **Multiple measurements:** Create several measurement rectangles across PDF pages and remove individual measurements when needed.
+- **Measurement report:** List measurements by **page, number, width, height, unit, and scale**, copy the report, or **export it as CSV**.
+- **Save measurements in PDFs:** Measurement rectangles and labels are saved as PDF annotations and remain visible after reopening, including in compatible readers such as Adobe Acrobat Reader. Saved measurements appear under **Manage Comments…**, where you can jump to the corresponding page.
+- **Drawing and editing:** Access **freehand, line, rectangle, and ellipse** tools as well as visual redaction. **Undo/Redo** supports editing drawings and measurements.
+- **Clearer toolbar:** The **Insert** (Insert Text, Add Comment) and **Measure** dropdowns group related actions. Check marks and bold labels indicate the active mode; insertion and measurement modes cannot be active at the same time.
+- **Improved appearance:** The Tools button has a permanent blue accent border; the thumbnail header is simplified; dialog theme colors and high-DPI controls have been refined.
+- **Updated help:** The German and English feature overviews now describe the measurement tools.
+
+**Note:** Measurement results depend on the selected drawing scale and the PDF page dimensions. If a source drawing is not accurately scaled, results should not be treated as calibrated precision measurements. Visual redaction still does not remove confidential PDF content.
+
 ## New in version 3.1.3: Watermarks, hyperlinks, and usability improvements
 
 Version **3.1.3** adds watermarks and clickable hyperlinks to PDF editing. These features are available **for PDF files only**, not for JPG, PNG, BMP, or TIFF images.
@@ -292,7 +327,7 @@ In addition to PDFs, the viewer can now open **JPG, JPEG, PNG, BMP, and single- 
 - 📑 **PDFs and images in one application:** Tabs and previews make navigation easier. Keep PDF documents and supported image files open at the same time.
 - 🖼️ **Resizable page thumbnails:** Enlarge page thumbnails for a closer look and move pages directly in the thumbnail pane by dragging them with the left mouse button held down. A context menu also provides actions to delete, rotate, or extract selected pages.
 - 🧾 **Interactive PDF forms:** Edit and save AcroForm and supported static XFA forms, with supported V8 JavaScript calculations.
-- 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add annotations, watermarks, and clickable hyperlinks without switching views.
+- 🛠️ **Built-in PDF tools:** Rotate, move, delete, or extract pages, manage attachments, and add annotations, measurements, watermarks, and clickable hyperlinks without switching views.
 
 ## Why choose FreePDF64-Viewer Portable over a browser or a basic PDF reader?
 
@@ -359,7 +394,8 @@ These actions are available from the **thumbnail pane's context menu**.
 - **PDF watermarks:** Add text or image watermarks with adjustable size, opacity, and rotation to the current page or all pages.
 - **PDF hyperlinks:** Insert blue, underlined link text with a website or email target, show the target on hover, and move the link with **Ctrl + left mouse button**.
 - **Fill in forms:** Edit and save AcroForm and supported static XFA fields, with support for V8 JavaScript actions and automatic calculations.
-- **Annotate PDFs:** Add freehand drawings, lines, rectangles, and ellipses as annotations.
+- **Annotate PDFs:** Add freehand drawings, lines, rectangles, and ellipses as annotations, with Undo/Redo.
+- **Measure PDFs:** Measure rectangle width and height in mm/cm/in using a selectable drawing scale; copy or export the measurement report as CSV. Save measurements as PDF annotations and find them in Manage Comments…
 - **Visual redaction:** Cover text areas with black rectangles (this does not securely remove the underlying text).
 - **Reload a PDF:** Reopen the current document using **File → Reload PDF (Discard Changes)**; the viewer asks before discarding unsaved changes.
 - **Restore a session:** Reopen recently opened PDFs and images or the last session using the context menu on the empty start page.
@@ -404,6 +440,8 @@ These measures primarily improve startup time and usability. They do not mean th
 | Search text in the current PDF | **Find text**; press **F3** to find the next occurrence |
 | Manage saved PDF workspaces | **Workspaces** menu or start page |
 | Reload a PDF | **File → Reload PDF (Discard Changes)** |
+| Measurements / measurement report | **Tools → Measure**: drag a rectangle, choose units and scale; copy or export the **Measurement Report** as CSV |
+| Insert text / add comment | **Tools → Insert**: choose **Insert Text** or **Add Comment** |
 | Annotations / visual redaction | **Edit** → select a tool |
 | Add a text or image watermark | Right-click the PDF thumbnail pane → **Add Text Watermark…** / **Add Image Watermark…** |
 | Add a hyperlink | Right-click the PDF thumbnail pane → **Add Hyperlink…**; drag a link area and enter display text and target |
