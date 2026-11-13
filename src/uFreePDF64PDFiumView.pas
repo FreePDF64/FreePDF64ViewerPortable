@@ -3294,6 +3294,12 @@ var
   R: TRect;
 begin
   C := TComboBox(Control);
+  // Bei einem neu erzeugten ComboBox-Handle nach dem Splitwechsel
+  // kann Windows fuer das geschlossene Auswahlfeld Index = -1 liefern.
+  // Die tatsaechliche Auswahl dann fuer die Anzeige verwenden.
+  if (Index < 0) and (C.ItemIndex >= 0) and
+     (C.ItemIndex < C.Items.Count) then
+    Index := C.ItemIndex;
   C.Canvas.Brush.Color := C.Color;
   C.Canvas.FillRect(ARect);
   if (Index >= 0) and (Index < C.Items.Count) then
@@ -7513,6 +7519,18 @@ end;
 procedure TFreePDF64PDFiumView.ToggleEditBar(Sender: TObject);
 begin
   FEditVisible := not FEditVisible;
+  // Nach dem Zurueckwechsel aus der geteilten Ansicht kann ein
+  // natives ComboBox-Handle seine Auswahl verlieren. Nur ungueltige
+  // Auswahlwerte restaurieren; Benutzerauswahl sonst beibehalten.
+  if FEditVisible then
+  begin
+    if (FShapeSelect <> nil) and (FShapeSelect.Items.Count > 0) and
+       (FShapeSelect.ItemIndex < 0) then
+      FShapeSelect.ItemIndex := 0;
+    if (FWidthSelect <> nil) and (FWidthSelect.Items.Count > 0) and
+       (FWidthSelect.ItemIndex < 0) then
+      FWidthSelect.ItemIndex := Min(3, FWidthSelect.Items.Count - 1);
+  end;
   FEditToggle.Highlighted := FEditVisible;
   FMarkMode := FEditVisible and not FTextInsertMode and not FHighlightMode and not FNoteMode;
   if not FEditVisible then
