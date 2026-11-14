@@ -80,6 +80,57 @@ type
     CharIndex: Integer;
     CharCount: Integer;
   end;
+  // Nur Voranalyse: keine Inhaltsaenderung und keine Sicherheitsfreigabe.
+  TPDFRedactionObjectAnalysis = record
+    IntersectingObjects: Integer;
+    TextObjects: Integer;
+    ImageObjects: Integer;
+    PathObjects: Integer;
+    OtherObjects: Integer;
+    FullyContainedObjects: Integer;
+    PartiallyIntersectingObjects: Integer;
+    PartialTextObjects: Integer;
+    PartialImageObjects: Integer;
+    PartialPathObjects: Integer;
+    PartialOtherObjects: Integer;
+    UnknownBoundsObjects: Integer;
+    AnnotationCount: Integer;
+    AnnotationWidgets: Integer;
+    AnnotationComments: Integer;
+    AnnotationOther: Integer;
+    AnnotationDuplicateHits: Integer;
+    HasUnsupportedContent: Boolean;
+  end;
+  // Eine Vormerkung mit Seitenindex und Rechteck in PDF-Punktkoordinaten.
+  TPDFRedactionRegion = record
+    PageIndex: Integer;
+    Bounds: TPDFInkRect;
+  end;
+  // Summierte Voranalyse; Objektzahlen koennen bei ueberlappenden
+  // Rechtecken mehrfach gezaehlt werden.
+  TPDFRedactionBatchAnalysis = record
+    RegionCount: Integer;
+    AnalyzedRegions: Integer;
+    FailedRegions: Integer;
+    IntersectingObjects: Integer;
+    TextObjects: Integer;
+    ImageObjects: Integer;
+    PathObjects: Integer;
+    OtherObjects: Integer;
+    FullyContainedObjects: Integer;
+    PartiallyIntersectingObjects: Integer;
+    PartialTextObjects: Integer;
+    PartialImageObjects: Integer;
+    PartialPathObjects: Integer;
+    PartialOtherObjects: Integer;
+    UnknownBoundsObjects: Integer;
+    AnnotationCount: Integer;
+    AnnotationWidgets: Integer;
+    AnnotationComments: Integer;
+    AnnotationOther: Integer;
+    AnnotationDuplicateHits: Integer;
+    HasUnsupportedContent: Boolean;
+  end;
   TPDFManagedLink = record
     PageIndex: Integer;
     AnnotIndex: Integer;
@@ -191,6 +242,19 @@ type
     function ChangeManagedLink(const ALink: TPDFManagedLink; const ATarget: string): Boolean;
     function DeleteManagedLink(const ALink: TPDFManagedLink): Boolean;
     function MoveLinkAtPoint(APageIndex: Integer; AX, AY, DX, DY: Double): Boolean;
+    function AnalyzeRedactionRegion(APageIndex: Integer;
+      const ARegion: TPDFInkRect;
+      out AAnalysis: TPDFRedactionObjectAnalysis): Boolean;
+
+    function AnalyzeRedactionRegions(const ARegions: TArray<TPDFRedactionRegion>;
+      out AAnalysis: TPDFRedactionBatchAnalysis): Boolean;
+    function CreateSecureRedactedPDF(const ARegions: TArray<TPDFRedactionRegion>;
+      const ATargetFile: string; ADPI: Integer = 300): Integer;
+
+    function VerifyRedactedOutput(const AFileName: string;
+      const ARegions: TArray<TPDFRedactionRegion>;
+      out AReport: string): Boolean;
+
     procedure InsertSignatureImage(const AFileName: string; APageIndex: Integer;
       AX, AY, AWidth, AHeight: Double);
     procedure AddImageWatermark(const AFileName: string; AAllPages: Boolean;
@@ -433,6 +497,8 @@ procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';
 function FPDF_GetPageCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFDoc_GetAttachmentCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDF_ImportPages(DestDoc, SrcDoc: Pointer; PageRange: PAnsiChar; Index: Integer): Integer; stdcall; external 'pdfium.dll';
+function FPDF_CreateNewDocument: Pointer; stdcall; external 'pdfium.dll';
+function FPDFPage_New(Document: Pointer; PageIndex: Integer; Width, Height: Double): Pointer; stdcall; external 'pdfium.dll';
 // AcroForm-Erkennung (PDFium public/fpdf_formfill.h / fpdf_annot.h).
 function FPDF_GetFormType(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 // PDFium XFA: initialisiert XFA-Daten vor dem ersten Seitenzugriff.
@@ -3104,6 +3170,203 @@ begin
   end;
 end;
 
+// Konservative, rein lesende Vorpruefung fuer die geplante sichere Schwaerzung.
+// Eine erfolgreiche Analyse bedeutet NICHT, dass die Seite sicher schwaerzbar ist.
+function TFreePDF64PDFiumCore.AnalyzeRedactionRegion(APageIndex: Integer;
+  const ARegion: TPDFInkRect;
+  out AAnalysis: TPDFRedactionObjectAnalysis): Boolean;
+var
+  Page, Obj, Annot: Pointer;
+  I, ObjType, Subtype: Integer;
+  AR: TPDFInkRect;
+  L, B, R, T: Single;
+  RL, RB, RR, RT: Single;
+begin
+  Result := False;
+  FillChar(AAnalysis, SizeOf(AAnalysis), 0);
+  if (FDocument = nil) or (APageIndex < 0) or
+     (APageIndex >= FPageCount) then Exit;
+  RL := Min(ARegion.Left, ARegion.Right);
+  RR := Max(ARegion.Left, ARegion.Right);
+  RB := Min(ARegion.Bottom, ARegion.Top);
+  RT := Max(ARegion.Bottom, ARegion.Top);
+  if (RL >= RR) or (RB >= RT) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    // Nur Annotationen zaehlen, deren Rechteck die Vormerkung schneidet.
+    // Unbekannte Rechtecke konservativ als potenziell betroffen behandeln.
+    for I := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
+    begin
+      Annot := FPDFPage_GetAnnot(Page, I);
+      if Annot = nil then Continue;
+      try
+        if (FPDFAnnot_GetRect(Annot, AR) <> 0) and
+           ((Max(AR.Left, AR.Right) <= RL) or
+            (Min(AR.Left, AR.Right) >= RR) or
+            (Max(AR.Bottom, AR.Top) <= RB) or
+            (Min(AR.Bottom, AR.Top) >= RT)) then Continue;
+        Inc(AAnalysis.AnnotationCount);
+        Subtype := FPDFAnnot_GetSubtype(Annot);
+        if Subtype = 20 then Inc(AAnalysis.AnnotationWidgets)
+        else if Subtype in [1, 3, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] then
+          Inc(AAnalysis.AnnotationComments)
+        else Inc(AAnalysis.AnnotationOther);
+        AAnalysis.HasUnsupportedContent := True;
+      finally
+        FPDFPage_CloseAnnot(Annot);
+      end;
+    end;
+    for I := 0 to FPDFPage_CountObjects(Page) - 1 do
+    begin
+      Obj := FPDFPage_GetObject(Page, I);
+      if Obj = nil then
+      begin
+        Inc(AAnalysis.UnknownBoundsObjects);
+        AAnalysis.HasUnsupportedContent := True;
+        Continue;
+      end;
+      ObjType := FPDFPageObj_GetType(Obj);
+      if (FPDFPageObj_GetBounds(Obj, L, B, R, T) = 0) then
+      begin
+        Inc(AAnalysis.UnknownBoundsObjects);
+        AAnalysis.HasUnsupportedContent := True;
+        Continue;
+      end;
+      if (R <= RL) or (L >= RR) or (T <= RB) or (B >= RT) then
+        Continue;
+      Inc(AAnalysis.IntersectingObjects);
+      case ObjType of
+        1: Inc(AAnalysis.TextObjects);
+        2: Inc(AAnalysis.PathObjects);
+        3: Inc(AAnalysis.ImageObjects);
+      else
+        Inc(AAnalysis.OtherObjects);
+      end;
+      if (L >= RL) and (R <= RR) and (B >= RB) and (T <= RT) then
+        Inc(AAnalysis.FullyContainedObjects)
+      else
+      begin
+        Inc(AAnalysis.PartiallyIntersectingObjects);
+        case ObjType of
+          1: Inc(AAnalysis.PartialTextObjects);
+          2: Inc(AAnalysis.PartialPathObjects);
+          3: Inc(AAnalysis.PartialImageObjects);
+        else
+          Inc(AAnalysis.PartialOtherObjects);
+        end;
+        AAnalysis.HasUnsupportedContent := True;
+      end;
+      // PDFium-Typen: 1=Text, 2=Pfad, 3=Bild, 4=Shading, 5=Form.
+      // Auch vollstaendig enthaltene Spezialobjekte nicht blind freigeben.
+      if not (ObjType in [1, 2, 3]) then
+        AAnalysis.HasUnsupportedContent := True;
+    end;
+    Result := True;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+// Sammelpruefung fuer mehrere vorgemerkte Bereiche. Ausschliesslich lesend.
+// Result=True bedeutet nur, dass alle Regionen untersucht werden konnten,
+// NICHT dass die PDF sicher geschwaerzt werden kann.
+function TFreePDF64PDFiumCore.AnalyzeRedactionRegions(
+  const ARegions: TArray<TPDFRedactionRegion>;
+  out AAnalysis: TPDFRedactionBatchAnalysis): Boolean;
+var
+  I, J, K, Subtype: Integer;
+  Item: TPDFRedactionObjectAnalysis;
+  Page, Annot: Pointer;
+  AR: TPDFInkRect;
+  RL, RR, RB, RT: Single;
+  Seen: TDictionary<string, Boolean>;
+  Key: string;
+  Hit: Boolean;
+begin
+  FillChar(AAnalysis, SizeOf(AAnalysis), 0);
+  AAnalysis.RegionCount := Length(ARegions);
+  for I := 0 to High(ARegions) do
+  begin
+    if not AnalyzeRedactionRegion(ARegions[I].PageIndex,
+      ARegions[I].Bounds, Item) then
+    begin
+      Inc(AAnalysis.FailedRegions);
+      AAnalysis.HasUnsupportedContent := True;
+      Continue;
+    end;
+    Inc(AAnalysis.AnalyzedRegions);
+    Inc(AAnalysis.IntersectingObjects, Item.IntersectingObjects);
+    Inc(AAnalysis.TextObjects, Item.TextObjects);
+    Inc(AAnalysis.ImageObjects, Item.ImageObjects);
+    Inc(AAnalysis.PathObjects, Item.PathObjects);
+    Inc(AAnalysis.OtherObjects, Item.OtherObjects);
+    Inc(AAnalysis.FullyContainedObjects, Item.FullyContainedObjects);
+    Inc(AAnalysis.PartiallyIntersectingObjects, Item.PartiallyIntersectingObjects);
+    Inc(AAnalysis.PartialTextObjects, Item.PartialTextObjects);
+    Inc(AAnalysis.PartialImageObjects, Item.PartialImageObjects);
+    Inc(AAnalysis.PartialPathObjects, Item.PartialPathObjects);
+    Inc(AAnalysis.PartialOtherObjects, Item.PartialOtherObjects);
+    Inc(AAnalysis.UnknownBoundsObjects, Item.UnknownBoundsObjects);
+    // Die eindeutigen Annotationen werden weiter unten seitenweise ermittelt.
+    Inc(AAnalysis.AnnotationDuplicateHits, Item.AnnotationCount);
+    if Item.HasUnsupportedContent then
+      AAnalysis.HasUnsupportedContent := True;
+  end;
+  // Deduplizierung ueber physische Seite und Annotationsindex.
+  // Eine Annotation, die mehrere Rechtecke schneidet, wird nur einmal gezaehlt.
+  Seen := TDictionary<string, Boolean>.Create;
+  try
+    for I := 0 to High(ARegions) do
+    begin
+      if (ARegions[I].PageIndex < 0) or
+         (ARegions[I].PageIndex >= FPageCount) then Continue;
+      RL := Min(ARegions[I].Bounds.Left, ARegions[I].Bounds.Right);
+      RR := Max(ARegions[I].Bounds.Left, ARegions[I].Bounds.Right);
+      RB := Min(ARegions[I].Bounds.Bottom, ARegions[I].Bounds.Top);
+      RT := Max(ARegions[I].Bounds.Bottom, ARegions[I].Bounds.Top);
+      if (RL >= RR) or (RB >= RT) then Continue;
+      Page := FPDF_LoadPage(FDocument, PhysicalPage(ARegions[I].PageIndex));
+      if Page = nil then Continue;
+      try
+        for J := 0 to FPDFPage_GetAnnotCount(Page) - 1 do
+        begin
+          Annot := FPDFPage_GetAnnot(Page, J);
+          if Annot = nil then Continue;
+          try
+            Hit := True;
+            if FPDFAnnot_GetRect(Annot, AR) <> 0 then
+              Hit := not ((Max(AR.Left, AR.Right) <= RL) or
+                (Min(AR.Left, AR.Right) >= RR) or
+                (Max(AR.Bottom, AR.Top) <= RB) or
+                (Min(AR.Bottom, AR.Top) >= RT));
+            if not Hit then Continue;
+            Key := IntToStr(PhysicalPage(ARegions[I].PageIndex)) + ':' + IntToStr(J);
+            if Seen.ContainsKey(Key) then Continue;
+            Seen.Add(Key, True);
+            Inc(AAnalysis.AnnotationCount);
+            Subtype := FPDFAnnot_GetSubtype(Annot);
+            if Subtype = 20 then Inc(AAnalysis.AnnotationWidgets)
+            else if Subtype in [1, 3, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] then
+              Inc(AAnalysis.AnnotationComments)
+            else Inc(AAnalysis.AnnotationOther);
+          finally
+            FPDFPage_CloseAnnot(Annot);
+          end;
+        end;
+      finally
+        FPDF_ClosePage(Page);
+      end;
+    end;
+  finally
+    Seen.Free;
+  end;
+  AAnalysis.AnnotationDuplicateHits :=
+    Max(0, AAnalysis.AnnotationDuplicateHits - AAnalysis.AnnotationCount);
+  Result := (AAnalysis.RegionCount > 0) and
+    (AAnalysis.FailedRegions = 0);
+end;
+
 function TFreePDF64PDFiumCore.DevicePointToPage(APageIndex, AWidth, AHeight,
   X, Y: Integer; out AX, AY: Double): Boolean;
 var P: Pointer;
@@ -3669,6 +3932,465 @@ begin
   finally
     FBatchWatermarkFont := nil;
   end;
+end;
+
+// Erstellt eine neue PDF-Datei. Betroffene Seiten werden vollstaendig gerastert;
+// nicht betroffene Seiten werden einzeln in das neue Dokument importiert.
+// Das neue Dokument uebernimmt keine Dokumentwurzel des Originals (z.B. dessen
+// Metadaten, JavaScript-Aktionen oder eingebettete Dateien).
+function TFreePDF64PDFiumCore.CreateSecureRedactedPDF(
+  const ARegions: TArray<TPDFRedactionRegion>; const ATargetFile: string;
+  ADPI: Integer): Integer;
+var
+  NewDoc, CheckDoc, NewPage, Obj, PdfBmp, TextPage: Pointer;
+  Affected: TArray<Boolean>;
+  I, J, DestIndex, PixelW, PixelH, Stride, X, Y, L, T, R, B: Integer;
+  AffectedCount: Integer;
+  PageW, PageH: Single;
+  Bmp: TBitmap;
+  Src, Dst, DstBase: PByte;
+  PageRange: UTF8String;
+  W: TOutputWriter;
+  TempFile: string;
+  P1X, P1Y, P2X, P2Y: Integer;
+  Rgn: TPDFInkRect;
+  CheckPage, CheckObj: Pointer;
+  CheckPath: UTF8String;
+  CheckLeft, CheckBottom, CheckRight, CheckTop: Single;
+  CheckPageW, CheckPageH: Single;
+  function HasRegion(APageIndex: Integer): Boolean;
+  begin
+    Result := Affected[APageIndex];
+  end;
+  procedure SanitizeImportedPage(APageIndex: Integer);
+  var
+    ImportedPage, Annot: Pointer;
+    AnnotIndex, Subtype: Integer;
+  begin
+    ImportedPage := FPDF_LoadPage(NewDoc, APageIndex);
+    if ImportedPage = nil then
+      raise EPDFiumViewer.CreateFmt('Importierte Seite %d konnte nicht geprüft werden.', [APageIndex + 1]);
+    try
+      for AnnotIndex := FPDFPage_GetAnnotCount(ImportedPage) - 1 downto 0 do
+      begin
+        Annot := FPDFPage_GetAnnot(ImportedPage, AnnotIndex);
+        if Annot = nil then
+          raise EPDFiumViewer.CreateFmt('Annotation auf Seite %d konnte nicht geprüft werden.', [APageIndex + 1]);
+        try
+          Subtype := FPDFAnnot_GetSubtype(Annot);
+          // Eine vorhandene PDF-Redaktionsannotation ist nur eine Darstellung;
+          // ohne eigene Vormerkung darf die Seite nicht unverändert übernommen werden.
+          if Subtype = 28 then
+            raise EPDFiumViewer.CreateFmt(
+              'Seite %d enthält bereits eine PDF-Schwärzungsannotation. Bitte diese Seite ebenfalls mit der Vorschau markieren.',
+              [APageIndex + 1]);
+          // Eingebettete Dateien und aktive Medien werden aus übernommenen
+          // Seiten entfernt. Links, Kommentare und Formular-/Signaturfelder
+          // bleiben auf nicht geschwärzten Seiten erhalten.
+          if Subtype in [17, 18, 19, 21, 25, 26, 27] then
+          begin
+            FPDFPage_CloseAnnot(Annot);
+            Annot := nil;
+            if FPDFPage_RemoveAnnot(ImportedPage, AnnotIndex) = 0 then
+              raise EPDFiumViewer.CreateFmt(
+                'Unsichere Annotation auf Seite %d konnte nicht entfernt werden.',
+                [APageIndex + 1]);
+          end
+          else if not (Subtype in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 22, 23, 24]) then
+            raise EPDFiumViewer.CreateFmt(
+              'Seite %d enthält einen unbekannten Annotationstyp (%d). Die Ausgabe wurde vorsorglich abgebrochen.',
+              [APageIndex + 1, Subtype]);
+        finally
+          if Annot <> nil then FPDFPage_CloseAnnot(Annot);
+        end;
+      end;
+    finally
+      FPDF_ClosePage(ImportedPage);
+    end;
+  end;
+  procedure RenderSourcePage(APageIndex, AWidth, AHeight: Integer;
+    ABitmap: TBitmap);
+  var
+    SourcePage, RenderBitmap, FormHandle: Pointer;
+    FormInfo: TPDFFormFillInfo;
+    NativeFormDrawn: Boolean;
+    Row: Integer;
+    SourceStride: Integer;
+    SourceBuffer: NativeUInt;
+    SourceRow: PPixelRow;
+  begin
+    SourcePage := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+    if SourcePage = nil then
+      raise EPDFiumViewer.CreateFmt('PDF-Seite %d konnte nicht geladen werden.', [APageIndex + 1]);
+    try
+      RenderBitmap := FPDFBitmap_Create(AWidth, AHeight, 1);
+      if RenderBitmap = nil then
+        raise EPDFiumViewer.Create('PDFium-Bitmap für die Schwärzung konnte nicht angelegt werden.');
+      try
+        FPDFBitmap_FillRect(RenderBitmap, 0, 0, AWidth, AHeight, $FFFFFFFF);
+        FPDF_RenderPageBitmap(RenderBitmap, SourcePage, 0, 0,
+          AWidth, AHeight, 0, $01 or $02);
+        NativeFormDrawn := False;
+        if FPDF_GetFormType(FDocument) = 1 then
+        begin
+          FillChar(FormInfo, SizeOf(FormInfo), 0);
+          FormInfo.Version := 1;
+          FormHandle := InitCompatibleForm(FDocument, FormInfo);
+          if FormHandle <> nil then
+          try
+            FORM_OnAfterLoadPage(SourcePage, FormHandle);
+            try
+              // Keine Formular-Hervorhebungsfarbe in die Ausgabedatei rendern.
+              FPDF_FFLDraw(FormHandle, RenderBitmap, SourcePage,
+                0, 0, AWidth, AHeight, 0, 0);
+              NativeFormDrawn := True;
+            finally
+              FORM_OnBeforeClosePage(SourcePage, FormHandle);
+            end;
+          finally
+            FPDFDOC_ExitFormFillEnvironment(FormHandle);
+          end;
+        end;
+        ABitmap.PixelFormat := pf32bit;
+        ABitmap.SetSize(AWidth, AHeight);
+        SourceBuffer := NativeUInt(FPDFBitmap_GetBuffer(RenderBitmap));
+        SourceStride := FPDFBitmap_GetStride(RenderBitmap);
+        if (SourceBuffer = 0) or (SourceStride < AWidth * 4) then
+          raise EPDFiumViewer.Create('PDFium lieferte einen ungültigen Seitenpuffer.');
+        for Row := 0 to AHeight - 1 do
+        begin
+          SourceRow := PPixelRow(SourceBuffer + NativeUInt(Row) * NativeUInt(SourceStride));
+          Move(SourceRow^, ABitmap.ScanLine[Row]^, AWidth * 4);
+        end;
+        if not NativeFormDrawn then
+          DrawFormTextPreview(APageIndex, ABitmap, AWidth, AHeight, 0);
+      finally
+        FPDFBitmap_Destroy(RenderBitmap);
+      end;
+    finally
+      FPDF_ClosePage(SourcePage);
+    end;
+  end;
+begin
+  Result := 0;
+  if (FDocument = nil) or (FPageCount <= 0) then
+    raise EPDFiumViewer.Create('Es ist keine PDF-Datei geöffnet.');
+  if Length(ARegions) = 0 then
+    raise EPDFiumViewer.Create('Es wurden keine Schwärzungsbereiche vorgemerkt.');
+  if (ADPI < 150) or (ADPI > 600) then
+    raise EPDFiumViewer.Create('Die Rasterauflösung muss zwischen 150 und 600 DPI liegen.');
+  if SameText(ExpandFileName(ATargetFile), ExpandFileName(FFileName)) then
+    raise EPDFiumViewer.Create('Die Ausgabedatei muss von der Quelldatei abweichen.');
+  SetLength(Affected, FPageCount);
+  for I := 0 to High(ARegions) do
+  begin
+    if (ARegions[I].PageIndex < 0) or (ARegions[I].PageIndex >= FPageCount) then
+      raise EPDFiumViewer.Create('Ein Schwärzungsbereich verweist auf eine ungültige Seite.');
+    if (ARegions[I].Bounds.Left = ARegions[I].Bounds.Right) or
+       (ARegions[I].Bounds.Bottom = ARegions[I].Bounds.Top) then
+      raise EPDFiumViewer.Create('Ein Schwärzungsbereich hat keine Fläche.');
+    Affected[ARegions[I].PageIndex] := True;
+  end;
+  AffectedCount := 0;
+  for I := 0 to High(Affected) do
+    if Affected[I] then Inc(AffectedCount);
+  if AffectedCount = 0 then
+    raise EPDFiumViewer.Create('Es wurden keine gültigen Schwärzungsseiten gefunden.');
+
+  TempFile := ATargetFile + '.redaction_' + IntToStr(GetCurrentProcessId) +
+    '_' + UIntToStr(GetTickCount64) + '.tmp';
+  if FileExists(TempFile) then DeleteFile(TempFile);
+  NewDoc := nil;
+  CheckDoc := nil;
+  try
+    NewDoc := FPDF_CreateNewDocument;
+    if NewDoc = nil then
+      raise EPDFiumViewer.Create('PDFium konnte kein neues, bereinigtes Dokument erstellen.');
+
+    for I := 0 to FPageCount - 1 do
+    begin
+      DestIndex := FPDF_GetPageCount(NewDoc);
+      if HasRegion(I) then
+      begin
+        if not PageSize(I, PageW, PageH) or (PageW <= 0) or (PageH <= 0) then
+          raise EPDFiumViewer.CreateFmt('Seitengröße von Seite %d konnte nicht gelesen werden.', [I + 1]);
+        PixelW := Max(1, Round(PageW * ADPI / 72.0));
+        PixelH := Max(1, Round(PageH * ADPI / 72.0));
+        // Zwei 32-Bit-Bitmaps liegen während der Einbettung gleichzeitig im
+        // Speicher. Die Grenze verhindert unkontrollierbare Spitzenlasten.
+        if (PixelW > 16000) or (PixelH > 16000) or
+           (Int64(PixelW) * Int64(PixelH) > 50000000) then
+          raise EPDFiumViewer.CreateFmt(
+            'Seite %d ist für die sichere Rasterisierung bei %d DPI zu groß. Bitte eine geringere Auflösung verwenden.',
+            [I + 1, ADPI]);
+
+        Bmp := TBitmap.Create;
+        PdfBmp := nil;
+        NewPage := nil;
+        Obj := nil;
+        try
+          Bmp.PixelFormat := pf32bit;
+          RenderSourcePage(I, PixelW, PixelH, Bmp);
+          // Die schwarzen Bereiche werden in die eigentliche Seitenbitmap
+          // eingebrannt. Es bleiben keine darunterliegenden PDF-Objekte übrig.
+          for J := 0 to High(ARegions) do
+            if ARegions[J].PageIndex = I then
+            begin
+              Rgn := ARegions[J].Bounds;
+              if not PagePointToDevice(I, PixelW, PixelH,
+                   Rgn.Left, Rgn.Top, P1X, P1Y) or
+                 not PagePointToDevice(I, PixelW, PixelH,
+                   Rgn.Right, Rgn.Bottom, P2X, P2Y) then
+                raise EPDFiumViewer.CreateFmt('Schwärzungsbereich auf Seite %d konnte nicht umgerechnet werden.', [I + 1]);
+              // Ein Pixel Sicherheitszugabe verhindert helle Antialiasing-Ränder.
+              L := EnsureRange(Min(P1X, P2X) - 1, 0, PixelW);
+              R := EnsureRange(Max(P1X, P2X) + 2, 0, PixelW);
+              T := EnsureRange(Min(P1Y, P2Y) - 1, 0, PixelH);
+              B := EnsureRange(Max(P1Y, P2Y) + 2, 0, PixelH);
+              if (R > L) and (B > T) then
+              begin
+                Bmp.Canvas.Brush.Style := bsSolid;
+                Bmp.Canvas.Brush.Color := clBlack;
+                Bmp.Canvas.Pen.Style := psSolid;
+                Bmp.Canvas.Pen.Color := clBlack;
+                Bmp.Canvas.FillRect(Rect(L, T, R, B));
+              end;
+            end;
+
+          PdfBmp := FPDFBitmap_Create(PixelW, PixelH, 1);
+          if PdfBmp = nil then
+            raise EPDFiumViewer.Create('PDFium-Bitmap für die Schwärzungsseite konnte nicht angelegt werden.');
+          DstBase := FPDFBitmap_GetBuffer(PdfBmp);
+          Stride := FPDFBitmap_GetStride(PdfBmp);
+          if (DstBase = nil) or (Stride < PixelW * 4) then
+            raise EPDFiumViewer.Create('PDFium-Bitmap für die Schwärzungsseite ist ungültig.');
+          for Y := 0 to PixelH - 1 do
+          begin
+            Src := Bmp.ScanLine[Y];
+            Dst := PByte(NativeUInt(DstBase) + NativeUInt(Y) * NativeUInt(Stride));
+            for X := 0 to PixelW - 1 do
+            begin
+              Dst^ := Src^; Inc(Dst); Inc(Src);
+              Dst^ := Src^; Inc(Dst); Inc(Src);
+              Dst^ := Src^; Inc(Dst); Inc(Src);
+              Dst^ := 255; Inc(Dst); Inc(Src);
+            end;
+          end;
+
+          NewPage := FPDFPage_New(NewDoc, DestIndex, PageW, PageH);
+          if NewPage = nil then
+            raise EPDFiumViewer.CreateFmt('Neue PDF-Seite %d konnte nicht erstellt werden.', [I + 1]);
+          Obj := FPDFPageObj_NewImageObj(NewDoc);
+          if Obj = nil then
+            raise EPDFiumViewer.Create('PDFium konnte das gerasterte Seitenbild nicht erzeugen.');
+          if FPDFImageObj_SetBitmap(nil, 0, Obj, PdfBmp) = 0 then
+            raise EPDFiumViewer.CreateFmt('Gerasterte Seite %d konnte nicht eingebettet werden.', [I + 1]);
+          FPDFPageObj_Transform(Obj, PageW, 0, 0, PageH, 0, 0);
+          FPDFPage_InsertObject(NewPage, Obj);
+          Obj := nil;
+          if FPDFPage_GenerateContent(NewPage) = 0 then
+            raise EPDFiumViewer.CreateFmt('Seiteninhalt von Seite %d konnte nicht erzeugt werden.', [I + 1]);
+        finally
+          if Obj <> nil then FPDFPageObj_Destroy(Obj);
+          if NewPage <> nil then FPDF_ClosePage(NewPage);
+          if PdfBmp <> nil then FPDFBitmap_Destroy(PdfBmp);
+          Bmp.Free;
+        end;
+      end
+      else
+      begin
+        // Nur die jeweilige Seite importieren: Die Dokumentwurzel des Originals
+        // (Metadaten, Dateianhänge, JavaScript, alte Revisionen) wird nicht kopiert.
+        PageRange := UTF8String(IntToStr(PhysicalPage(I) + 1));
+        if FPDF_ImportPages(NewDoc, FDocument, PAnsiChar(PageRange), DestIndex) = 0 then
+          raise EPDFiumViewer.CreateFmt('Nicht geschwärzte Seite %d konnte nicht übernommen werden.', [I + 1]);
+        SanitizeImportedPage(DestIndex);
+      end;
+    end;
+
+    FillChar(W, SizeOf(W), 0);
+    W.Base.Version := 1;
+    W.Base.WriteBlock := PDFWriteBlock;
+    W.Stream := TFileStream.Create(TempFile, fmCreate);
+    try
+      if FPDF_SaveAsCopy(NewDoc, @W.Base, 0) = 0 then
+        raise EPDFiumViewer.Create('Das bereinigte PDF konnte nicht gespeichert werden.');
+    finally
+      W.Stream.Free;
+    end;
+
+    // Datei erneut laden und jede gerasterte Seite strukturell kontrollieren.
+    CheckPath := UTF8String(TempFile);
+    CheckDoc := FPDF_LoadDocument(PAnsiChar(CheckPath), nil);
+    if CheckDoc = nil then
+      raise EPDFiumViewer.Create('Die erzeugte PDF-Datei konnte zur Sicherheitsprüfung nicht erneut geöffnet werden.');
+    try
+      if FPDF_GetPageCount(CheckDoc) <> FPageCount then
+        raise EPDFiumViewer.Create('Die Seitenanzahl der erzeugten PDF-Datei stimmt nicht mit dem Original überein.');
+      if FPDFDoc_GetAttachmentCount(CheckDoc) <> 0 then
+        raise EPDFiumViewer.Create('Die Ausgabedatei enthält unerwartete Dateianhänge.');
+      if FPDFDoc_GetJavaScriptActionCount(CheckDoc) <> 0 then
+        raise EPDFiumViewer.Create('Die Ausgabedatei enthält unerwartete JavaScript-Aktionen.');
+      for I := 0 to FPageCount - 1 do
+        if HasRegion(I) then
+        begin
+          CheckPage := FPDF_LoadPage(CheckDoc, I);
+          if CheckPage = nil then
+            raise EPDFiumViewer.CreateFmt('Gerasterte Seite %d konnte nicht geprüft werden.', [I + 1]);
+          try
+            if FPDFPage_CountObjects(CheckPage) <> 1 then
+              raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Seite %d enthält nicht genau ein Seitenobjekt.', [I + 1]);
+            CheckObj := FPDFPage_GetObject(CheckPage, 0);
+            if (CheckObj = nil) or (FPDFPageObj_GetType(CheckObj) <> 3) then
+              raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Seite %d besteht nicht ausschließlich aus einem Bildobjekt.', [I + 1]);
+            CheckPageW := FPDF_GetPageWidthF(CheckPage);
+            CheckPageH := FPDF_GetPageHeightF(CheckPage);
+            if (CheckPageW <= 0) or (CheckPageH <= 0) or
+               (FPDFPageObj_GetBounds(CheckObj, CheckLeft, CheckBottom,
+                 CheckRight, CheckTop) = 0) or
+               (CheckLeft > 0.5) or (CheckBottom > 0.5) or
+               (CheckRight < CheckPageW - 0.5) or
+               (CheckTop < CheckPageH - 0.5) then
+              raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Das Bildobjekt auf Seite %d deckt nicht die gesamte Seite ab.', [I + 1]);
+            if FPDFPage_GetAnnotCount(CheckPage) <> 0 then
+              raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Seite %d enthält noch Annotationen.', [I + 1]);
+            TextPage := FPDFText_LoadPage(CheckPage);
+            if TextPage = nil then
+              raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Textschicht von Seite %d konnte nicht geprüft werden.', [I + 1]);
+            try
+              if FPDFText_CountChars(TextPage) <> 0 then
+                raise EPDFiumViewer.CreateFmt('Sicherheitsprüfung fehlgeschlagen: Auf Seite %d ist weiterhin auslesbarer Text vorhanden.', [I + 1]);
+            finally
+              FPDFText_ClosePage(TextPage);
+            end;
+          finally
+            FPDF_ClosePage(CheckPage);
+          end;
+        end;
+    finally
+      FPDF_CloseDocument(CheckDoc);
+      CheckDoc := nil;
+    end;
+
+    if not MoveFileEx(PChar(TempFile), PChar(ATargetFile),
+      MOVEFILE_REPLACE_EXISTING or MOVEFILE_WRITE_THROUGH) then
+      RaiseLastOSError;
+    Result := AffectedCount;
+  finally
+    if CheckDoc <> nil then FPDF_CloseDocument(CheckDoc);
+    if NewDoc <> nil then FPDF_CloseDocument(NewDoc);
+    if FileExists(TempFile) then DeleteFile(TempFile);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.VerifyRedactedOutput(
+  const AFileName: string; const ARegions: TArray<TPDFRedactionRegion>;
+  out AReport: string): Boolean;
+var
+  Doc, Page, Obj, TextPage: Pointer;
+  Affected: TArray<Boolean>;
+  I, PageCount, CheckedPages, CharCount: Integer;
+  PageW, PageH, L, B, R, T: Single;
+  PathUtf8: UTF8String;
+  Lines: TStringList;
+  Problem: string;
+begin
+  Result := False;
+  AReport := '';
+  Lines := TStringList.Create;
+  Doc := nil;
+  try
+    Lines.Add('FreePDF64-Viewer Portable - Redaction verification / Schwärzungsprüfung');
+    Lines.Add('Datei / File: ' + ExtractFileName(AFileName));
+    Lines.Add('Zeit / Time: ' + DateTimeToStr(Now));
+    Lines.Add('Prüfverfahren / Method: PDFium structure and text-layer checks');
+    Lines.Add('');
+    Problem := '';
+    if not FileExists(AFileName) then
+      raise EPDFiumViewer.Create('Die Ausgabedatei wurde nicht gefunden.');
+    PathUtf8 := UTF8String(AFileName);
+    Doc := FPDF_LoadDocument(PAnsiChar(PathUtf8), nil);
+    if Doc = nil then
+      raise EPDFiumViewer.Create('Die Ausgabedatei konnte nicht erneut geöffnet werden.');
+    PageCount := FPDF_GetPageCount(Doc);
+    if PageCount <> FPageCount then
+      raise EPDFiumViewer.CreateFmt('Seitenzahl stimmt nicht: %d statt %d.',
+        [PageCount, FPageCount]);
+    Lines.Add('Seitenzahl / Page count: OK (' + IntToStr(PageCount) + ')');
+    if FPDFDoc_GetAttachmentCount(Doc) <> 0 then
+      raise EPDFiumViewer.Create('Die Ausgabe enthält Dateianhänge.');
+    Lines.Add('Dateianhänge / Attachments: 0 - OK');
+    if FPDFDoc_GetJavaScriptActionCount(Doc) <> 0 then
+      raise EPDFiumViewer.Create('Die Ausgabe enthält JavaScript-Aktionen.');
+    Lines.Add('Dokument-JavaScript / Document JavaScript: 0 - OK');
+    SetLength(Affected, PageCount);
+    for I := 0 to High(ARegions) do
+    begin
+      if (ARegions[I].PageIndex < 0) or (ARegions[I].PageIndex >= PageCount) then
+        raise EPDFiumViewer.Create('Ungültiger Seitenindex in der Schwärzungsprüfung.');
+      Affected[ARegions[I].PageIndex] := True;
+    end;
+    CheckedPages := 0;
+    for I := 0 to PageCount - 1 do
+      if Affected[I] then
+      begin
+        Inc(CheckedPages);
+        Page := FPDF_LoadPage(Doc, I);
+        if Page = nil then
+          raise EPDFiumViewer.CreateFmt('Seite %d konnte nicht geladen werden.', [I + 1]);
+        try
+          if FPDFPage_GetAnnotCount(Page) <> 0 then
+            raise EPDFiumViewer.CreateFmt('Seite %d enthält Annotationen.', [I + 1]);
+          if FPDFPage_CountObjects(Page) <> 1 then
+            raise EPDFiumViewer.CreateFmt('Seite %d enthält nicht genau ein Bildobjekt.', [I + 1]);
+          Obj := FPDFPage_GetObject(Page, 0);
+          if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 3) then
+            raise EPDFiumViewer.CreateFmt('Seite %d enthält ein anderes Objekt als ein Bild.', [I + 1]);
+          PageW := FPDF_GetPageWidthF(Page);
+          PageH := FPDF_GetPageHeightF(Page);
+          if (PageW <= 0) or (PageH <= 0) or
+             (FPDFPageObj_GetBounds(Obj, L, B, R, T) = 0) or
+             (L > 0.5) or (B > 0.5) or
+             (R < PageW - 0.5) or (T < PageH - 0.5) then
+            raise EPDFiumViewer.CreateFmt('Das Bild auf Seite %d deckt die Seite nicht ab.', [I + 1]);
+          TextPage := FPDFText_LoadPage(Page);
+          if TextPage = nil then
+            raise EPDFiumViewer.CreateFmt('Textprüfung auf Seite %d fehlgeschlagen.', [I + 1]);
+          try
+            CharCount := FPDFText_CountChars(TextPage);
+            if CharCount <> 0 then
+              raise EPDFiumViewer.CreateFmt('Seite %d enthält %d auslesbare Zeichen.', [I + 1, CharCount]);
+          finally
+            FPDFText_ClosePage(TextPage);
+          end;
+          Lines.Add(Format('Seite / Page %d: OK - 1 image, 0 annotations, 0 text characters', [I + 1]));
+        finally
+          FPDF_ClosePage(Page);
+        end;
+      end;
+    if CheckedPages = 0 then
+      raise EPDFiumViewer.Create('Keine betroffenen Seiten zur Prüfung angegeben.');
+    Lines.Add('');
+    Lines.Add('ERGEBNIS / RESULT: BESTANDEN / PASSED');
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      Problem := E.Message;
+      Lines.Add('');
+      Lines.Add('ERGEBNIS / RESULT: FEHLGESCHLAGEN / FAILED');
+      Lines.Add('Grund / Reason: ' + Problem);
+    end;
+  end;
+  if Doc <> nil then FPDF_CloseDocument(Doc);
+  Lines.Add('');
+  Lines.Add('Grenzen / Limitations: This is not a forensic security certification.');
+  Lines.Add('Die Prüfung beweist nicht, dass auf nicht gerasterten Seiten keine');
+  Lines.Add('vertraulichen Inhalte verbleiben. Bitte Sichtprüfung und externe');
+  Lines.Add('Textextraktion (pdftotext) vor einer Weitergabe durchführen.');
+  Lines.Add('The test does not certify unaffected pages or visual coverage.');
+  AReport := Lines.Text;
+  Lines.Free;
 end;
 
 procedure TFreePDF64PDFiumCore.InsertSignatureImage(const AFileName: string;

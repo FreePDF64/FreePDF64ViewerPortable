@@ -61,6 +61,8 @@ type
   private
     FDesign: Integer;
     FHover: Boolean;
+    FAccentOrange: Boolean;
+    FAccentCapable: Boolean;
     procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -68,6 +70,7 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
   public
     procedure SetDesign(AValue: Integer);
+    procedure SetAccentOrange(AValue: Boolean);
   end;
 
   // Ein einzelnes, DPI-abhaengig gezeichnetes Stift-und-Lineal-Symbol.
@@ -310,6 +313,8 @@ type
     FInsertImageWatermarkItem, FInsertTextWatermarkItem: TMenuItem;
     FInsertManageLinksItem, FInsertManageCommentsItem: TMenuItem;
     FTextUndoButton, FTextRedoButton: TBitBtn;
+    FRedactionFinalizeButton: TPDFDesignButton;
+    FRedactionReportOpen: Boolean;
     FUndoRedoGlyphPPI: Integer;
     FTextInsertMode: Boolean;
     FTextInsertColor: TColor;
@@ -332,6 +337,11 @@ type
     FShapeStart: TPoint;
     FMarkMode: Boolean;
     FCurrentStroke: TPDFInkStroke;
+    // Nur Vorschau: diese Rechtecke werden NICHT in die PDF geschrieben.
+    FRedactionPreviews: TObjectList<TPDFInkStroke>;
+    FRedactionPreviewPages: TList<Integer>;
+    FRedactionRedo: TObjectList<TPDFInkStroke>;
+    FRedactionRedoPages: TList<Integer>;
     FSelecting: Boolean;
     FDraggingPage: Boolean;
     FActiveFormWidgetPage: Integer;
@@ -347,6 +357,8 @@ type
     FSelFocusPage, FSelFocusChar: Integer;
 
     FPreviewBitmap: TBitmap;
+    FPreviewLastRect: TRect;
+    FPreviewLastRectValid: Boolean;
     FPage: Integer;
     FZoom: Double;
     FFitMode: Boolean;
@@ -441,6 +453,7 @@ type
     procedure SearchNext(ADirection: Integer);
     function FindCachedSearchMatch(AStartPage, AStartChar, ADirection: Integer;
       out APage, ACharIndex, ACharCount: Integer): Boolean;
+    procedure ShapeSelectChange(Sender: TObject);
     procedure ViewModeChange(Sender: TObject);
     procedure TwoPageClick(Sender: TObject);
     procedure FlowModeChange(Sender: TObject);
@@ -479,6 +492,8 @@ type
     procedure TextUndoClick(Sender: TObject);
     procedure TextRedoClick(Sender: TObject);
     procedure ClearStrokeRedo;
+    procedure ClearRedactionRedo;
+    procedure RefreshRedactionPage(APage: Integer);
     procedure UpdateTextUndoButtons;
     procedure RefreshTextPage(APageIndex: Integer);
     procedure TextStyleChange(Sender: TObject);
@@ -532,6 +547,9 @@ type
     function GetFirstPageReady: Boolean;
     function GetIsAcroForm: Boolean;
   public
+    // Rein lesende Voranalyse der aktuell vorgemerkten Schwaerzungsrechtecke.
+    function AnalyzePendingRedactions(out AAnalysis: TPDFRedactionBatchAnalysis): Boolean;
+    procedure FinalizeRedactionClick(Sender: TObject);
     procedure SavePDFAs;
     procedure ShowDocumentProperties;
     procedure TogglePageThumbnails;
@@ -1171,7 +1189,7 @@ begin
   // VCL/Windows setzt beim Fokuswechsel den Button-Typ per BM_SETSTYLE
   // auf BS_PUSHBUTTON oder BS_DEFPUSHBUTTON zurueck. In alternativen
   // Designs muss BS_OWNERDRAW auch danach erhalten bleiben.
-  if FDesign <> 0 then
+  if (FDesign <> 0) or FAccentCapable then
     Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
   inherited;
 end;
@@ -1179,8 +1197,30 @@ end;
 procedure TPDFDesignButton.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
-  if FDesign <> 0 then
+  if (FDesign <> 0) or FAccentCapable then
     Params.Style := (Params.Style and not $000F) or BS_OWNERDRAW;
+end;
+
+procedure TPDFDesignButton.SetAccentOrange(AValue: Boolean);
+begin
+  if FAccentOrange = AValue then Exit;
+  // Einmalig OwnerDraw aktivieren. Beim Werkzeugwechsel nicht wieder auf
+  // Windows-Standardzeichnung umschalten: sonst kann das Orange stehen bleiben.
+  if AValue and not FAccentCapable then
+  begin
+    FAccentCapable := True;
+    FAccentOrange := True;
+    if HandleAllocated then RecreateWnd;
+  end
+  else
+    FAccentOrange := AValue;
+  FHover := False;
+  Invalidate;
+  if HandleAllocated then RedrawWindow(Handle, nil, 0,
+    RDW_INVALIDATE or RDW_ERASE or RDW_UPDATENOW);
+  if (Parent <> nil) and Parent.HandleAllocated then
+    RedrawWindow(Parent.Handle, nil, 0,
+      RDW_INVALIDATE or RDW_ALLCHILDREN or RDW_UPDATENOW);
 end;
 
 procedure TPDFDesignButton.SetDesign(AValue: Integer);
@@ -1205,14 +1245,14 @@ procedure TPDFDesignButton.CMMouseEnter(var Message: TMessage);
 begin
   inherited;
   FHover := True;
-  if FDesign <> 0 then Invalidate;
+  if (FDesign <> 0) or FAccentCapable then Invalidate;
 end;
 
 procedure TPDFDesignButton.CMMouseLeave(var Message: TMessage);
 begin
   inherited;
   FHover := False;
-  if FDesign <> 0 then Invalidate;
+  if (FDesign <> 0) or FAccentCapable then Invalidate;
 end;
 
 procedure TPDFDesignButton.CNDrawItem(var Message: TWMDrawItem);
@@ -1227,7 +1267,7 @@ var
   IconImage: TImage;
   PaintCanvas: TCanvas;
 begin
-  if FDesign = 0 then
+  if (FDesign = 0) and not FAccentCapable then
   begin
     inherited;
     Exit;
@@ -1244,7 +1284,18 @@ begin
   else
     begin Back := clBtnFace; Edge := clBtnShadow; Fore := clWindowText; end;
   end;
+  // Die Schaltflaeche fuer die endgueltige Schwaerzung bleibt im
+  // Vorschau-Modus in jedem Design eindeutig orange hervorgehoben.
+  if FAccentOrange then
+  begin
+    Back := RGB(255, 190, 92);
+    Edge := RGB(210, 112, 20);
+    Fore := RGB(70, 38, 8);
+  end;
   if FHover and Enabled then
+    if FAccentOrange then
+      Back := RGB(255, 169, 55)
+    else
     case FDesign of
       2: Back := RGB(86, 94, 107);
       4: Back := RGB(68, 73, 81);
@@ -1253,6 +1304,9 @@ begin
       Back := RGB(213, 226, 242);
     end;
   if (State and ODS_SELECTED) <> 0 then
+    if FAccentOrange then
+      Back := RGB(235, 139, 32)
+    else
     case FDesign of
       2, 4: Back := RGB(91, 106, 128);
     else
@@ -2485,21 +2539,33 @@ begin
   FMarker := Btn('Markieren: AUS', 766, 116, MarkerClick);
   FMarker.Hint := Tr('Markierungsmodus ein- oder ausschalten');
   FMarker.ShowHint := True;
+  FRedactionPreviews := TObjectList<TPDFInkStroke>.Create(True);
+  FRedactionPreviewPages := TList<Integer>.Create;
+  FRedactionRedo := TObjectList<TPDFInkStroke>.Create(True);
+  FRedactionRedoPages := TList<Integer>.Create;
   FShapeSelect := TComboBox.Create(Self);
   FShapeSelect.Parent := FBar;
   FShapeSelect.Style := csDropDownList;
-  FShapeSelect.SetBounds(866, 5, 110, 26);
-  FShapeSelect.Items.Add(Tr('Freihand'));
-  FShapeSelect.Items.Add(Tr('Linie'));
-  FShapeSelect.Items.Add(Tr('Rechteck'));
-  FShapeSelect.Items.Add(Tr('Ellipse'));
-  FShapeSelect.Items.Add(Tr('Schwärzen (optisch)'));
+  FShapeSelect.SetBounds(866, 5, 165, 26);
+  FShapeSelect.Items.Add(Tr('Freihand'));             // 0
+  FShapeSelect.Items.Add(Tr('Linie'));                // 1
+  FShapeSelect.Items.Add(Tr('Rechteck'));             // 2
+  FShapeSelect.Items.Add(Tr('Ellipse'));              // 3
+  FShapeSelect.Items.Add('──────────────');           // 4: Trennlinie
+  FShapeSelect.Items.Add(Tr('Schwärzen (optisch)'));  // 5
   if PDFLanguage = 'en' then
-    FShapeSelect.Items.Add('Hand Tool')
+    FShapeSelect.Items.Add('Redaction preview')       // 6
+  else
+    FShapeSelect.Items.Add('Schwärzung (Vorschau)');
+  FShapeSelect.Items.Add('──────────────');           // 7: Trennlinie
+  if PDFLanguage = 'en' then
+    FShapeSelect.Items.Add('Hand Tool')               // 8
   else
     FShapeSelect.Items.Add('Hand-Werkzeug');
+  FShapeSelect.OnChange := ShapeSelectChange;
   FShapeSelect.ItemIndex := 0;
-  FShapeSelect.Hint := Tr('Markierungsform auswählen; Schwärzen verdeckt Text nur optisch');
+  // Der Hint wird passend zum gewählten Werkzeug gesetzt.
+  ShapeSelectChange(FShapeSelect);
   FShapeSelect.ShowHint := True;
   FWidthSelect := TComboBox.Create(Self);
   FWidthSelect.Parent := FBar;
@@ -2659,6 +2725,18 @@ begin
   FTextRedoButton.Hint := ToolbarHint('Wiederholen', 'Redo');
   FTextUndoButton.ShowHint := True;
   FTextRedoButton.ShowHint := True;
+  FRedactionFinalizeButton := TPDFDesignButton.Create(Self);
+  FRedactionFinalizeButton.Parent := FBar;
+  FRedactionFinalizeButton.Visible := True;
+  FRedactionFinalizeButton.Caption := ToolbarHint('Endgültig schwärzen ...', 'Apply secure redaction ...');
+  FRedactionFinalizeButton.OnClick := FinalizeRedactionClick;
+  FRedactionFinalizeButton.Enabled := False;
+  FRedactionFinalizeButton.Hint := ToolbarHint(
+    'Erstellt eine neue PDF-Datei und entfernt den Inhalt der vorgemerkten Seiten durch vollständige Rasterisierung.',
+    'Creates a new PDF and removes the content of marked pages by fully rasterizing them.');
+  FRedactionFinalizeButton.ShowHint := True;
+  FRedactionFinalizeButton.SetAccentOrange(
+    (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6));
   FTextFontSelect := TComboBox.Create(Self);
   FTextFontSelect.Parent := FEditBar;
   FTextFontSelect.Style := csDropDownList;
@@ -3015,6 +3093,10 @@ begin
   FreeAndNil(FFormFocusFrame);
   FPreviewBitmap.Free;
   FCurrentStroke.Free;
+  FRedactionRedo.Free;
+  FRedactionRedoPages.Free;
+  FRedactionPreviews.Free;
+  FRedactionPreviewPages.Free;
   ClearStrokeRedo;
   FStrokeRedo.Free;
   FStrokeRedoPages.Free;
@@ -3310,6 +3392,9 @@ begin
   FMeasureRedo.Clear;
   FMeasureDirty := False;
   ClearStrokeRedo;
+  FRedactionPreviews.Clear;
+  FRedactionPreviewPages.Clear;
+  ClearRedactionRedo;
   FCommentOwnerAuthorized := False;
   // M2.1: nur einmal pro erfolgreich geoeffnetem Dokument abfragen.
   // Kein Widget-Scan, keine Aenderung an Render-/Zoom-/Scrollpfaden.
@@ -4055,6 +4140,33 @@ end;
 procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 begin
+  if FRedactionReportOpen then Exit;
+  // Schwärzungsvorschau: Die letzte Vormerkung einzeln entfernen.
+  // Entf ist bewusst nur im Vorschauwerkzeug aktiv, damit die normale
+  // PDF-Bearbeitung und deren Rückgängig-Funktion unverändert bleiben.
+  if (Key = VK_DELETE) and (FShapeSelect <> nil) and
+     (FShapeSelect.ItemIndex = 6) and (FRedactionPreviews <> nil) and
+     (FRedactionPreviews.Count > 0) then
+  begin
+    FRedactionPreviews.Delete(FRedactionPreviews.Count - 1);
+    FRedactionPreviewPages.Delete(FRedactionPreviewPages.Count - 1);
+    ClearRedactionRedo;
+    UpdateTextUndoButtons;
+    RenderVisiblePages;
+    Key := 0;
+    Exit;
+  end;
+  if (Key = VK_ESCAPE) and (FRedactionPreviews <> nil) and
+     (FRedactionPreviews.Count > 0) then
+  begin
+    FRedactionPreviews.Clear;
+    FRedactionPreviewPages.Clear;
+    ClearRedactionRedo;
+    UpdateTextUndoButtons;
+    RenderVisiblePages;
+    Key := 0;
+    Exit;
+  end;
   if (Key = VK_ESCAPE) and FSignatureMode then
   begin
     CancelSignature;
@@ -4633,6 +4745,51 @@ begin
     FInsertManageCommentsItem.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FOutlineMenu <> nil then OutlineMenuPopup(nil);
   LayoutToolbar(nil);
+end;
+
+procedure TFreePDF64PDFiumView.ShapeSelectChange(Sender: TObject);
+begin
+  // Trennlinien sind keine Werkzeuge. Zur letzten gültigen Auswahl zurückkehren.
+  if FShapeSelect = nil then Exit;
+  if FShapeSelect.ItemIndex in [4, 7] then
+    FShapeSelect.ItemIndex := 0;
+
+  // Schwaerzungswerkzeuge duerfen nicht vom aktiven Text-Hervorheben
+  // abgefangen werden. Sonst wird beim MouseUp FMarkColor verwendet.
+  if FShapeSelect.ItemIndex in [5, 6] then
+  begin
+    if FHighlightMode then
+    begin
+      FHighlightMode := False;
+      if FHighlightButton <> nil then
+        FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
+    end;
+    FMarkMode := FEditVisible and not FTextInsertMode and not FNoteMode;
+  end;
+
+  if FRedactionFinalizeButton <> nil then
+  begin
+    FRedactionFinalizeButton.SetAccentOrange(FEditVisible and
+      (FShapeSelect.ItemIndex = 6));
+    // Button bleibt sichtbar; nur die orange Hervorhebung wird zurückgesetzt.
+  end;
+
+  case FShapeSelect.ItemIndex of
+    5: FShapeSelect.Hint := ToolbarHint(
+         'Schwärzen (optisch): Deckt den markierten Bereich schwarz ab. Der ursprüngliche PDF-Inhalt wird nicht entfernt.',
+         'Optical redaction: Covers the selected area in black. The original PDF content is not removed.');
+    6: FShapeSelect.Hint := ToolbarHint(
+         'Schwärzung (Vorschau): Markiert einen Bereich für die spätere dauerhafte Schwärzung. Der PDF-Inhalt wird noch nicht entfernt. Entf entfernt die letzte Vormerkung; ESC löscht alle Vormerkungen.',
+         'Redaction preview: Marks an area for later permanent redaction. PDF content is not removed yet. Delete removes the last preview; Esc clears all previews.');
+  else
+    FShapeSelect.Hint := ToolbarHint(
+      'Zeichenwerkzeug auswählen', 'Select drawing tool');
+  end;
+  if (FRedactionFinalizeButton <> nil) and (FBar <> nil) then
+  begin
+    UpdateTextUndoButtons;
+    LayoutToolbar(nil);
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ViewModeChange(Sender: TObject);
@@ -5794,6 +5951,159 @@ var
   SigPageImage: TPDFiumImage;
   Step, DX, DY, MaxLeft, MaxTop: Integer;
 begin
+  // Modale Berichtstasten dürfen niemals PDF-Vormerkungen verändern.
+  if FRedactionReportOpen then Exit;
+  // Patch 32au: Nur lesender Analysebericht fuer vorgemerkte Schwaerzungen.
+  // Strg+Umschalt+R ist bewusst nur im Vorschauwerkzeug aktiv.
+  if (Msg.message = WM_KEYDOWN) and (Msg.wParam = Ord('R')) and
+     (GetKeyState(VK_CONTROL) < 0) and (GetKeyState(VK_SHIFT) < 0) and
+     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
+     FEditVisible and (FRedactionPreviews <> nil) and
+     (FRedactionPreviews.Count > 0) and
+     (Screen.ActiveCustomForm <> nil) and
+     (FInlineFormEditor = nil) and (FTextEditor = nil) and
+     not (Screen.ActiveControl is TCustomEdit) then
+  begin
+    var Analysis: TPDFRedactionBatchAnalysis;
+    var AnalysisOK := AnalyzePendingRedactions(Analysis);
+    var ReportText := Format(ToolbarHint(
+      'Vorgemerkte Bereiche: %d'#13#10 +
+      'Analysierte Bereiche: %d'#13#10 +
+      'Fehlgeschlagene Bereiche: %d'#13#10 +
+      'Betroffene Seitenobjekte: %d'#13#10 +
+      'Davon Textobjekte: %d'#13#10 +
+      'Davon Bildobjekte: %d'#13#10 +
+      'Davon Pfad-/Vektorobjekte: %d'#13#10 +
+      'Davon sonstige Objekte: %d'#13#10 +
+      'Vollständig enthalten: %d'#13#10 +
+      'Teilweise betroffen: %d'#13#10 +
+      '  Davon Textobjekte: %d'#13#10 +
+      '  Davon Bildobjekte: %d'#13#10 +
+      '  Davon Pfad-/Vektorobjekte: %d'#13#10 +
+      '  Davon sonstige Objekte: %d'#13#10 +
+      'Objekte mit unbekannten Grenzen: %d'#13#10 +
+      'Betroffene Annotationen (eindeutig): %d'#13#10 +
+      'Davon Kommentar-/Markierungsarten: %d'#13#10 +
+      'Davon Formular-/Signatur-Widgets: %d'#13#10 +
+      'Davon sonstige Annotationen: %d'#13#10 +
+      'Mehrfachtreffer durch mehrere Bereiche: %d',
+      'Marked regions: %d'#13#10 +
+      'Analyzed regions: %d'#13#10 +
+      'Failed regions: %d'#13#10 +
+      'Intersecting page objects: %d'#13#10 +
+      'Text objects: %d'#13#10 +
+      'Image objects: %d'#13#10 +
+      'Path/vector objects: %d'#13#10 +
+      'Other objects: %d'#13#10 +
+      'Fully contained: %d'#13#10 +
+      'Partially intersecting: %d'#13#10 +
+      '  Partial text objects: %d'#13#10 +
+      '  Partial image objects: %d'#13#10 +
+      '  Partial path/vector objects: %d'#13#10 +
+      '  Partial other objects: %d'#13#10 +
+      'Objects with unknown bounds: %d'#13#10 +
+      'Affected annotations (unique): %d'#13#10 +
+      'Comment/markup types: %d'#13#10 +
+      'Form/signature widgets: %d'#13#10 +
+      'Other annotations: %d'#13#10 +
+      'Duplicate hits across regions: %d'),
+      [Analysis.RegionCount, Analysis.AnalyzedRegions,
+       Analysis.FailedRegions, Analysis.IntersectingObjects,
+       Analysis.TextObjects, Analysis.ImageObjects,
+       Analysis.PathObjects, Analysis.OtherObjects,
+       Analysis.FullyContainedObjects, Analysis.PartiallyIntersectingObjects,
+       Analysis.PartialTextObjects, Analysis.PartialImageObjects,
+       Analysis.PartialPathObjects, Analysis.PartialOtherObjects,
+       Analysis.UnknownBoundsObjects, Analysis.AnnotationCount,
+       Analysis.AnnotationComments, Analysis.AnnotationWidgets,
+       Analysis.AnnotationOther, Analysis.AnnotationDuplicateHits]);
+    // Patch 32av: Der Status beschreibt ausschließlich die Vollständigkeit
+    // der Voranalyse, nicht die Sicherheit einer späteren Schwärzung.
+    if AnalysisOK and not Analysis.HasUnsupportedContent then
+      ReportText := ReportText + #13#10#13#10 + ToolbarHint(
+        'Prüfstatus: Alle Bereiche analysiert. Keine Hindernisse in dieser Vorprüfung erkannt.',
+        'Inspection status: All regions analyzed. No obstacles detected by this preliminary check.')
+    else
+      ReportText := ReportText + #13#10#13#10 + ToolbarHint(
+        'Prüfstatus: Weitere Prüfung erforderlich. Keine Freigabe zur sicheren Schwärzung.',
+        'Inspection status: Further verification required. Not approved for secure redaction.');
+    if not AnalysisOK then
+      ReportText := ReportText + #13#10#13#10 + ToolbarHint(
+        'Warnung: Nicht alle Bereiche konnten analysiert werden.',
+        'Warning: Not all regions could be analyzed.');
+    if Analysis.HasUnsupportedContent then
+      ReportText := ReportText + #13#10 + ToolbarHint(
+        'Warnung: Nicht unterstützte oder unklare Inhalte erkannt.',
+        'Warning: Unsupported or uncertain content detected.');
+    ReportText := ReportText + #13#10#13#10 + ToolbarHint(
+      'Nur Voranalyse! Es wurden keine PDF-Inhalte entfernt. ' +
+      'Objektzahlen können bei überlappenden Bereichen mehrfach gezählt werden.',
+      'Analysis only! No PDF content was removed. ' +
+      'Overlapping regions may count objects more than once.');
+    Handled := True;
+    FRedactionReportOpen := True;
+    try
+      PDFModernMessageDlg(ReportText, mtInformation, [mbOK], 0, True);
+    finally
+      FRedactionReportOpen := False;
+    end;
+    Exit;
+  end;
+  // Tastaturereignisse erreichen den eingebetteten Viewer nicht immer
+  // direkt: Der Fokus kann bei der uebergeordneten Registerkarten-Form
+  // liegen. Deshalb nicht auf IsChild(Handle, Msg.hwnd) beschraenken.
+  // Eingabefelder und Dialoge bleiben von den Kurzbefehlen ausgenommen.
+  if ((Msg.message = WM_KEYDOWN) or (Msg.message = WM_SYSKEYDOWN)) and
+     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
+     FEditVisible and (FRedactionPreviews <> nil) and
+     (FRedactionPreviews.Count > 0) and
+     ((Msg.wParam = VK_DELETE) or (Msg.wParam = VK_ESCAPE)) and
+     (GetForegroundWindow <> 0) and
+     (Screen.ActiveCustomForm <> nil) and
+     (FInlineFormEditor = nil) and (FTextEditor = nil) and
+     not (Screen.ActiveControl is TCustomEdit) then
+  begin
+    // Nur die Seiten mit geloeschten Vormerkungen neu aufbauen.
+    // RenderVisiblePages allein kann eine gecachte Bitmap unveraendert
+    // lassen; das schwarze Rechteck bliebe dann optisch stehen.
+    var ChangedPages := TList<Integer>.Create;
+    try
+      if Msg.wParam = VK_ESCAPE then
+      begin
+        for var K := 0 to FRedactionPreviewPages.Count - 1 do
+          if ChangedPages.IndexOf(FRedactionPreviewPages[K]) < 0 then
+            ChangedPages.Add(FRedactionPreviewPages[K]);
+        FRedactionPreviews.Clear;
+        FRedactionPreviewPages.Clear;
+        ClearRedactionRedo;
+      end
+      else
+      begin
+        var LastPage := FRedactionPreviewPages[FRedactionPreviewPages.Count - 1];
+        ChangedPages.Add(LastPage);
+        FRedactionPreviews.Delete(FRedactionPreviews.Count - 1);
+        FRedactionPreviewPages.Delete(FRedactionPreviewPages.Count - 1);
+        ClearRedactionRedo;
+      end;
+      for var K := 0 to ChangedPages.Count - 1 do
+      begin
+        var Pg := ChangedPages[K];
+        if (Pg >= 0) and (Pg < Length(FLoadedPages)) and
+           FLoadedPages[Pg] and (PageImage(Pg) <> nil) then
+        begin
+          FCore.RenderPage(Pg, PageImage(Pg).Picture.Bitmap,
+            PageImage(Pg).Width, PageImage(Pg).Height);
+          DrawPageStrokes(Pg);
+          PageImage(Pg).Invalidate;
+        end;
+      end;
+    finally
+      ChangedPages.Free;
+    end;
+    UpdateTextUndoButtons;
+    Handled := True;
+    Exit;
+  end;
   // Eine noch nicht eingebettete Signatur pixelgenau positionieren.
   // Umschalt + Pfeiltaste verschiebt um zehn statt um einen Bildschirmpixel.
   if FSignatureMode and FSignaturePlaced and (Msg.message = WM_KEYDOWN) and
@@ -7734,6 +8044,7 @@ begin
       'Hand Tool: Drag a zoomed PDF with the left mouse button.' + sLineBreak +
       'Alt + left mouse button: Temporarily pan a zoomed PDF.' + sLineBreak +
       'Redaction draws a black rectangle. The underlying PDF text remains and can be copied or restored. Not suitable for confidential data.' + sLineBreak +
+      'Secure redaction: mark areas with Redaction preview, then use Apply secure redaction to create a new PDF. Marked pages are rasterized at 300 DPI; text selection/search is unavailable on those pages. Bookmarks are not transferred.' + sLineBreak +
       'Set line width and color, then draw with the mouse.' + sLineBreak + sLineBreak +
       'DOCUMENT AND FILE' + sLineBreak +
       'Attachments: Show embedded files.' + sLineBreak +
@@ -7774,6 +8085,7 @@ begin
       'Hand-Werkzeug: Gezoomte PDF mit gedrückter linker Maustaste verschieben.' + sLineBreak +
       'Alt + linke Maustaste: Gezoomte PDF vorübergehend verschieben.' + sLineBreak +
       'Schwärzen zeichnet ein schwarzes Rechteck. Der darunterliegende PDF-Text bleibt erhalten und kann kopiert oder wiederhergestellt werden. Nicht für vertrauliche Daten geeignet.' + sLineBreak +
+      'Sichere Schwärzung: Bereiche mit Schwärzung (Vorschau) markieren und anschließend Endgültig schwärzen wählen. Es wird eine neue PDF-Datei erstellt; markierte Seiten werden mit 300 DPI gerastert. Textauswahl und Suche sind auf diesen Seiten danach nicht mehr möglich. Lesezeichen werden nicht übernommen.' + sLineBreak +
       'Strichstärke und Farbe festlegen; mit der Maus zeichnen.' + sLineBreak + sLineBreak +
       'DOKUMENT UND DATEI' + sLineBreak +
       'Anlagen: Eingebettete Dateien anzeigen.' + sLineBreak +
@@ -8128,11 +8440,19 @@ begin
   // Aktionsgruppe als unteilbaren Block positionieren. Insbesondere darf
   // die Hilfe-Schaltflaeche nicht allein in die naechste Zeile springen.
   H := Px(34) + Px(34) + Px(40) + 2 * Gap;
+  if FRedactionFinalizeButton <> nil then
+    Inc(H, Px(148) + Gap);
   if (X > Margin) and (X + H > W - Margin) then
     NextRow;
   X := Max(Margin, W - Margin - H);
   FInfo.SetBounds(X, Y + (RowH - ButtonH) div 2, Px(34), ButtonH);
   Inc(X, Px(34) + Gap);
+  if FRedactionFinalizeButton <> nil then
+  begin
+    FRedactionFinalizeButton.SetBounds(X, Y + (RowH - ButtonH) div 2,
+      Px(148), ButtonH);
+    Inc(X, Px(148) + Gap);
+  end;
   FQuickSave.SetBounds(X, Y + (RowH - ButtonH) div 2, Px(34), ButtonH);
   Inc(X, Px(34) + Gap);
   FPrint.SetBounds(X, Y + (RowH - ButtonH) div 2, Px(40), ButtonH);
@@ -8160,7 +8480,7 @@ begin
     // sichtbare Hoehe, auch bei anderer Windows-DPI-Skalierung.
     EditH := FShapeSelect.Height;
     if EditH < 1 then EditH := Px(24);
-    PlaceControl(FShapeSelect, Px(110), EditH);
+    PlaceControl(FShapeSelect, Px(165), EditH);
     PlaceControl(FWidthSelect, Px(54), EditH);
     PlaceControl(FHighlightButton, Px(116), EditH);
     PlaceControl(FColorButton, Px(60), EditH);
@@ -9235,6 +9555,164 @@ begin
   ToggleEditBar(nil);
 end;
 
+// Verbindet die nicht persistenten Vormerkungen mit der Core-Sammelanalyse.
+// Weder PDF-Inhalte noch die Vorschau-Rechtecke werden hier veraendert.
+function TFreePDF64PDFiumView.AnalyzePendingRedactions(
+  out AAnalysis: TPDFRedactionBatchAnalysis): Boolean;
+var
+  Regions: TArray<TPDFRedactionRegion>;
+  I, N: Integer;
+  P1, P2: TPDFInkPoint;
+begin
+  FillChar(AAnalysis, SizeOf(AAnalysis), 0);
+  Result := False;
+  if (FCore = nil) or (FRedactionPreviews = nil) or
+     (FRedactionPreviewPages = nil) or
+     (FRedactionPreviews.Count <> FRedactionPreviewPages.Count) then Exit;
+  SetLength(Regions, FRedactionPreviews.Count);
+  N := 0;
+  for I := 0 to FRedactionPreviews.Count - 1 do
+  begin
+    if (FRedactionPreviews[I] = nil) or
+       (FRedactionPreviews[I].Count < 2) then Continue;
+    P1 := FRedactionPreviews[I][0];
+    P2 := FRedactionPreviews[I][1];
+    Regions[N].PageIndex := FRedactionPreviewPages[I];
+    Regions[N].Bounds.Left := Min(P1.X, P2.X);
+    Regions[N].Bounds.Right := Max(P1.X, P2.X);
+    Regions[N].Bounds.Bottom := Min(P1.Y, P2.Y);
+    Regions[N].Bounds.Top := Max(P1.Y, P2.Y);
+    Inc(N);
+  end;
+  SetLength(Regions, N);
+  Result := FCore.AnalyzeRedactionRegions(Regions, AAnalysis);
+end;
+
+procedure TFreePDF64PDFiumView.FinalizeRedactionClick(Sender: TObject);
+var
+  D: TSaveDialog;
+  Regions: TArray<TPDFRedactionRegion>;
+  Analysis: TPDFRedactionBatchAnalysis;
+  I, N, AffectedPages: Integer;
+  P1, P2: TPDFInkPoint;
+  PageSeen: TList<Integer>;
+  OutputName, VerifyReport, ReportName: string;
+  ReportLines: TStringList;
+begin
+  if (FCore = nil) or (FRedactionPreviews = nil) or
+     (FRedactionPreviews.Count = 0) or
+     (FRedactionPreviews.Count <> FRedactionPreviewPages.Count) then
+  begin
+    PDFModernMessageDlg(Tr('Es sind keine gültigen Schwärzungsbereiche vorgemerkt.'),
+      mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  if not AnalyzePendingRedactions(Analysis) or
+     (Analysis.FailedRegions > 0) then
+  begin
+    PDFModernMessageDlg(ToolbarHint(
+      'Mindestens ein Schwärzungsbereich konnte nicht vollständig geprüft werden. Es wurde keine Datei erstellt.',
+      'At least one redaction region could not be fully inspected. No file was created.'),
+      mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  SetLength(Regions, FRedactionPreviews.Count);
+  N := 0;
+  PageSeen := TList<Integer>.Create;
+  try
+    for I := 0 to FRedactionPreviews.Count - 1 do
+    begin
+      if (FRedactionPreviews[I] = nil) or
+         (FRedactionPreviews[I].Count < 2) then Continue;
+      P1 := FRedactionPreviews[I][0];
+      P2 := FRedactionPreviews[I][1];
+      Regions[N].PageIndex := FRedactionPreviewPages[I];
+      Regions[N].Bounds.Left := Min(P1.X, P2.X);
+      Regions[N].Bounds.Right := Max(P1.X, P2.X);
+      Regions[N].Bounds.Bottom := Min(P1.Y, P2.Y);
+      Regions[N].Bounds.Top := Max(P1.Y, P2.Y);
+      Inc(N);
+      if PageSeen.IndexOf(FRedactionPreviewPages[I]) < 0 then
+        PageSeen.Add(FRedactionPreviewPages[I]);
+    end;
+    SetLength(Regions, N);
+    AffectedPages := PageSeen.Count;
+  finally
+    PageSeen.Free;
+  end;
+  if Length(Regions) = 0 then
+  begin
+    PDFModernMessageDlg(Tr('Es wurden keine gültigen Schwärzungsrechtecke gefunden.'),
+      mtWarning, [mbOK], 0);
+    Exit;
+  end;
+
+  if PDFModernMessageDlg(Format(ToolbarHint(
+      'Es wird eine neue PDF-Datei mit %d vollständig gerasterten Seite(n) erstellt (300 DPI). Auf diesen Seiten sind Textauswahl und Textsuche anschließend nicht mehr möglich. Lesezeichen werden nicht übernommen. Die Originaldatei bleibt unverändert. Fortfahren?',
+      'A new PDF will be created with %d fully rasterized page(s) (300 DPI). Text selection and text search will no longer be available on those pages. Bookmarks will not be transferred. The original file remains unchanged. Continue?'),
+      [AffectedPages]), mtWarning, [mbYes, mbNo], 0) <> mrYes then Exit;
+
+  D := TSaveDialog.Create(Self);
+  try
+    D.Title := ToolbarHint('Sichere Schwärzung – neue PDF-Datei speichern',
+      'Secure redaction – save new PDF file');
+    D.Filter := Tr('PDF-Dateien (*.pdf)') + '|*.pdf';
+    D.DefaultExt := 'pdf';
+    D.Options := D.Options + [ofOverwritePrompt, ofPathMustExist, ofEnableSizing];
+    D.InitialDir := ExtractFilePath(FCore.FileName);
+    if PDFLanguage = 'en' then
+      OutputName := ChangeFileExt(ExtractFileName(FCore.FileName), '_redacted.pdf')
+    else
+      OutputName := ChangeFileExt(ExtractFileName(FCore.FileName), '_geschwärzt.pdf');
+    D.FileName := OutputName;
+    if not D.Execute then Exit;
+    if SameText(ExpandFileName(D.FileName), ExpandFileName(FCore.FileName)) then
+    begin
+      PDFModernMessageDlg(Tr('Die Originaldatei darf nicht überschrieben werden. Bitte einen anderen Dateinamen wählen.'),
+        mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    try
+      FCore.CreateSecureRedactedPDF(Regions, D.FileName, 300);
+      if not FCore.VerifyRedactedOutput(D.FileName, Regions, VerifyReport) then
+        raise Exception.Create(ToolbarHint(
+          'Die abschließende Prüfung der Ausgabedatei ist fehlgeschlagen. Bitte die PDF nicht weitergeben.' + sLineBreak + VerifyReport,
+          'Final verification of the output file failed. Do not share this PDF.' + sLineBreak + VerifyReport));
+      ReportName := ChangeFileExt(D.FileName, '.redaction-check.txt');
+      ReportLines := TStringList.Create;
+      try
+        ReportLines.Text := VerifyReport;
+        ReportLines.SaveToFile(ReportName, TEncoding.UTF8);
+      finally
+        ReportLines.Free;
+      end;
+      PDFModernMessageDlg(Format(ToolbarHint(
+        'Die neue PDF-Datei wurde erstellt und erneut geprüft.' + sLineBreak +
+        'Prüfbericht: ' + ExtractFileName(ReportName) + sLineBreak +
+        'Gerasterte Seiten: %d' + sLineBreak +
+        'Lesezeichen wurden nicht übernommen.' + sLineBreak +
+        'Auf diesen Seiten sind die ursprünglichen PDF-Objekte nicht mehr enthalten.' + sLineBreak +
+        'Die Originaldatei wurde nicht verändert.' + sLineBreak + sLineBreak +
+        'Bitte öffne die Ausgabedatei und kontrolliere das Ergebnis vor der Weitergabe.',
+        'The new PDF was created and checked again.' + sLineBreak +
+        'Verification report: ' + ExtractFileName(ReportName) + sLineBreak +
+        'Rasterized pages: %d' + sLineBreak +
+        'Bookmarks were not transferred.' + sLineBreak +
+        'The original PDF objects are no longer present on these pages.' + sLineBreak +
+        'The original file was not changed.' + sLineBreak + sLineBreak +
+        'Please open the output file and inspect it before sharing.'), [AffectedPages]),
+        mtInformation, [mbOK], 0);
+    except
+      on E: Exception do
+        PDFModernMessageDlg(ToolbarHint('Die sichere Schwärzung ist fehlgeschlagen: ',
+          'Secure redaction failed: ') + E.Message, mtError, [mbOK], 0);
+    end;
+  finally
+    D.Free;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.AppendPoint(X, Y: Integer);
 var P: TPDFInkPoint; DX, DY: Double;
 begin
@@ -9278,7 +9756,11 @@ begin
          AppendPoint(FShapeStart.X, FShapeStart.Y);
        end;
     3: BuildEllipseStroke(FShapeStart.X, FShapeStart.Y, X, Y);
-    4: begin
+    5: begin
+         AppendPoint(FShapeStart.X, FShapeStart.Y);
+         AppendPoint(X, Y);
+       end;
+    6: begin
          AppendPoint(FShapeStart.X, FShapeStart.Y);
          AppendPoint(X, Y);
        end;
@@ -9353,29 +9835,20 @@ var
   P: TPDFInkPoint;
   First: Boolean;
 begin
-  if (FCurrentStroke = nil) or (FPreviewBitmap = nil) then Exit;
+  if FCurrentStroke = nil then Exit;
+  if (not FCurrentStroke.IsCover) and (FPreviewBitmap = nil) then Exit;
   if (FStrokePage < 0) or (FStrokePage >= FPages.Count) then Exit;
   Img := PageImage(FStrokePage);
   B := Img.Picture.Bitmap;
-  B.Assign(FPreviewBitmap);
-  B.Canvas.Brush.Style := bsClear;
   if FCurrentStroke.IsCover then
   begin
-    if (FCurrentStroke.Count >= 2) and
-       FCore.PagePointToDevice(FStrokePage, Img.Width, Img.Height,
-         FCurrentStroke[0].X, FCurrentStroke[0].Y, PX, PY) and
-       FCore.PagePointToDevice(FStrokePage, Img.Width, Img.Height,
-         FCurrentStroke[1].X, FCurrentStroke[1].Y, X2, Y2) then
-    begin
-      B.Canvas.Brush.Style := bsSolid;
-      B.Canvas.Brush.Color := clBlack;
-      B.Canvas.Pen.Color := clBlack;
-      B.Canvas.Rectangle(PX, PY, X2, Y2);
-    end;
+    // Der AfterPaint-Handler zeichnet das Rechteck als Bildschirm-Overlay.
+    // Hier darf die PDF-Bitmap nicht angefasst werden.
     Img.Invalidate;
-    Img.Update;
     Exit;
   end;
+  B.Assign(FPreviewBitmap);
+  B.Canvas.Brush.Style := bsClear;
   B.Canvas.Pen.Color := FCurrentStroke.StrokeColor;
   B.Canvas.Pen.Width := Max(1, Round(FCurrentStroke.LineWidth * FZoom));
   B.Canvas.Pen.Style := psSolid;
@@ -9742,6 +10215,24 @@ begin
   if FStrokeRedoPages <> nil then FStrokeRedoPages.Clear;
 end;
 
+procedure TFreePDF64PDFiumView.ClearRedactionRedo;
+begin
+  FRedactionRedo.Clear;
+  FRedactionRedoPages.Clear;
+end;
+
+procedure TFreePDF64PDFiumView.RefreshRedactionPage(APage: Integer);
+begin
+  if (APage >= 0) and (APage < Length(FLoadedPages)) and
+     FLoadedPages[APage] and (PageImage(APage) <> nil) then
+  begin
+    FCore.RenderPage(APage, PageImage(APage).Picture.Bitmap,
+      PageImage(APage).Width, PageImage(APage).Height);
+    DrawPageStrokes(APage);
+    PageImage(APage).Invalidate;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.UpdateTextUndoButtons;
 begin
   // Gleiche Aktiv-Kennzeichnung wie beim Dropdown "Messen".
@@ -9753,9 +10244,20 @@ begin
       FInsertButton.Font.Style := [];
   end;
   if FTextUndoButton <> nil then
-    FTextUndoButton.Enabled := (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
+    FTextUndoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionPreviews.Count > 0)) or (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
   if FTextRedoButton <> nil then
-    FTextRedoButton.Enabled := (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote;
+    FTextRedoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionRedo.Count > 0)) or (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote;
+  if FRedactionFinalizeButton <> nil then
+  begin
+    // Den Orange-Zustand immer aus dem tatsaechlich aktiven Werkzeugmodus
+    // ableiten, auch beim Schliessen der Werkzeugleiste ohne OnChange.
+    FRedactionFinalizeButton.SetAccentOrange(FEditVisible and
+      (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6));
+    FRedactionFinalizeButton.Enabled := FEditVisible and
+      (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
+      (FRedactionPreviews <> nil) and (FRedactionPreviews.Count > 0) and
+      (FCore <> nil) and (FCore.PageCount > 0);
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.RefreshTextPage(APageIndex: Integer);
@@ -9804,6 +10306,17 @@ var
   Pg, Index: Integer;
   Action: TPDFMeasureAction;
 begin
+  if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
+     (FRedactionPreviews.Count > 0) then
+  begin
+    Pg := FRedactionPreviews.Count - 1;
+    FRedactionRedoPages.Add(FRedactionPreviewPages[Pg]);
+    FRedactionRedo.Add(FRedactionPreviews.Extract(FRedactionPreviews[Pg]));
+    FRedactionPreviewPages.Delete(Pg);
+    RefreshRedactionPage(FRedactionRedoPages.Last);
+    UpdateTextUndoButtons;
+    Exit;
+  end;
   if FMeasureMode and (FMeasureUndo.Count > 0) then
   begin
     Action := FMeasureUndo.Last;
@@ -9855,6 +10368,17 @@ var
   Pg, Index: Integer;
   Action: TPDFMeasureAction;
 begin
+  if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
+     (FRedactionRedo.Count > 0) then
+  begin
+    Pg := FRedactionRedo.Count - 1;
+    FRedactionPreviewPages.Add(FRedactionRedoPages[Pg]);
+    FRedactionPreviews.Add(FRedactionRedo.Extract(FRedactionRedo[Pg]));
+    FRedactionRedoPages.Delete(Pg);
+    RefreshRedactionPage(FRedactionPreviewPages.Last);
+    UpdateTextUndoButtons;
+    Exit;
+  end;
   if FMeasureMode and (FMeasureRedo.Count > 0) then
   begin
     Action := FMeasureRedo.Last;
@@ -11015,7 +11539,8 @@ begin
     Exit;
   end;
   if (Button <> mbLeft) or (FCore.PageCount = 0) then Exit;
-  if FHighlightMode then
+  if FHighlightMode and not (FEditVisible and (FShapeSelect <> nil) and
+     (FShapeSelect.ItemIndex in [5, 6])) then
   begin
     FSelAnchorChar := SelectionHit(Sender, X, Y);
     if (ssShift in Shift) or (FSelAnchorChar < 0) then
@@ -11053,7 +11578,7 @@ begin
   // Formular-Widgets haben Vorrang vor Hand-Werkzeug und Textauswahl.
   // Klick-Hit-Test als Grundlage fuer die naechste FormFill-Eingabestufe.
   if not FMarkMode and not (ssShift in Shift) and not (ssCtrl in Shift) and
-     not (FEditVisible and (FShapeSelect.ItemIndex = 5)) and
+     not (FEditVisible and (FShapeSelect.ItemIndex = 8)) and
      (Sender is TPDFiumImage) then
   begin
     Img := TPDFiumImage(Sender);
@@ -11242,7 +11767,7 @@ begin
   end;
 
   if not (ssShift in Shift) and not (ssCtrl in Shift) and
-     not (FEditVisible and (FShapeSelect.ItemIndex = 5)) and
+     not (FEditVisible and (FShapeSelect.ItemIndex in [6, 8])) and
      LinkAtImagePoint(Sender, X, Y, Target) then
   begin
     if Target.PageIndex >= 0 then
@@ -11259,7 +11784,7 @@ begin
   // Hand-Werkzeug: ausschliesslich bei linker Maustaste verschieben.
   // Die vorhandene Alt-Ziehen-Funktion bleibt unveraendert.
   if (Button = mbLeft) and FEditVisible and
-     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 5) then
+     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 8) then
   begin
     if (FScroll.HorzScrollBar.Range <= FScroll.ClientWidth) and
        (FScroll.VertScrollBar.Range <= FScroll.ClientHeight) then Exit;
@@ -11325,9 +11850,12 @@ begin
   FreeAndNil(FCurrentStroke);
   FStrokePage := TPDFiumImage(Sender).Tag;
   FPage := FStrokePage;
-  UpdateVisiblePage;
+  // Beim Start einer Schwaerzung keine Miniatur-/Seitenleistenaktualisierung:
+  // sie kann vor dem ersten sichtbaren Rechteck spuerbar blockieren.
+  if not (FShapeSelect.ItemIndex in [5, 6]) then
+    UpdateVisiblePage;
   FCurrentStroke := TPDFInkStroke.Create;
-  FCurrentStroke.IsCover := FShapeSelect.ItemIndex = 4;
+  FCurrentStroke.IsCover := FShapeSelect.ItemIndex in [5, 6];
   if FCurrentStroke.IsCover then
     FCurrentStroke.StrokeColor := clBlack
   else
@@ -11343,13 +11871,37 @@ begin
     FCurrentStroke.LineWidth := 5;
   end;
   FShapeStart := Point(X, Y);
+  FPreviewLastRectValid := False;
   FreeAndNil(FPreviewBitmap);
+  if not FCurrentStroke.IsCover then
+  begin
   FPreviewBitmap := TBitmap.Create;
-  FPreviewBitmap.Assign(TPDFiumImage(Sender).Picture.Bitmap);
+  // Bitmap-Daten direkt kopieren, ohne Assign/Formatkonvertierung.
+  // Die Kopie bleibt notwendig, um das alte Live-Rechteck zu restaurieren.
+  with TPDFiumImage(Sender).Picture.Bitmap do
+  begin
+    FPreviewBitmap.PixelFormat := PixelFormat;
+    FPreviewBitmap.SetSize(Width, Height);
+    BitBlt(FPreviewBitmap.Canvas.Handle, 0, 0, Width, Height,
+      Canvas.Handle, 0, 0, SRCCOPY);
+  end;
+  end;
   AppendPoint(X, Y);
+  if FCurrentStroke.IsCover then
+  begin
+    // Gleicher schneller Auswahlrahmen wie bei "Text hervorheben".
+    // Erst nach MouseUp wird das Rechteck schwarz ausgefuellt.
+    FHighlightAreaDragging := True;
+    FHighlightAreaPage := FStrokePage;
+    FHighlightAreaStartX := X;
+    FHighlightAreaStartY := Y;
+    FHighlightAreaEndX := X;
+    FHighlightAreaEndY := Y;
+  end;
   // Mausereignisse auch beim Ziehen ausserhalb des Bildes erhalten.
   TPDFiumImage(Sender).MouseCapture := True;
-  DrawLivePreview;
+  if not FCurrentStroke.IsCover then
+    DrawLivePreview;
 end;
 
 // Doppelklick waehlt das ganze Wort unter dem Mauszeiger aus.
@@ -11523,7 +12075,7 @@ begin
     Exit;
   end;
   if FEditVisible and (FShapeSelect <> nil) and
-     (FShapeSelect.ItemIndex = 5) and (Sender is TPDFiumImage) and
+     (FShapeSelect.ItemIndex = 8) and (Sender is TPDFiumImage) and
      not FDraggingPage then
   begin
     TPDFiumImage(Sender).Cursor := crHandPoint;
@@ -11632,7 +12184,19 @@ begin
     end;
     Exit;
   end;
-  if (FCurrentStroke = nil) or not (ssLeft in Shift) then Exit;
+  // Laufende Rechteckzeichnung hat Vorrang vor dem Werkzeug-Cursor.
+  // Andernfalls verhindert das fruehe Exit die sichtbare Live-Vorschau.
+  if (FCurrentStroke = nil) or not (ssLeft in Shift) then
+  begin
+    // Fadenkreuz nur waehrend des Aufziehens anzeigen.
+    // Nach MouseUp darf MouseMove den normalen Cursor nicht ueberschreiben.
+    Exit;
+  end;
+  if FShapeSelect.ItemIndex in [5, 6] then
+  begin
+    TPDFiumImage(Sender).Cursor := crCross;
+    Screen.Cursor := crCross;
+  end;
   if FShapeSelect.ItemIndex = 0 then
     AppendPoint(X, Y)
   else
@@ -11724,12 +12288,20 @@ begin
     FDraggingPage := False;
     TPDFiumImage(Sender).MouseCapture := False;
     if FEditVisible and (FShapeSelect <> nil) and
-       (FShapeSelect.ItemIndex = 5) then
+       (FShapeSelect.ItemIndex = 8) then
       TPDFiumImage(Sender).Cursor := crHandPoint
     else
       TPDFiumImage(Sender).Cursor := crDefault;
     Screen.Cursor := TPDFiumImage(Sender).Cursor;
     Exit;
+  end;
+  // Die Schwärzungswerkzeuge nutzen den flüssigen Auswahlrahmen nur
+  // während des Ziehens. Die eigentliche Schwärzung erfolgt weiter unten.
+  if FHighlightAreaDragging and (FCurrentStroke <> nil) and
+     FCurrentStroke.IsCover then
+  begin
+    FHighlightAreaDragging := False;
+    TPDFiumImage(Sender).Invalidate;
   end;
   if FHighlightAreaDragging then
   begin
@@ -11847,6 +12419,38 @@ begin
   else
     AppendPoint(X, Y);
   FreeAndNil(FPreviewBitmap);
+  FPreviewLastRectValid := False;
+  // Nach dem Loslassen wieder den normalen Mauszeiger verwenden.
+  if FShapeSelect.ItemIndex in [5, 6] then
+  begin
+    Screen.Cursor := crDefault;
+    TPDFiumImage(Sender).Cursor := crDefault;
+    if FImage <> nil then FImage.Cursor := crDefault;
+  end;
+  if (FShapeSelect.ItemIndex = 6) then
+  begin
+    if (FCurrentStroke.Count >= 2) and
+       ((Abs(FShapeStart.X - X) >= 4) or (Abs(FShapeStart.Y - Y) >= 4)) then
+    begin
+      // Ausdruecklich nur eine nicht persistente Vorschau.
+      // Keine PDF-Speicherung und keine optische Pseudo-Schwaerzung.
+      ClearRedactionRedo;
+      FRedactionPreviewPages.Add(FStrokePage);
+      FRedactionPreviews.Add(FCurrentStroke);
+      UpdateTextUndoButtons;
+      FCurrentStroke := nil;
+    end
+    else
+      FreeAndNil(FCurrentStroke);
+    if (FStrokePage >= 0) and (FStrokePage < Length(FLoadedPages)) and
+       FLoadedPages[FStrokePage] then
+    begin
+      FCore.RenderPage(FStrokePage, PageImage(FStrokePage).Picture.Bitmap,
+        PageImage(FStrokePage).Width, PageImage(FStrokePage).Height);
+      DrawPageStrokes(FStrokePage);
+    end;
+    Exit;
+  end;
   if FCurrentStroke.Count >= 2 then
   begin
     ClearStrokeRedo;
@@ -11908,6 +12512,30 @@ begin
       DrawOne(FCore.Strokes[I]);
   if (FCurrentStroke <> nil) and (FStrokePage = APage) then
     DrawOne(FCurrentStroke);
+  // Vormerkungen werden ausschliesslich in die Bildschirm-Bitmap gezeichnet.
+  // Sie gelangen weder in den PDF-Inhalt noch in den Speicherpfad.
+  for I := 0 to FRedactionPreviews.Count - 1 do
+    if (FRedactionPreviewPages[I] = APage) and
+       (FRedactionPreviews[I].Count >= 2) then
+    begin
+      var R1 := FRedactionPreviews[I][0];
+      var R2 := FRedactionPreviews[I][1];
+      var PX1, PY1, PX2, PY2: Integer;
+      if FCore.PagePointToDevice(APage, Img.Width, Img.Height,
+           R1.X, R1.Y, PX1, PY1) and
+         FCore.PagePointToDevice(APage, Img.Width, Img.Height,
+           R2.X, R2.Y, PX2, PY2) then
+      begin
+        // Schwarz ausgefuellte Vormerkung, nur in der Anzeige-Bitmap.
+        // Der PDF-Inhalt darunter wird dadurch NICHT entfernt.
+        Img.Picture.Bitmap.Canvas.Brush.Style := bsSolid;
+        Img.Picture.Bitmap.Canvas.Brush.Color := clBlack;
+        Img.Picture.Bitmap.Canvas.Pen.Color := clBlack;
+        Img.Picture.Bitmap.Canvas.Pen.Style := psSolid;
+        Img.Picture.Bitmap.Canvas.Pen.Width := 1;
+        Img.Picture.Bitmap.Canvas.Rectangle(PX1, PY1, PX2, PY2);
+      end;
+    end;
 end;
 
 procedure TFreePDF64PDFiumView.DrawSearchHighlight(APage: Integer);

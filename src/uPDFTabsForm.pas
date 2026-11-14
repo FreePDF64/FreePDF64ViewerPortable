@@ -3320,6 +3320,30 @@ begin
         + 'Ctrl+S opens the regular PDF Save As dialog.');
       AddSection('Editing and saving',
         'Edit opens the annotation and drawing tools. Visual redaction draws black rectangles over text, but the underlying text is NOT removed and can still be extracted. Do not use this for secure redaction of confidential information. Save changes with Save As….');
+      AddSection('Secure redaction: preview and finalization',
+        'Choose Redaction (Preview) in the drawing tools and drag rectangles over the content to be removed. '
+        + 'These rectangles are only a preview: the underlying PDF content remains intact and searchable until finalization. '
+        + 'Use Undo and Redo to adjust pending rectangles, or Esc to discard them. '
+        + 'The orange Apply secure redaction ... button is located directly to the left of Document properties in the main toolbar. '
+        + 'It is enabled once at least one redaction rectangle has been marked. '
+        + 'Click the button, review the confirmation and save the result as a new PDF file. '
+        + 'Affected pages are fully rasterized at 300 DPI with the black redactions applied permanently. '
+        + 'Text selection and text search are no longer available on those pages. Bookmarks are not retained. '
+        + 'The original PDF is not overwritten. Inspect the saved PDF before sharing it.');
+      AddSection('Redaction inspection report',
+        'With Edit and Redaction (Preview) active and at least one rectangle marked, press Ctrl+Shift+R to display the inspection report. '
+        + 'The report counts marked, analyzed and failed regions and intersecting page objects: text, images, paths/vectors and other objects. '
+        + 'It distinguishes fully contained from partially intersecting objects, lists partial counts by object type and reports objects with unknown bounds. '
+        + 'It also counts affected annotations, including comments/markup, form/signature widgets and other annotations, plus duplicate hits across rectangles. '
+        + 'The report is an analysis of the marked areas, not proof that content has already been removed. '
+        + 'If any region fails inspection, finalization is blocked and no output file is created.');
+      AddSection('Secure redaction: button and saved result',
+        'The Apply secure redaction ... button remains next to Document properties. It is highlighted orange only while Redaction (Preview) is selected; '
+        + 'when another drawing tool is selected, the orange highlight disappears and the button is disabled. '
+        + 'The finalization command first checks all marked regions, asks for confirmation and opens a Save As dialog. '
+        + 'The original file cannot be selected as the output. Affected pages are rasterized at 300 DPI with the black regions applied; '
+        + 'the generated PDF is checked again. Review the output visually and verify that confidential content is no longer searchable or extractable before sharing. '
+        + 'The security check does not provide a complete forensic guarantee. An additional independent review is recommended for highly confidential documents.');
       AddSection('Insert text into PDF pages',
         'In Edit mode, enable Insert text and click the desired position on a PDF page. '
         + 'Type in the input field displayed over the page. Hold Ctrl and drag with the left mouse button to move the input field; '
@@ -3622,6 +3646,30 @@ begin
         '„Bearbeiten“ öffnet die Markierungs- und Zeichenwerkzeuge. „Schwärzen (optisch)“ zeichnet schwarze Rechtecke über Text. ' +
         'Der darunterliegende Text wird NICHT entfernt und kann weiterhin extrahiert werden. Keine sichere Schwärzung vertraulicher Inhalte. ' +
         'Änderungen mit „Speichern unter ...“ sichern.');
+      AddSection('Sichere Schwärzung: Vorschau und endgültige Anwendung',
+        'Wählen Sie in den Zeichenwerkzeugen „Schwärzung (Vorschau)“ und ziehen Sie Rechtecke über die zu entfernenden Inhalte. '
+        + 'Die Rechtecke sind zunächst nur eine Vorschau: Der ursprüngliche PDF-Inhalt bleibt bis zur endgültigen Schwärzung erhalten und durchsuchbar. '
+        + 'Mit „Rückgängig“ und „Wiederholen“ können Sie vorgemerkte Rechtecke bearbeiten; mit Esc verwerfen Sie diese. '
+        + 'Die orange Schaltfläche „Endgültig schwärzen ...“ befindet sich in der oberen Hauptsymbolleiste direkt links neben „Dokumenteigenschaften anzeigen“. '
+        + 'Sie ist aktiv, sobald mindestens ein Schwärzungsrechteck vorgemerkt wurde. '
+        + 'Klicken Sie darauf, bestätigen Sie den Vorgang und speichern Sie das Ergebnis als neue PDF-Datei. '
+        + 'Betroffene Seiten werden vollständig mit 300 DPI gerastert; die schwarzen Schwärzungen sind fest eingearbeitet. '
+        + 'Textauswahl und Textsuche sind auf diesen Seiten anschließend nicht mehr möglich. Lesezeichen werden nicht übernommen. '
+        + 'Die Original-PDF wird nicht überschrieben. Prüfen Sie die neue Datei vor der Weitergabe.');
+      AddSection('Schwärzungsprüfbericht',
+        'Wenn „Bearbeiten“ und „Schwärzung (Vorschau)“ aktiv sind und mindestens ein Rechteck vorgemerkt ist, öffnen Sie den Prüfbericht mit Strg+Umschalt+R. '
+        + 'Er zeigt die Anzahl vorgemerkter, analysierter und fehlgeschlagener Bereiche sowie betroffene Seitenobjekte: Text, Bilder, Pfade/Vektoren und sonstige Objekte. '
+        + 'Er unterscheidet vollständig enthaltene und teilweise betroffene Objekte, gliedert teilweise betroffene Objekte nach Art und nennt Objekte mit unbekannten Grenzen. '
+        + 'Zusätzlich werden betroffene Annotationen erfasst, darunter Kommentare/Markierungen, Formular-/Signatur-Widgets und sonstige Annotationen sowie Mehrfachtreffer durch mehrere Bereiche. '
+        + 'Der Bericht analysiert die vorgemerkten Bereiche; er bedeutet nicht, dass Inhalte bereits entfernt wurden. '
+        + 'Wenn ein Bereich nicht vollständig geprüft werden kann, wird die endgültige Schwärzung abgebrochen und keine Ausgabedatei erstellt.');
+      AddSection('Sichere Schwärzung: Schaltfläche und Ausgabedatei',
+        'Die Schaltfläche „Endgültig schwärzen ...“ bleibt neben „Dokumenteigenschaften anzeigen“. Sie ist nur beim Werkzeug „Schwärzung (Vorschau)“ orange hervorgehoben. '
+        + 'Beim Wechsel zu einem anderen Zeichenwerkzeug verschwindet die orange Farbe und die Schaltfläche wird deaktiviert. '
+        + 'Vor der endgültigen Schwärzung werden alle vorgemerkten Bereiche geprüft; danach folgen eine Sicherheitsabfrage und „Speichern unter ...“. '
+        + 'Die Originaldatei kann nicht als Ausgabedatei gewählt werden. Betroffene Seiten werden mit 300 DPI gerastert und die schwarzen Bereiche fest eingearbeitet; '
+        + 'die neue PDF wird anschließend erneut geprüft. Kontrollieren Sie die Ausgabedatei vor der Weitergabe auch visuell und prüfen Sie, dass vertrauliche Inhalte nicht mehr suchbar oder extrahierbar sind. '
+        + 'Die Sicherheitsprüfung bietet keine vollständige forensische Garantie. Bei besonders vertraulichen Dokumenten wird eine zusätzliche unabhängige Prüfung empfohlen.');
       AddSection('Text in PDF-Seiten einfügen',
         'Im Bearbeitungsmodus „Text einfügen“ aktivieren und auf die gewünschte Stelle der PDF-Seite klicken. '
         + 'Den Text in das eingeblendete Eingabefeld schreiben. Mit gedrückter Strg-Taste und linker Maustaste '

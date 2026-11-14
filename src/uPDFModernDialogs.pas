@@ -8,7 +8,8 @@ uses
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs;
 
 function PDFModernMessageDlg(const Msg: string; DlgType: TMsgDlgType;
-  Buttons: TMsgDlgButtons; HelpCtx: Longint): Integer;
+  Buttons: TMsgDlgButtons; HelpCtx: Longint;
+  EscapeClosesOK: Boolean = False): Integer;
 
 implementation
 
@@ -61,7 +62,8 @@ begin
 end;
 
 function PDFModernMessageDlg(const Msg: string; DlgType: TMsgDlgType;
-  Buttons: TMsgDlgButtons; HelpCtx: Longint): Integer;
+  Buttons: TMsgDlgButtons; HelpCtx: Longint;
+  EscapeClosesOK: Boolean): Integer;
 const
   Ink = $00433425;
   Accent = $00C47A20;
@@ -148,27 +150,53 @@ begin
     BtnH := MulDiv(38, Scale, 96);
     BtnW := MulDiv(126, Scale, 96);
     Count := 0;
-    AddChoice(mbYes, mrYes, 'Ja');
-    AddChoice(mbNo, mrNo, 'Nein');
-    AddChoice(mbOK, mrOk, 'OK');
-    AddChoice(mbCancel, mrCancel, 'Abbrechen');
-    AddChoice(mbAbort, mrAbort, 'Abbrechen');
-    AddChoice(mbRetry, mrRetry, 'Wiederholen');
-    AddChoice(mbIgnore, mrIgnore, 'Ignorieren');
-    AddChoice(mbAll, mrAll, 'Alle');
-    AddChoice(mbNoToAll, mrNoToAll, 'Nein für alle');
-    AddChoice(mbYesToAll, mrYesToAll, 'Ja für alle');
-    AddChoice(mbHelp, mrNone, 'Hilfe');
-    AddChoice(mbClose, mrClose, 'Schließen');
-    case DlgType of
-      mtWarning: TitleText := 'Hinweis';
-      mtError: TitleText := 'Fehler';
-      mtInformation: TitleText := 'Information';
-      mtConfirmation: TitleText := 'Bestätigung';
+    if PDFLanguage = 'en' then
+    begin
+      AddChoice(mbYes, mrYes, 'Yes');
+      AddChoice(mbNo, mrNo, 'No');
+      AddChoice(mbOK, mrOk, 'OK');
+      AddChoice(mbCancel, mrCancel, 'Cancel');
+      AddChoice(mbAbort, mrAbort, 'Abort');
+      AddChoice(mbRetry, mrRetry, 'Retry');
+      AddChoice(mbIgnore, mrIgnore, 'Ignore');
+      AddChoice(mbAll, mrAll, 'All');
+      AddChoice(mbNoToAll, mrNoToAll, 'No to All');
+      AddChoice(mbYesToAll, mrYesToAll, 'Yes to All');
+      AddChoice(mbHelp, mrNone, 'Help');
+      AddChoice(mbClose, mrClose, 'Close');
+      case DlgType of
+        mtWarning: TitleText := 'Notice';
+        mtError: TitleText := 'Error';
+        mtInformation: TitleText := 'Information';
+        mtConfirmation: TitleText := 'Confirmation';
+      else
+        TitleText := 'FreePDF64-Viewer';
+      end;
+    end
     else
-      TitleText := 'FreePDF64-Viewer';
+    begin
+      AddChoice(mbYes, mrYes, 'Ja');
+      AddChoice(mbNo, mrNo, 'Nein');
+      AddChoice(mbOK, mrOk, 'OK');
+      AddChoice(mbCancel, mrCancel, 'Abbrechen');
+      AddChoice(mbAbort, mrAbort, 'Abbrechen');
+      AddChoice(mbRetry, mrRetry, 'Wiederholen');
+      AddChoice(mbIgnore, mrIgnore, 'Ignorieren');
+      AddChoice(mbAll, mrAll, 'Alle');
+      AddChoice(mbNoToAll, mrNoToAll, 'Nein für alle');
+      AddChoice(mbYesToAll, mrYesToAll, 'Ja für alle');
+      AddChoice(mbHelp, mrNone, 'Hilfe');
+      AddChoice(mbClose, mrClose, 'Schließen');
+      case DlgType of
+        mtWarning: TitleText := 'Hinweis';
+        mtError: TitleText := 'Fehler';
+        mtInformation: TitleText := 'Information';
+        mtConfirmation: TitleText := 'Bestätigung';
+      else
+        TitleText := 'FreePDF64-Viewer';
+      end;
     end;
-    D.Caption := Tr(TitleText) + ' – FreePDF64-Viewer';
+    D.Caption := TitleText + ' – FreePDF64-Viewer';
 
     // Sicherheitswarnung als eigenen Absatz darstellen, damit Frage und
     // Warnhinweis optisch klar voneinander getrennt sind.
@@ -309,7 +337,9 @@ begin
         B.Default := True;
         D.ActiveControl := B;
       end;
-      if (Items[I] = mrCancel) or (Items[I] = mrNo) then B.Cancel := True;
+      if (Items[I] = mrCancel) or (Items[I] = mrNo) or
+         (EscapeClosesOK and (Count = 1) and (Items[I] = mrOK)) then
+        B.Cancel := True;
       Inc(X, BtnW + Gap);
     end;
     Result := D.ShowModal;
