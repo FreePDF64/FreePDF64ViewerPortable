@@ -10819,12 +10819,19 @@ begin
       NoteItem.Caption := '-';
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
-      NoteItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
-      NoteItem.OnClick := ManageLinksClick;
-      FPageContextMenu.Items.Add(NoteItem);
-      NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
       NoteItem.OnClick := LinkMenuClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+      NoteItem.OnClick := SignatureClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := '-';
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+      NoteItem.OnClick := ManageLinksClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
@@ -10833,7 +10840,6 @@ begin
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
       FPageContextMenu.Items.Add(NoteItem);
-      // Vorhandene Werkzeug-Modi verwenden; kein zweiter Bearbeitungspfad.
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Text einfügen ...', 'Insert text ...');
       NoteItem.Checked := FTextInsertMode;
@@ -10852,10 +10858,6 @@ begin
       NoteItem.Enabled := CanModifyComments(False);
       NoteItem.Tag := 3;
       NoteItem.OnClick := PageContextToolClick;
-      FPageContextMenu.Items.Add(NoteItem);
-      NoteItem := TMenuItem.Create(FPageContextMenu);
-      NoteItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
-      NoteItem.OnClick := SignatureClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
