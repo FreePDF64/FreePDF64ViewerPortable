@@ -4,11 +4,11 @@
 
 # FreePDF64-Viewer Portable 3.2.0
 
-**Free, open-source PDF and image viewer for Windows – portable, fast, and feature-rich.**
+**Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
 [English](#english) · [Deutsch](#deutsch)
 
-[**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable)
+[**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
 </div>
 
@@ -39,11 +39,44 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 
 *Click a thumbnail to open the full-size image.*
 
+<div align="center">
+
+<a href="images/Mainwindow_english.png"><img src="images/Mainwindow_english.png" alt="Main window" width="260"></a>
+<a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
+<a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
+<a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
+<a href="images/Workspace_english.png"><img src="images/Workspace_english.png" alt="Workspaces" width="260"></a>
+
+</div>
+
+## Quick start
+
+1. Extract the entire release ZIP to a folder, keeping bundled libraries and auxiliary tools.
+2. Run **`FreePDF64ViewerPortable.exe`**.
+3. Open PDFs using **Ctrl+O**, drag and drop, or Windows File Explorer. Supported image files can also be opened.
+
+**Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported.
+
+## Portable use and license
+
+Settings are stored in **`FreePDFViewer.ini`** in the application folder.
+
+**FreePDF64-Viewer Portable** is free and open-source software licensed under **GNU GPL v3 (GPL-3.0-only)**. Use, modification, and redistribution are subject to this license. See **`LIZENZ_DE.txt`** (German) and **`LICENSE_NOTICE_EN.txt`** (English).
+
+**Third-party libraries and tools:**
+- **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF rendering and processing, © The PDFium Authors.
+- **[V8](https://v8.dev/):** JavaScript engine, © The V8 Project Authors.
+- **QPDF and Xpdf:** Auxiliary tools governed by their own licenses.
+
+License texts and copyright notices for PDFium, V8, and bundled third-party libraries are included in the **`PDFium`** subfolder (**`LICENSE`** file and **`licenses`** directory). Their respective license terms must be observed when redistributing the software. FreePDF64-Viewer Portable is **not an official product of PDFium, V8, or Google**.
+
+**Contact:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
+
 ---
 
 # Deutsch
 
-FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Die Einstellungen bleiben lokal im Programmordner.
+FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Die Einstellungen bleiben lokal im Programmordner.
 
 ## Neu in Version 3.2.0
 
@@ -98,41 +131,6 @@ Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeicher
 Die Lizenztexte und Copyright-Hinweise zu PDFium, V8 und eingebundenen Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner **`PDFium`** (Datei **`LICENSE`** und Ordner **`licenses`**). Bei der Weitergabe sind die jeweiligen Lizenzbedingungen zu beachten. FreePDF64-Viewer Portable ist **kein offizielles Produkt von PDFium, V8 oder Google**.
 
 **Kontakt:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
-
----
-
-<div align="center">
-
-<a href="images/Mainwindow_english.png"><img src="images/Mainwindow_english.png" alt="Main window" width="260"></a>
-<a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
-<a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
-<a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
-<a href="images/Workspace_english.png"><img src="images/Workspace_english.png" alt="Workspaces" width="260"></a>
-
-</div>
-
-## Quick start
-
-1. Extract the entire release ZIP to a folder, keeping bundled libraries and auxiliary tools.
-2. Run **`FreePDF64ViewerPortable.exe`**.
-3. Open PDFs using **Ctrl+O**, drag and drop, or Windows File Explorer. Supported image files can also be opened.
-
-**Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported.
-
-## Portable use and license
-
-Settings are stored in **`FreePDFViewer.ini`** in the application folder.
-
-**FreePDF64-Viewer Portable** is free and open-source software licensed under **GNU GPL v3 (GPL-3.0-only)**. Use, modification, and redistribution are subject to this license. See **`LIZENZ_DE.txt`** (German) and **`LICENSE_NOTICE_EN.txt`** (English).
-
-**Third-party libraries and tools:**
-- **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF rendering and processing, © The PDFium Authors.
-- **[V8](https://v8.dev/):** JavaScript engine, © The V8 Project Authors.
-- **QPDF and Xpdf:** Auxiliary tools governed by their own licenses.
-
-License texts and copyright notices for PDFium, V8, and bundled third-party libraries are included in the **`PDFium`** subfolder (**`LICENSE`** file and **`licenses`** directory). Their respective license terms must be observed when redistributing the software. FreePDF64-Viewer Portable is **not an official product of PDFium, V8, or Google**.
-
-**Contact:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
 ---
 
