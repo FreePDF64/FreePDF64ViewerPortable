@@ -10849,6 +10849,14 @@ begin
       NoteItem.OnClick := SignatureClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
+      NoteItem.OnClick := ImageWatermarkClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+      NoteItem.OnClick := TextWatermarkClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := '-';
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
