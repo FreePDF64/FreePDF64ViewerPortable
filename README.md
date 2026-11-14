@@ -4,19 +4,46 @@
 
 # FreePDF64-Viewer Portable 3.2.0
 
-**PDFs und Bilder anzeigen, vergleichen und bearbeiten – kostenlos und portabel für Windows.**
+**Free, open-source PDF and image viewer for Windows – portable, fast, and feature-rich.**
 
-[Deutsch](#deutsch) · [English](#english)
+[English](#english) · [Deutsch](#deutsch)
 
-[**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable)
+[**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Project page**](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
 </div>
 
 ---
 
+# English
+
+FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, cross-document search, side-by-side viewing, and practical PDF tools. Settings are stored locally in the application folder.
+
+## New in version 3.2.0
+
+- **Signatures:** Draw a signature or use a transparent PNG image; save, reopen, rename, delete, and place signatures on PDF pages. Adjust their position and size.
+- **Improved dialogs:** Refined theme colors, buttons, and layout for 4K and WQHD displays, including comment editing and saved-signature management.
+- **PDF measurements:** Measure rectangle width and height in mm/cm/in with a selectable drawing scale; copy or export measurement reports as CSV. Save measurements as PDF annotations.
+
+## Key features
+
+- **Tabs and workspaces:** Open multiple PDFs and images, reopen recent files, and save reusable PDF workspaces.
+- **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
+- **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
+- **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
+- **PDF editing:** Add text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
+- **PDF forms:** Edit AcroForm and supported static XFA forms; run supported V8 JavaScript actions and calculations.
+- **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files.
+- **More:** Manage PDF attachments, use bookmarks, switch between German and English, and choose interface themes.
+
+## Screenshots
+
+*Click a thumbnail to open the full-size image.*
+
+---
+
 # Deutsch
 
-FreePDF64-Viewer Portable vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Die Einstellungen bleiben im Programmordner.
+FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Die Einstellungen bleiben lokal im Programmordner.
 
 ## Neu in Version 3.2.0
 
@@ -73,31 +100,6 @@ Die Lizenztexte und Copyright-Hinweise zu PDFium, V8 und eingebundenen Drittanbi
 **Kontakt:** [FreePDF64@outlook.com](mailto:FreePDF64@outlook.com) · [GitHub](https://github.com/FreePDF64/FreePDF64ViewerPortable)
 
 ---
-
-# English
-
-FreePDF64-Viewer Portable combines a fast PDF and image viewer with tabs, cross-document search, side-by-side comparison, and built-in PDF tools. Settings stay in the application folder.
-
-## New in version 3.2.0
-
-- **Signatures:** Draw a signature or use a transparent PNG image; save, reopen, rename, delete, and place signatures on PDF pages. Adjust their position and size.
-- **Improved dialogs:** Refined theme colors, buttons, and layout for 4K and WQHD displays, including comment editing and saved-signature management.
-- **PDF measurements:** Measure rectangle width and height in mm/cm/in with a selectable drawing scale; copy or export measurement reports as CSV. Save measurements as PDF annotations.
-
-## Key features
-
-- **Tabs and workspaces:** Open multiple PDFs and images, reopen recent files, and save reusable PDF workspaces.
-- **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
-- **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
-- **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
-- **PDF editing:** Add text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
-- **PDF forms:** Edit AcroForm and supported static XFA forms; run supported V8 JavaScript actions and calculations.
-- **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files.
-- **More:** Manage PDF attachments, use bookmarks, switch between German and English, and choose interface themes.
-
-## Screenshots
-
-*Click a thumbnail to open the full-size image.*
 
 <div align="center">
 
