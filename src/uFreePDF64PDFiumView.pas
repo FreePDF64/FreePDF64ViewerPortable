@@ -1905,7 +1905,10 @@ var
   State: UINT;
   Theme: HTHEME;
   ThemeState: Integer;
-  GX, GY: Integer;
+  GX, GY, ArrowX, ArrowY, ArrowW: Integer;
+  ArrowPoints: array[0..2] of TPoint;
+  OldPen, OldBrush: HGDIOBJ;
+  ArrowColor: TColor;
   C: TCanvas;
 begin
   DC := Message.DrawItemStruct^.hDC;
@@ -1974,7 +1977,8 @@ begin
   R := Message.DrawItemStruct^.rcItem;
   if (Glyph <> nil) and not Glyph.Empty then
   begin
-    GX := (R.Left + R.Right - Glyph.Width) div 2;
+    // Das Diskettensymbol bleibt unveraendert; nur leicht nach links ruecken.
+    GX := (R.Left + R.Right - Glyph.Width) div 2 - MulDiv(2, Max(96, CurrentPPI), 96);
     GY := (R.Top + R.Bottom - Glyph.Height) div 2;
     C := TCanvas.Create;
     try
@@ -1984,6 +1988,25 @@ begin
     finally
       C.Free;
     end;
+  end;
+  // Kleiner Dropdown-Pfeil wie bei "Einfuegen" und "Messen".
+  // Direkt auf dem Button zeichnen, ohne Glyph oder Buttonbreite zu aendern.
+  ArrowW := Max(3, MulDiv(4, Max(96, CurrentPPI), 96));
+  ArrowX := R.Right - MulDiv(3, Max(96, CurrentPPI), 96) - ArrowW;
+  ArrowY := (R.Top + R.Bottom) div 2 + MulDiv(2, Max(96, CurrentPPI), 96);
+  ArrowPoints[0] := Point(ArrowX - ArrowW, ArrowY - ArrowW div 2);
+  ArrowPoints[1] := Point(ArrowX + ArrowW, ArrowY - ArrowW div 2);
+  ArrowPoints[2] := Point(ArrowX, ArrowY + ArrowW div 2);
+  if not Enabled then ArrowColor := clGrayText
+  else if FDesign in [2, 4] then ArrowColor := clWhite
+  else ArrowColor := clBlack;
+  OldPen := SelectObject(DC, GetStockObject(NULL_PEN));
+  OldBrush := SelectObject(DC, CreateSolidBrush(ColorToRGB(ArrowColor)));
+  try
+    Polygon(DC, ArrowPoints, Length(ArrowPoints));
+  finally
+    DeleteObject(SelectObject(DC, OldBrush));
+    SelectObject(DC, OldPen);
   end;
   Message.Result := 1;
 end;
@@ -2684,12 +2707,17 @@ begin
   FQuickSave.SetBounds(900, 4, 34, 28);
   FQuickSave.OnClick := SaveDropdownClick;
   FSavePopup := TPopupMenu.Create(Self);
+  FSavePopup.OwnerDraw := True;
   FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
   FSavePopup.Items[0].Caption := ToolbarHint('PDF speichern unter ...', 'Save PDF As ...');
   FSavePopup.Items[0].OnClick := SaveClick;
+  FSavePopup.Items[0].OnDrawItem := PopupDrawItem;
+  FSavePopup.Items[0].OnMeasureItem := PopupMeasureItem;
   FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
   FSavePopup.Items[1].Caption := ToolbarHint('Seiten als Bilder exportieren ...', 'Export Pages as Images ...');
   FSavePopup.Items[1].OnClick := ExportPagesAsImages;
+  FSavePopup.Items[1].OnDrawItem := PopupDrawItem;
+  FSavePopup.Items[1].OnMeasureItem := PopupMeasureItem;
   FQuickSave.Hint := ToolbarHint('Speichern unter ... (Strg+S)', 'Save As ... (Ctrl+S)');
   FQuickSave.ShowHint := True;
   FMarker.Visible := False; // Bearbeiten schaltet den Markierungsmodus direkt.

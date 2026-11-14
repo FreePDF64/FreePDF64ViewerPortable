@@ -98,9 +98,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-CursorX=57
-CursorY=12151
-TopLine=12129
+CursorX=5
+CursorY=2006
+TopLine=1984
 LeftCol=1
 Elisions=
 Bookmarks=
