@@ -7,7 +7,7 @@ uses
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
   Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, Vcl.AppEvnts, System.IniFiles, System.Generics.Collections, Math,
-  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary;
+  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, Winapi.GDIPAPI, Winapi.GDIPOBJ, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary;
 
 const
   WM_PDF_FINISH_TEXT = WM_APP + $5A2;
@@ -239,6 +239,7 @@ type
     FWheelAccum: Integer;
     FMarker: TButton;
     FQuickSave: TPDFiumSaveButton;
+    FSavePopup: TPopupMenu;
     FReloadMenuItem: TMenuItem;
     FLinkMenuItem: TMenuItem;
     FManageLinksMenuItem: TMenuItem;
@@ -499,6 +500,8 @@ type
     procedure FinishTextEditor(ACommit: Boolean);
     procedure ColorClick(Sender: TObject);
     procedure SaveClick(Sender: TObject);
+    procedure SaveDropdownClick(Sender: TObject);
+    procedure ExportPagesAsImages(Sender: TObject);
     function LinkAtImagePoint(Sender: TObject; X, Y: Integer;
       out ATarget: TPDFLinkTarget): Boolean;
     procedure FormOptionDoubleClick(Sender: TObject);
@@ -529,6 +532,7 @@ type
     function GetFirstPageReady: Boolean;
     function GetIsAcroForm: Boolean;
   public
+    procedure SavePDFAs;
     procedure ShowDocumentProperties;
     procedure TogglePageThumbnails;
     procedure SetPageThumbnailsVisible(AVisible: Boolean);
@@ -2678,8 +2682,15 @@ begin
   FQuickSave := TPDFiumSaveButton.Create(Self);
   FQuickSave.Parent := FBar;
   FQuickSave.SetBounds(900, 4, 34, 28);
-  FQuickSave.OnClick := SaveClick;
-  FQuickSave.Hint := Tr('PDF-Kopie unter neuem Namen speichern');
+  FQuickSave.OnClick := SaveDropdownClick;
+  FSavePopup := TPopupMenu.Create(Self);
+  FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
+  FSavePopup.Items[0].Caption := ToolbarHint('PDF speichern unter ...', 'Save PDF As ...');
+  FSavePopup.Items[0].OnClick := SaveClick;
+  FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
+  FSavePopup.Items[1].Caption := ToolbarHint('Seiten als Bilder exportieren ...', 'Export Pages as Images ...');
+  FSavePopup.Items[1].OnClick := ExportPagesAsImages;
+  FQuickSave.Hint := ToolbarHint('Speichern unter ... (Strg+S)', 'Save As ... (Ctrl+S)');
   FQuickSave.ShowHint := True;
   FMarker.Visible := False; // Bearbeiten schaltet den Markierungsmodus direkt.
   FShapeSelect.Parent := FEditBar;
@@ -4498,6 +4509,12 @@ begin
   if FTextUndoButton <> nil then FTextUndoButton.Hint := ToolbarHint('Rückgängig', 'Undo');
   if FTextRedoButton <> nil then FTextRedoButton.Hint := ToolbarHint('Wiederholen', 'Redo');
   FQuickSave.Caption := ''; // Symbol wird monochrom gezeichnet
+  if FSavePopup <> nil then
+  begin
+    FSavePopup.Items[0].Caption := ToolbarHint('PDF speichern unter ...', 'Save PDF As ...');
+    FSavePopup.Items[1].Caption := ToolbarHint('Seiten als Bilder exportieren ...', 'Export Pages as Images ...');
+  end;
+  UpdateSaveState;
   UpdateTwoPageIcon();
   if FTwoPageButton <> nil then
   begin
@@ -5057,14 +5074,14 @@ procedure TFreePDF64PDFiumView.UpdateSaveState;
       B.Highlighted := True;
       B.Caption := ''; // Schwarzer Statuspunkt wird im Symbol gezeichnet
       B.Font.Style := [fsBold];
-      B.Hint := Tr('Änderungen nicht gespeichert – Speichern unter erforderlich');
+      B.Hint := ToolbarHint('Speichern unter ... (Strg+S) – Änderungen nicht gespeichert', 'Save As ... (Ctrl+S) – Unsaved changes');
     end
     else
     begin
       B.Highlighted := False;
       B.Caption := ''; // Schwarz-weisses Diskettensymbol
       B.Font.Style := [];
-      B.Hint := Tr('PDF-Kopie unter neuem Namen speichern');
+      B.Hint := ToolbarHint('Speichern unter ... (Strg+S)', 'Save As ... (Ctrl+S)');
     end;
     B.ShowHint := True;
     B.Invalidate;
@@ -11945,6 +11962,240 @@ var I: Integer;
 begin
   for I := 0 to FPages.Count - 1 do
     DrawPageStrokes(I);
+end;
+
+procedure TFreePDF64PDFiumView.SavePDFAs;
+begin
+  SaveClick(Self);
+end;
+
+procedure TFreePDF64PDFiumView.SaveDropdownClick(Sender: TObject);
+var
+  P: TPoint;
+begin
+  if FSavePopup = nil then Exit;
+  P := FQuickSave.ClientToScreen(Point(0, FQuickSave.Height));
+  FSavePopup.Popup(P.X, P.Y);
+end;
+
+procedure TFreePDF64PDFiumView.ExportPagesAsImages(Sender: TObject);
+var
+  Dialog: TForm;
+  FormatBox, PagesBox, DpiBox: TComboBox;
+  RangeEdit: TEdit;
+  OKButton, CancelButton: TPDFDesignButton;
+  P: Integer;
+  FieldBack, FieldText: TColor;
+  SaveDlg: TSaveDialog;
+  Bitmap: TBitmap;
+  GdiBitmap: TGPBitmap;
+  TiffEncoder: TGUID;
+  Jpg: TJPEGImage;
+  Png: TPngImage;
+  FirstPage, LastPage, Page, Dash, Dpi, PixelW, PixelH: Integer;
+  PW, PH: Single;
+  RangeText, TargetBase, TargetName, Ext: string;
+  ScaleFactor: Double;
+  function AddLabel(const AText: string; ATop: Integer): TLabel;
+  begin
+    Result := TLabel.Create(Dialog);
+    Result.Parent := Dialog;
+    Result.SetBounds(MulDiv(20, P, 96), MulDiv(ATop, P, 96),
+      MulDiv(440, P, 96), MulDiv(23, P, 96));
+    Result.Caption := AText;
+  end;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  Dialog := TForm.CreateNew(Self);
+  try
+    P := Max(96, CurrentPPI);
+    Dialog.Scaled := False;
+    Dialog.Font.Name := 'Segoe UI';
+    Dialog.Font.Size := 10;
+    Dialog.Caption := ToolbarHint('PDF-Seiten als Bilder exportieren', 'Export PDF Pages as Images');
+    Dialog.Position := poOwnerFormCenter;
+    Dialog.BorderStyle := bsDialog;
+    Dialog.ClientWidth := MulDiv(460, P, 96);
+    Dialog.ClientHeight := MulDiv(310, P, 96);
+    AddLabel(ToolbarHint('Bildformat:', 'Image format:'), 15);
+    FormatBox := TComboBox.Create(Dialog);
+    FormatBox.Parent := Dialog;
+    FormatBox.Style := csDropDownList;
+    FormatBox.SetBounds(MulDiv(20, P, 96), MulDiv(38, P, 96),
+      MulDiv(420, P, 96), MulDiv(26, P, 96));
+    FormatBox.Items.Add('PNG');
+    FormatBox.Items.Add('JPEG');
+    FormatBox.Items.Add('TIFF');
+    FormatBox.ItemIndex := 0;
+    AddLabel(ToolbarHint('Seiten:', 'Pages:'), 75);
+    PagesBox := TComboBox.Create(Dialog);
+    PagesBox.Parent := Dialog;
+    PagesBox.Style := csDropDownList;
+    PagesBox.SetBounds(MulDiv(20, P, 96), MulDiv(98, P, 96),
+      MulDiv(420, P, 96), MulDiv(26, P, 96));
+    PagesBox.Items.Add(ToolbarHint('Aktuelle Seite', 'Current page'));
+    PagesBox.Items.Add(ToolbarHint('Alle Seiten', 'All pages'));
+    PagesBox.Items.Add(ToolbarHint('Seitenbereich (z. B. 2-5)', 'Page range (e.g. 2-5)'));
+    PagesBox.ItemIndex := 0;
+    RangeEdit := TEdit.Create(Dialog);
+    RangeEdit.Parent := Dialog;
+    RangeEdit.SetBounds(MulDiv(20, P, 96), MulDiv(130, P, 96),
+      MulDiv(420, P, 96), MulDiv(26, P, 96));
+    RangeEdit.Text := Format('%d-%d', [1, FCore.PageCount]);
+    AddLabel(ToolbarHint('Auflösung:', 'Resolution:'), 165);
+    DpiBox := TComboBox.Create(Dialog);
+    DpiBox.Parent := Dialog;
+    DpiBox.Style := csDropDownList;
+    DpiBox.SetBounds(MulDiv(20, P, 96), MulDiv(188, P, 96),
+      MulDiv(420, P, 96), MulDiv(26, P, 96));
+    DpiBox.Items.Add('150 DPI');
+    DpiBox.Items.Add('300 DPI');
+    DpiBox.Items.Add('600 DPI');
+    DpiBox.ItemIndex := 1;
+    OKButton := TPDFDesignButton.Create(Dialog);
+    OKButton.Parent := Dialog;
+    OKButton.SetBounds(MulDiv(240, P, 96), MulDiv(260, P, 96),
+      MulDiv(95, P, 96), MulDiv(32, P, 96));
+    OKButton.Caption := ToolbarHint('Exportieren', 'Export');
+    OKButton.ModalResult := mrOk;
+    OKButton.Default := True;
+    CancelButton := TPDFDesignButton.Create(Dialog);
+    CancelButton.Parent := Dialog;
+    CancelButton.SetBounds(MulDiv(345, P, 96), MulDiv(260, P, 96),
+      MulDiv(95, P, 96), MulDiv(32, P, 96));
+    CancelButton.Caption := ToolbarHint('Abbrechen', 'Cancel');
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+    // Palette nur einmal beim Erzeugen anwenden; kein wiederholtes Umfärben.
+    ApplyManagedDialogPalette(Dialog, nil, FEditToggle.FDesign);
+    case FEditToggle.FDesign of
+      1: begin FieldBack := RGB(248,250,253); FieldText := RGB(35,48,65); end;
+      2: begin FieldBack := RGB(65,70,79); FieldText := clWhite; end;
+      3: begin FieldBack := clWhite; FieldText := clBlack; end;
+      4: begin FieldBack := RGB(45,48,54); FieldText := clWhite; end;
+      5: begin FieldBack := RGB(246,250,255); FieldText := RGB(24,55,88); end;
+    else begin FieldBack := clWindow; FieldText := clWindowText; end;
+    end;
+    FormatBox.ParentColor := False;
+    FormatBox.Color := FieldBack;
+    FormatBox.Font.Color := FieldText;
+    PagesBox.ParentColor := False;
+    PagesBox.Color := FieldBack;
+    PagesBox.Font.Color := FieldText;
+    DpiBox.ParentColor := False;
+    DpiBox.Color := FieldBack;
+    DpiBox.Font.Color := FieldText;
+    RangeEdit.ParentColor := False;
+    RangeEdit.Color := FieldBack;
+    RangeEdit.Font.Color := FieldText;
+    if Dialog.ShowModal <> mrOk then Exit;
+    FirstPage := FPage;
+    LastPage := FPage;
+    if PagesBox.ItemIndex = 1 then
+    begin
+      FirstPage := 0;
+      LastPage := FCore.PageCount - 1;
+    end
+    else if PagesBox.ItemIndex = 2 then
+    begin
+      RangeText := Trim(RangeEdit.Text);
+      Dash := Pos('-', RangeText);
+      if (Dash = 0) or
+         (not TryStrToInt(Trim(Copy(RangeText, 1, Dash - 1)), FirstPage)) or
+         (not TryStrToInt(Trim(Copy(RangeText, Dash + 1, MaxInt)), LastPage)) or
+         (FirstPage < 1) or (LastPage > FCore.PageCount) or (FirstPage > LastPage) then
+      begin
+        PDFModernMessageDlg(ToolbarHint('Ungültiger Seitenbereich.', 'Invalid page range.'), mtWarning, [mbOK], 0);
+        Exit;
+      end;
+      Dec(FirstPage);
+      Dec(LastPage);
+    end;
+    Dpi := 150;
+    if DpiBox.ItemIndex = 1 then Dpi := 300
+    else if DpiBox.ItemIndex = 2 then Dpi := 600;
+    case FormatBox.ItemIndex of
+      1: Ext := '.jpg';
+      2: Ext := '.tif';
+    else Ext := '.png';
+    end;
+    SaveDlg := TSaveDialog.Create(Self);
+    try
+      SaveDlg.Title := ToolbarHint('Dateiname und Zielordner wählen', 'Choose Filename and Destination Folder');
+      SaveDlg.Filter := FormatBox.Text + ' (*' + Ext + ')|*' + Ext;
+      SaveDlg.DefaultExt := Copy(Ext, 2, MaxInt);
+      SaveDlg.InitialDir := ExtractFilePath(FCore.FileName);
+      SaveDlg.FileName := ChangeFileExt(ExtractFileName(FCore.FileName), Ext);
+      if not SaveDlg.Execute then Exit;
+      TargetBase := ChangeFileExt(SaveDlg.FileName, '');
+    finally
+      SaveDlg.Free;
+    end;
+    // Jedes Blatt wird als eigene Bilddatei geschrieben.
+    // PDFium rendert bei der gewählten DPI, unabhängig vom Bildschirmzoom.
+    for Page := FirstPage to LastPage do
+    begin
+      if not FCore.PageSize(Page, PW, PH) then
+        raise EPDFiumViewer.Create(ToolbarHint('Seitengröße konnte nicht gelesen werden.', 'Could not read page size.'));
+      ScaleFactor := Dpi / 72.0;
+      PixelW := Round(PW * ScaleFactor);
+      PixelH := Round(PH * ScaleFactor);
+      if (PixelW < 1) or (PixelH < 1) or
+         (Int64(PixelW) * PixelH > 150000000) then
+        raise EPDFiumViewer.Create(ToolbarHint('Seite ist für diese Auflösung zu groß.', 'Page too large for this resolution.'));
+      if FirstPage = LastPage then
+        TargetName := TargetBase + Ext
+      else
+        TargetName := TargetBase + Format('_Seite_%.3d', [Page + 1]) + Ext;
+      if FileExists(TargetName) then
+        raise EPDFiumViewer.Create(ToolbarHint('Zieldatei existiert bereits: ', 'Destination already exists: ') + TargetName);
+      Bitmap := TBitmap.Create;
+      try
+        FCore.RenderPage(Page, Bitmap, PixelW, PixelH);
+        case FormatBox.ItemIndex of
+          0:
+          begin
+            Png := TPngImage.Create;
+            try
+              Png.Assign(Bitmap);
+              Png.SaveToFile(TargetName);
+            finally Png.Free; end;
+          end;
+          1:
+          begin
+            Jpg := TJPEGImage.Create;
+            try
+              Jpg.Assign(Bitmap);
+              Jpg.CompressionQuality := 90;
+              Jpg.SaveToFile(TargetName);
+            finally Jpg.Free; end;
+          end;
+          2:
+          begin
+            // TIFF über Windows GDI+ statt Vcl.Imaging.WIC
+            // (diese Unit ist nicht in allen Delphi-Versionen vorhanden).
+            TiffEncoder := StringToGUID('{557CF405-1A04-11D3-9A73-0000F81EF32E}');
+            GdiBitmap := TGPBitmap.Create(Bitmap.Handle, Bitmap.Palette);
+            try
+              if GdiBitmap.GetLastStatus <> Ok then
+                raise EPDFiumViewer.Create(ToolbarHint(
+                  'TIFF-Bild konnte nicht erstellt werden.',
+                  'Could not create TIFF image.'));
+              if GdiBitmap.Save(TargetName, TiffEncoder) <> Ok then
+                raise EPDFiumViewer.Create(ToolbarHint(
+                  'TIFF-Datei konnte nicht gespeichert werden.',
+                  'Could not save TIFF file.'));
+            finally
+              GdiBitmap.Free;
+            end;
+          end;
+        end;
+      finally Bitmap.Free; end;
+    end;
+    PDFModernMessageDlg(ToolbarHint('Bildexport abgeschlossen.', 'Image export completed.'), mtInformation, [mbOK], 0);
+  finally
+    Dialog.Free;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.SaveClick(Sender: TObject);

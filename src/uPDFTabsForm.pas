@@ -3180,6 +3180,11 @@ begin
         + 'Drag a thumbnail with the left mouse button held down to change the PDF page order. Page thumbnails automatically resize when you widen or narrow the left sidebar with the mouse. Save the modified PDF with Save As…. The original remains unchanged when extracting pages.');
       AddSection('Fast rotation without a temporary PDF file',
         'Pages are rotated directly in the open PDFium document in memory. The original file is not overwritten immediately; changes become permanent only when saved.');
+      AddSection('Export PDF pages as images',
+        'Open the Save As dropdown and select Export Pages as Images. '
+        + 'Choose PNG, JPEG or TIFF, the current page, all pages or a page range, '
+        + 'and 150, 300 or 600 DPI. Each page is exported as a separate image. '
+        + 'Ctrl+S opens the regular PDF Save As dialog.');
       AddSection('Editing and saving',
         'Edit opens the annotation and drawing tools. Visual redaction draws black rectangles over text, but the underlying text is NOT removed and can still be extracted. Do not use this for secure redaction of confidential information. Save changes with Save As….');
       AddSection('Insert text into PDF pages',
@@ -3474,6 +3479,12 @@ begin
         'Seiten werden im geoeffneten PDFium-Dokument direkt im Speicher gedreht. ' +
         'Das Original wird dadurch nicht sofort ueberschrieben. ' +
         'Die Aenderungen werden erst beim Speichern dauerhaft uebernommen.');
+      AddSection('PDF-Seiten als Bilder exportieren',
+        'Öffnen Sie das Dropdown „Speichern unter ...“ und wählen Sie '
+        + '„Seiten als Bilder exportieren ...“. Wählen Sie PNG, JPEG oder TIFF, '
+        + 'die aktuelle Seite, alle Seiten oder einen Seitenbereich sowie 150, 300 oder 600 DPI. '
+        + 'Jede PDF-Seite wird als eigene Bilddatei exportiert. '
+        + 'Strg+S öffnet weiterhin den normalen PDF-Dialog „Speichern unter ...“.');
       AddSection('Bearbeiten und Speichern',
         '„Bearbeiten“ öffnet die Markierungs- und Zeichenwerkzeuge. „Schwärzen (optisch)“ zeichnet schwarze Rechtecke über Text. ' +
         'Der darunterliegende Text wird NICHT entfernt und kann weiterhin extrahiert werden. Keine sichere Schwärzung vertraulicher Inhalte. ' +
@@ -9751,6 +9762,16 @@ begin
     PDF := PDFInTab(Tab);
     if PDF <> nil then
       PDF.ShowDocumentProperties;
+    Key := 0;
+    Exit;
+  end;
+  if (Key = Ord('S')) and (Shift = [ssCtrl]) then
+  begin
+    Tab := FTabs.ActivePage;
+    if (FSplitHost <> nil) and FSplitActiveRight then
+      Tab := FSplitRightTab;
+    PDF := PDFInTab(Tab);
+    if PDF <> nil then PDF.SavePDFAs;
     Key := 0;
     Exit;
   end;

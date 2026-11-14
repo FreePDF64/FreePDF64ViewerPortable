@@ -196,6 +196,7 @@ type
     procedure RefitPDFOnTabActivation;
     procedure RefreshLanguage;
     procedure ReloadCurrentPDF;
+    procedure SavePDFAs;
     procedure ShowDocumentProperties;
     property PDFNavigationStarted: Boolean read FNavigationDone;
     property PDFNavigationSucceeded: Boolean read FNavigationSucceeded;
@@ -806,6 +807,17 @@ begin
     if FImageZoomLabel <> nil then
       FImageZoomLabel.Hint := ToolbarHintBrowser('Aktueller Bildzoom', 'Current image zoom');
   end;
+end;
+
+procedure TPDFBrowserForm.SavePDFAs;
+begin
+  if IsBasicImage then
+  begin
+    ImageToolClick(FImageButtons[7]);
+    Exit;
+  end;
+  if (FPDFiumView <> nil) and FNavigationSucceeded and not FClosing then
+    FPDFiumView.SavePDFAs;
 end;
 
 procedure TPDFBrowserForm.ShowDocumentProperties;
