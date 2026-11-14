@@ -24,12 +24,17 @@ type
     HelpSearch: TEdit;
     HelpSearchIndex: Integer;
     HelpHighlight: TRichEdit;
+    HelpResizeTimer: TTimer;
+    HelpLastWidth: Integer;
+    procedure ScheduleHelpResize(Sender: TObject);
+    procedure ApplyHelpResize(Sender: TObject);
     procedure OpenProjectLink(Sender: TObject);
     procedure OpenContactMail(Sender: TObject);
     procedure FindNextHelp(Sender: TObject);
     procedure HelpSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure HelpFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure JumpToHelpSection(Sender: TObject);
+    procedure ResizeHelpContents(Sender: TObject);
   protected
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
       MousePos: TPoint): Boolean; override;
@@ -2598,6 +2603,118 @@ begin
     HelpScroll.VertScrollBar.Position := TLabel(Sender).Tag;
 end;
 
+procedure TViewerHelpForm.ScheduleHelpResize(Sender: TObject);
+begin
+  // Beim Ziehen des Fensterrands nicht alle Hilfekarten neu vermessen.
+  if HelpResizeTimer <> nil then
+  begin
+    HelpResizeTimer.Enabled := False;
+    HelpResizeTimer.Enabled := True;
+  end;
+end;
+
+procedure TViewerHelpForm.ApplyHelpResize(Sender: TObject);
+begin
+  if HelpResizeTimer <> nil then HelpResizeTimer.Enabled := False;
+  if (HelpScroll <> nil) and (HelpScroll.ClientWidth <> HelpLastWidth) then
+  begin
+    HelpLastWidth := HelpScroll.ClientWidth;
+    ResizeHelpContents(nil);
+  end;
+end;
+
+procedure TViewerHelpForm.ResizeHelpContents(Sender: TObject);
+var
+  I, J, NewY, Margin, CardWidth, TextWidth, BodyHeight, CardHeight,
+  Scale, OldRange, OldPosition, NewPosition, K: Integer;
+  Card: TPanel;
+  L: TLabel;
+  TOC: Boolean;
+begin
+  if (HelpScroll = nil) or (HelpScroll.ControlCount = 0) then Exit;
+  Scale := CurrentPPI;
+  if Scale < 96 then Scale := 96;
+  Margin := MulDiv(22, Scale, 96);
+  CardWidth := Max(MulDiv(200, Scale, 96), HelpScroll.ClientWidth - MulDiv(44, Scale, 96));
+  TextWidth := Max(MulDiv(150, Scale, 96), CardWidth - MulDiv(36, Scale, 96));
+  OldRange := Max(1, HelpScroll.VertScrollBar.Range - HelpScroll.ClientHeight);
+  OldPosition := HelpScroll.VertScrollBar.Position;
+  // Vor dem Neuaufbau auf den Dokumentanfang gehen: TScrollBox verschiebt
+  // sonst beim Umsetzen der Karten den virtuellen Scrollbereich.
+  HelpScroll.VertScrollBar.Position := 0;
+  if HelpHighlight <> nil then
+    FreeAndNil(HelpHighlight);
+  NewY := MulDiv(6, Scale, 96);
+  HelpScroll.DisableAlign;
+  try
+    for I := 0 to HelpScroll.ControlCount - 1 do
+    begin
+      if not (HelpScroll.Controls[I] is TPanel) then Continue;
+      Card := TPanel(HelpScroll.Controls[I]);
+      Card.Width := CardWidth;
+      Card.Left := Margin;
+      Card.Top := NewY + MulDiv(5, Scale, 96);
+      TOC := False;
+      for J := 0 to Card.ControlCount - 1 do
+        if (Card.Controls[J] is TLabel) and
+           Assigned(TLabel(Card.Controls[J]).OnClick) and
+           (TLabel(Card.Controls[J]).Cursor = crHandPoint) and
+           (TLabel(Card.Controls[J]).Font.Style = [fsUnderline]) then
+          TOC := True;
+      if TOC then
+      begin
+        for J := 0 to Card.ControlCount - 1 do
+          if Card.Controls[J] is TLabel then
+          begin
+            L := TLabel(Card.Controls[J]);
+            L.Width := TextWidth;
+          end;
+        CardHeight := Card.Height;
+      end
+      else
+      begin
+        CardHeight := MulDiv(47, Scale, 96);
+        for J := 0 to Card.ControlCount - 1 do
+          if Card.Controls[J] is TLabel then
+          begin
+            L := TLabel(Card.Controls[J]);
+            L.Width := TextWidth;
+            if L.WordWrap then
+            begin
+              L.AutoSize := True;
+              BodyHeight := Max(MulDiv(19, Scale, 96), L.Height);
+              L.AutoSize := False;
+              L.Height := BodyHeight;
+              CardHeight := Max(CardHeight, L.Top + BodyHeight + MulDiv(8, Scale, 96));
+            end;
+          end;
+        Card.Height := CardHeight;
+      end;
+      // Kapitelpositionen für die anklickbare Inhaltsübersicht nachführen.
+      if not TOC then
+        for J := 0 to Card.ControlCount - 1 do
+          if (Card.Controls[J] is TLabel) and
+             (TLabel(Card.Controls[J]).Font.Style = [fsBold]) then
+          begin
+            // Inhaltsverzeichnis-Einträge stehen im ersten Panel.
+            if HelpScroll.Controls[0] is TPanel then
+              with TPanel(HelpScroll.Controls[0]) do
+                for K := 0 to ControlCount - 1 do
+                  if (Controls[K] is TLabel) and
+                     SameText(TLabel(Controls[K]).Caption, TLabel(Card.Controls[J]).Caption) then
+                    TLabel(Controls[K]).Tag := Card.Top;
+            Break;
+          end;
+      NewY := Card.Top + Card.Height + MulDiv(7, Scale, 96);
+    end;
+    HelpScroll.VertScrollBar.Range := NewY + MulDiv(12, Scale, 96);
+  finally
+    HelpScroll.EnableAlign;
+  end;
+  NewPosition := MulDiv(OldPosition, Max(0, HelpScroll.VertScrollBar.Range - HelpScroll.ClientHeight), OldRange);
+  HelpScroll.VertScrollBar.Position := NewPosition;
+end;
+
 procedure TViewerHelpForm.FindNextHelp(Sender: TObject);
 var
   I, J, K, Count, MatchPos, TargetTop, CurrentTop, ScrollDelta: Integer;
@@ -2726,6 +2843,8 @@ var
   Btn: TButton;
   Img: TImage;
   Y, Scale: Integer;
+  Ini: TIniFile;
+  SavedWidth, SavedHeight: Integer;
   TOCLabels: array of TLabel;
   TOCCount: Integer;
   function Px(V: Integer): Integer;
@@ -2743,7 +2862,7 @@ var
     H := Px(36 + TOCCount * 27);
     P := TPanel.Create(D);
     P.Parent := Scroll;
-    P.SetBounds(Px(22), Y + Px(5), Max(Px(320), Scroll.ClientWidth - Px(62)), H);
+    P.SetBounds(Px(22), Y + Px(5), Max(Px(320), Scroll.ClientWidth - Px(44)), H);
     P.BevelOuter := bvNone;
     P.ParentBackground := False;
     P.Color := RGB(224, 237, 251);
@@ -2776,7 +2895,7 @@ var
       for I := 0 to TOCCount - 1 do
         if SameText(TOCLabels[I].Caption, ATitle) then
           TOCLabels[I].Tag := Y;
-    ContentWidth := Max(Px(320), Scroll.ClientWidth - Px(62));
+    ContentWidth := Max(Px(320), Scroll.ClientWidth - Px(44));
     Card := TPanel.Create(D);
     Card.Parent := Scroll;
     Card.BevelOuter := bvNone;
@@ -2881,6 +3000,20 @@ begin
     D.ClientHeight := Px(540);
     D.Constraints.MinWidth := Px(600);
     D.Constraints.MinHeight := Px(400);
+    if not (AAbout or AMergeHelp) then
+    begin
+      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      try
+        SavedWidth := Ini.ReadInteger('Funktionsuebersicht', 'Breite', D.ClientWidth);
+        SavedHeight := Ini.ReadInteger('Funktionsuebersicht', 'Hoehe', D.ClientHeight);
+      finally
+        Ini.Free;
+      end;
+      D.ClientWidth := EnsureRange(SavedWidth, D.Constraints.MinWidth,
+        Max(D.Constraints.MinWidth, Screen.WorkAreaWidth - Px(50)));
+      D.ClientHeight := EnsureRange(SavedHeight, D.Constraints.MinHeight,
+        Max(D.Constraints.MinHeight, Screen.WorkAreaHeight - Px(50)));
+    end;
     D.KeyPreview := True;
 
     TopPanel := TPanel.Create(D);
@@ -3674,8 +3807,28 @@ begin
       AddSection('Projektseite und weitere Informationen',
         'https://github.com/FreePDF64/FreePDF64ViewerPortable');
     end;
-    Scroll.VertScrollBar.Range := Y + Px(35);
+    Scroll.VertScrollBar.Range := Y + Px(12);
+    if not (AAbout or AMergeHelp) then
+    begin
+      TViewerHelpForm(D).HelpLastWidth := -1;
+      TViewerHelpForm(D).HelpResizeTimer := TTimer.Create(D);
+      TViewerHelpForm(D).HelpResizeTimer.Enabled := False;
+      TViewerHelpForm(D).HelpResizeTimer.Interval := 140;
+      TViewerHelpForm(D).HelpResizeTimer.OnTimer := TViewerHelpForm(D).ApplyHelpResize;
+      TViewerHelpForm(D).ApplyHelpResize(nil);
+      D.OnResize := TViewerHelpForm(D).ScheduleHelpResize;
+    end;
     D.ShowModal;
+    if not (AAbout or AMergeHelp) and (D.WindowState <> wsMinimized) then
+    begin
+      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      try
+        Ini.WriteInteger('Funktionsuebersicht', 'Breite', D.ClientWidth);
+        Ini.WriteInteger('Funktionsuebersicht', 'Hoehe', D.ClientHeight);
+      finally
+        Ini.Free;
+      end;
+    end;
   finally
     D.Free;
   end;
