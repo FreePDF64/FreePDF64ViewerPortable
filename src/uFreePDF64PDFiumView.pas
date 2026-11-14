@@ -2467,6 +2467,10 @@ begin
   FShapeSelect.Items.Add(Tr('Rechteck'));
   FShapeSelect.Items.Add(Tr('Ellipse'));
   FShapeSelect.Items.Add(Tr('Schwärzen (optisch)'));
+  if PDFLanguage = 'en' then
+    FShapeSelect.Items.Add('Hand Tool')
+  else
+    FShapeSelect.Items.Add('Hand-Werkzeug');
   FShapeSelect.ItemIndex := 0;
   FShapeSelect.Hint := Tr('Markierungsform auswählen; Schwärzen verdeckt Text nur optisch');
   FShapeSelect.ShowHint := True;
@@ -7681,7 +7685,9 @@ begin
       'Ctrl+A: Select all PDF text.' + sLineBreak + sLineBreak +
       'EDITING' + sLineBreak +
       'Edit: Show or hide drawing tools.' + sLineBreak +
-      'Choose freehand, line, rectangle, ellipse, or visual redaction.' + sLineBreak +
+      'Choose freehand, line, rectangle, ellipse, visual redaction, or Hand Tool.' + sLineBreak +
+      'Hand Tool: Drag a zoomed PDF with the left mouse button.' + sLineBreak +
+      'Alt + left mouse button: Temporarily pan a zoomed PDF.' + sLineBreak +
       'Redaction draws a black rectangle. The underlying PDF text remains and can be copied or restored. Not suitable for confidential data.' + sLineBreak +
       'Set line width and color, then draw with the mouse.' + sLineBreak + sLineBreak +
       'DOCUMENT AND FILE' + sLineBreak +
@@ -7719,7 +7725,9 @@ begin
       'Strg+A: Gesamten PDF-Text auswählen.' + sLineBreak + sLineBreak +
       'BEARBEITEN' + sLineBreak +
       'Bearbeiten: Zeichenwerkzeuge ein- oder ausblenden.' + sLineBreak +
-      'Freihand, Linie, Rechteck, Ellipse oder Schwärzen (optisch) auswählen.' + sLineBreak +
+      'Freihand, Linie, Rechteck, Ellipse, Schwärzen (optisch) oder Hand-Werkzeug auswählen.' + sLineBreak +
+      'Hand-Werkzeug: Gezoomte PDF mit gedrückter linker Maustaste verschieben.' + sLineBreak +
+      'Alt + linke Maustaste: Gezoomte PDF vorübergehend verschieben.' + sLineBreak +
       'Schwärzen zeichnet ein schwarzes Rechteck. Der darunterliegende PDF-Text bleibt erhalten und kann kopiert oder wiederhergestellt werden. Nicht für vertrauliche Daten geeignet.' + sLineBreak +
       'Strichstärke und Farbe festlegen; mit der Maus zeichnen.' + sLineBreak + sLineBreak +
       'DOKUMENT UND DATEI' + sLineBreak +
@@ -11000,6 +11008,7 @@ begin
   // Formular-Widgets haben Vorrang vor Hand-Werkzeug und Textauswahl.
   // Klick-Hit-Test als Grundlage fuer die naechste FormFill-Eingabestufe.
   if not FMarkMode and not (ssShift in Shift) and not (ssCtrl in Shift) and
+     not (FEditVisible and (FShapeSelect.ItemIndex = 5)) and
      (Sender is TPDFiumImage) then
   begin
     Img := TPDFiumImage(Sender);
@@ -11188,6 +11197,7 @@ begin
   end;
 
   if not (ssShift in Shift) and not (ssCtrl in Shift) and
+     not (FEditVisible and (FShapeSelect.ItemIndex = 5)) and
      LinkAtImagePoint(Sender, X, Y, Target) then
   begin
     if Target.PageIndex >= 0 then
@@ -11199,6 +11209,22 @@ begin
          URL.StartsWith('mailto:') then
         ShellExecute(0, 'open', PChar(Target.URI), nil, nil, SW_SHOWNORMAL);
     end;
+    Exit;
+  end;
+  // Hand-Werkzeug: ausschliesslich bei linker Maustaste verschieben.
+  // Die vorhandene Alt-Ziehen-Funktion bleibt unveraendert.
+  if (Button = mbLeft) and FEditVisible and
+     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 5) then
+  begin
+    if (FScroll.HorzScrollBar.Range <= FScroll.ClientWidth) and
+       (FScroll.VertScrollBar.Range <= FScroll.ClientHeight) then Exit;
+    FDraggingPage := True;
+    FDragStartScreen := Mouse.CursorPos;
+    FDragStartHorz := FScroll.HorzScrollBar.Position;
+    FDragStartVert := FScroll.VertScrollBar.Position;
+    TPDFiumImage(Sender).MouseCapture := True;
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    Screen.Cursor := crSizeAll;
     Exit;
   end;
   // Ein einfacher Klick ausserhalb der bestehenden Textauswahl hebt sie auf.
@@ -11451,6 +11477,14 @@ begin
     end;
     Exit;
   end;
+  if FEditVisible and (FShapeSelect <> nil) and
+     (FShapeSelect.ItemIndex = 5) and (Sender is TPDFiumImage) and
+     not FDraggingPage then
+  begin
+    TPDFiumImage(Sender).Cursor := crHandPoint;
+    Screen.Cursor := crHandPoint;
+    Exit;
+  end;
   if FLinkMovePending and (Sender is TPDFiumImage) then
   begin
     FLinkMoveEnd := Point(X, Y);
@@ -11489,7 +11523,8 @@ begin
       FDragStartVert - (CurrentScreen.Y - FDragStartScreen.Y));
     FLastScrollPosition := FScroll.VertScrollBar.Position;
     FScrollRenderPending := True;
-    TPDFiumImage(Sender).Cursor := crHandPoint;
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    Screen.Cursor := crSizeAll;
     Exit;
   end;
   if FHighlightAreaDragging then
@@ -11643,7 +11678,12 @@ begin
   begin
     FDraggingPage := False;
     TPDFiumImage(Sender).MouseCapture := False;
-    TPDFiumImage(Sender).Cursor := crDefault;
+    if FEditVisible and (FShapeSelect <> nil) and
+       (FShapeSelect.ItemIndex = 5) then
+      TPDFiumImage(Sender).Cursor := crHandPoint
+    else
+      TPDFiumImage(Sender).Cursor := crDefault;
+    Screen.Cursor := TPDFiumImage(Sender).Cursor;
     Exit;
   end;
   if FHighlightAreaDragging then

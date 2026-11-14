@@ -3163,6 +3163,11 @@ begin
         'Double-click to select a word, then press Ctrl+C to copy the selection to the clipboard. ' +
         'Alt + drag pans a zoomed page. The PDF file is not modified. ' +
         'Scanned pages without a text layer cannot be selected this way.');
+      AddSection('Hand Tool and panning',
+        'Choose Hand Tool from the drawing tool dropdown (next to Freehand) to move a zoomed PDF page by dragging with the left mouse button. ' +
+        'The pointer changes to a hand when the tool is active and to a move cursor while dragging. ' +
+        'Release the mouse button to stop panning. Alt + left mouse drag also pans the page without selecting Hand Tool. ' +
+        'Choose another tool to return to its normal mouse behavior.');
       AddSection('Search modes and highlights',
         'Search open tabs (Ctrl+Shift+A) locates open PDF tabs by document name; it does not jump to a text match. '
         + 'Search (Ctrl+F) finds text in the current PDF; Search PDFs (Ctrl+Shift+F) searches across all open PDFs. '
@@ -3443,6 +3448,11 @@ begin
         'Ein Doppelklick wählt ein Wort aus. Mit Strg+C kopieren Sie die Auswahl in die Zwischenablage. ' +
         'Alt + Ziehen verschiebt eine vergrößerte Seite. Die PDF-Datei bleibt unverändert. ' +
         'Bei gescannten Seiten ohne Textebene ist keine Textauswahl möglich.');
+      AddSection('Hand-Werkzeug und Seiten verschieben',
+        'Wählen Sie im Zeichenwerkzeug-Dropdown neben „Freihand“ das „Hand-Werkzeug“, um eine vergrößerte PDF-Seite mit gedrückter linker Maustaste zu verschieben. ' +
+        'Der Mauszeiger zeigt bei aktiviertem Werkzeug eine Hand und während des Ziehens ein Verschiebesymbol. ' +
+        'Beim Loslassen endet das Verschieben. Mit Alt + linker Maustaste können Sie die Seite auch ohne ausgewähltes Hand-Werkzeug verschieben. ' +
+        'Beim Wechsel zu einem anderen Werkzeug gilt wieder dessen normale Mausbedienung.');
       AddSection('Sucharten und Markierungen',
         '„Geöffnete Registerkarten suchen“ (Strg+Umschalt+A) sucht nach geöffneten PDF-Tabs, nicht nach Textstellen. '
         + '„Suchen“ (Strg+F) durchsucht die aktuelle PDF, „PDFs durchsuchen“ (Strg+Umschalt+F) alle geöffneten PDFs. '
