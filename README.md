@@ -35,11 +35,19 @@ FreePDF64-Viewer Portable vereint einen schnellen PDF- und Bildbetrachter mit Re
 - **Bilder:** JPG/JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien öffnen, zoomen, drehen und speichern.
 - **Weitere Funktionen:** PDF-Anlagen verwalten, Inhaltsverzeichnis, DE/EN-Oberfläche und verschiedene Designs.
 
-![FreePDF64-Viewer Portable mit Registerkarten und Seitenvorschau](images/freepdf64-viewer-screenshot.jpg)
+## Screenshots
 
-*Viewer mit Registerkarten, Miniaturansichten und PDF-Werkzeugen.*
+*Klicke auf ein Vorschaubild, um die vollständige Ansicht zu öffnen.*
 
-![Gespeicherte PDF-Arbeitsbereiche](images/Arbeitsbereiche.png)
+<div align="center">
+
+<a href="images/Hauptansicht_deutsch.png"><img src="images/Hauptansicht_deutsch.png" alt="Hauptansicht" width="260"></a>
+<a href="images/Zweifensteransicht_deutsch.png"><img src="images/Zweifensteransicht_deutsch.png" alt="Zweifensteransicht" width="260"></a>
+<a href="images/Globalesuche_deutsch.png"><img src="images/Globalesuche_deutsch.png" alt="Globale PDF-Suche" width="260"></a>
+<a href="images/Messen_deutsch.png"><img src="images/Messen_deutsch.png" alt="PDF-Messwerkzeuge" width="260"></a>
+<a href="images/Arbeitsbereiche_deutsch.png"><img src="images/Arbeitsbereiche_deutsch.png" alt="Arbeitsbereiche" width="260"></a>
+
+</div>
 
 ## Schnellstart
 
@@ -87,11 +95,19 @@ FreePDF64-Viewer Portable combines a fast PDF and image viewer with tabs, cross-
 - **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files.
 - **More:** Manage PDF attachments, use bookmarks, switch between German and English, and choose interface themes.
 
-![FreePDF64-Viewer Portable with tabs and thumbnails](images/Mainwindow.png)
+## Screenshots
 
-*Viewer with tabs, page thumbnails, and PDF tools.*
+*Click a thumbnail to open the full-size image.*
 
-![Saved PDF workspaces](images/Workspace.png)
+<div align="center">
+
+<a href="images/Mainwindow_english.png"><img src="images/Mainwindow_english.png" alt="Main window" width="260"></a>
+<a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
+<a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
+<a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
+<a href="images/Workspace_english.png"><img src="images/Workspace_english.png" alt="Workspaces" width="260"></a>
+
+</div>
 
 ## Quick start
 
