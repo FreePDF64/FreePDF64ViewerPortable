@@ -281,7 +281,7 @@ type
     FMeasureDirty: Boolean;
     FSaveSuccessSerial: Integer;
     FMeasurePopup: TPopupMenu;
-    FMeasureMenuItem: TMenuItem;
+    FMeasureMenuItem, FMeasureScaleMenuItem: TMenuItem;
     FMeasureMode: Boolean;
     FMeasureDragging: Boolean;
     FMeasurePage: Integer;
@@ -305,7 +305,9 @@ type
     FTextInsertButton: TButton;
     FInsertButton: TButton;
     FInsertPopup: TPopupMenu;
-    FInsertTextItem, FInsertNoteItem: TMenuItem;
+    FInsertTextItem, FInsertNoteItem, FInsertLinkItem, FInsertSignatureItem: TMenuItem;
+    FInsertImageWatermarkItem, FInsertTextWatermarkItem: TMenuItem;
+    FInsertManageLinksItem, FInsertManageCommentsItem: TMenuItem;
     FTextUndoButton, FTextRedoButton: TBitBtn;
     FUndoRedoGlyphPPI: Integer;
     FTextInsertMode: Boolean;
@@ -2517,6 +2519,12 @@ begin
   FMeasureMenuItem.OnDrawItem := PopupDrawItem;
   FMeasureMenuItem.OnMeasureItem := PopupMeasureItem;
   FMeasurePopup.Items.Add(FMeasureMenuItem);
+  FMeasureScaleMenuItem := TMenuItem.Create(FMeasurePopup);
+  FMeasureScaleMenuItem.Caption := ToolbarHint('Maßstab ...', 'Scale ...');
+  FMeasureScaleMenuItem.OnClick := MeasureScaleClick;
+  FMeasureScaleMenuItem.OnDrawItem := PopupDrawItem;
+  FMeasureScaleMenuItem.OnMeasureItem := PopupMeasureItem;
+  FMeasurePopup.Items.Add(FMeasureScaleMenuItem);
   FMeasurePopup.Items.Add(TMenuItem.Create(FMeasurePopup));
   with FMeasurePopup.Items[FMeasurePopup.Items.Count - 1] do
   begin
@@ -2538,6 +2546,8 @@ begin
   FMeasureScaleButton.Hint := ToolbarHint('Maßstab eingeben, z. B. 1:50',
     'Enter drawing scale, e.g. 1:50');
   FMeasureScaleButton.ShowHint := True;
+  // Die Aktion bleibt bestehen; der Befehl liegt jetzt im Messen-Dropdown.
+  FMeasureScaleButton.Visible := False;
   FNoteButton := Btn(ToolbarHint('Kommentar', 'Comment'), 1180, 94, NoteButtonClick);
   FNoteButton.Parent := FEditBar;
   FNoteButton.Hint := ToolbarHint('Textkommentar einfügen', 'Insert text comment');
@@ -2564,6 +2574,48 @@ begin
   FInsertNoteItem.OnDrawItem := PopupDrawItem;
   FInsertNoteItem.OnMeasureItem := PopupMeasureItem;
   FInsertPopup.Items.Add(FInsertNoteItem);
+  FInsertLinkItem := TMenuItem.Create(FInsertPopup);
+  FInsertLinkItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  FInsertLinkItem.OnClick := LinkMenuClick;
+  FInsertLinkItem.OnDrawItem := PopupDrawItem;
+  FInsertLinkItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertLinkItem);
+  FInsertSignatureItem := TMenuItem.Create(FInsertPopup);
+  FInsertSignatureItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  FInsertSignatureItem.OnClick := SignatureClick;
+  FInsertSignatureItem.OnDrawItem := PopupDrawItem;
+  FInsertSignatureItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertSignatureItem);
+  // Wasserzeichen als eigene Gruppe: Bild vor Text.
+  FInsertPopup.Items.Add(TMenuItem.Create(FInsertPopup));
+  FInsertPopup.Items[FInsertPopup.Items.Count - 1].Caption := '-';
+  FInsertImageWatermarkItem := TMenuItem.Create(FInsertPopup);
+  FInsertImageWatermarkItem.Caption := ToolbarHint('Bildwasserzeichen hinzufügen ...', 'Add image watermark ...');
+  FInsertImageWatermarkItem.OnClick := ImageWatermarkClick;
+  FInsertImageWatermarkItem.OnDrawItem := PopupDrawItem;
+  FInsertImageWatermarkItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertImageWatermarkItem);
+  FInsertTextWatermarkItem := TMenuItem.Create(FInsertPopup);
+  FInsertTextWatermarkItem.Caption := ToolbarHint('Textwasserzeichen hinzufügen ...', 'Add text watermark ...');
+  FInsertTextWatermarkItem.OnClick := TextWatermarkClick;
+  FInsertTextWatermarkItem.OnDrawItem := PopupDrawItem;
+  FInsertTextWatermarkItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertTextWatermarkItem);
+  // Verwaltungsfunktionen als eigene Gruppe am Ende von Einfügen.
+  FInsertPopup.Items.Add(TMenuItem.Create(FInsertPopup));
+  FInsertPopup.Items[FInsertPopup.Items.Count - 1].Caption := '-';
+  FInsertManageLinksItem := TMenuItem.Create(FInsertPopup);
+  FInsertManageLinksItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+  FInsertManageLinksItem.OnClick := ManageLinksClick;
+  FInsertManageLinksItem.OnDrawItem := PopupDrawItem;
+  FInsertManageLinksItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertManageLinksItem);
+  FInsertManageCommentsItem := TMenuItem.Create(FInsertPopup);
+  FInsertManageCommentsItem.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
+  FInsertManageCommentsItem.OnClick := ShowCommentOverviewMenuClick;
+  FInsertManageCommentsItem.OnDrawItem := PopupDrawItem;
+  FInsertManageCommentsItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertManageCommentsItem);
   FTextInsertButton.Visible := False;
   FNoteButton.Visible := False;
   FTextInsertButton.Hint := Tr('Textwerkzeug: Auf eine PDF-Seite klicken');
@@ -2792,21 +2844,14 @@ begin
   FThumbMenu.Items.Add(FInsertAfterItem);
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
-  FManageLinksMenuItem := TMenuItem.Create(FThumbMenu);
-  FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
-  FManageLinksMenuItem.OnClick := ManageLinksClick;
-  FThumbMenu.Items.Add(FManageLinksMenuItem);
   FLinkMenuItem := TMenuItem.Create(FThumbMenu);
   FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   FLinkMenuItem.OnClick := LinkMenuClick;
   FThumbMenu.Items.Add(FLinkMenuItem);
-  // Kommentaruebersicht direkt unter "Hyperlink hinzufuegen".
-  FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
-  with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
-  begin
-    Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
-    OnClick := ShowCommentOverviewMenuClick;
-  end;
+  FSignatureMenuItem := TMenuItem.Create(FThumbMenu);
+  FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  FSignatureMenuItem.OnClick := SignatureClick;
+  FThumbMenu.Items.Add(FSignatureMenuItem);
   FImageWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
   FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   FImageWatermarkMenuItem.OnClick := ImageWatermarkClick;
@@ -2814,10 +2859,20 @@ begin
   FWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
   FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
   FWatermarkMenuItem.OnClick := TextWatermarkClick;
-  FThumbMenu.Items.Add(FWatermarkMenuItem);  FSignatureMenuItem := TMenuItem.Create(FThumbMenu);
-  FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
-  FSignatureMenuItem.OnClick := SignatureClick;
-  FThumbMenu.Items.Add(FSignatureMenuItem);
+  FThumbMenu.Items.Add(FWatermarkMenuItem);
+  // Verwaltungsfunktionen als eigener Abschnitt nach den Wasserzeichen.
+  FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
+  FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
+  FManageLinksMenuItem := TMenuItem.Create(FThumbMenu);
+  FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+  FManageLinksMenuItem.OnClick := ManageLinksClick;
+  FThumbMenu.Items.Add(FManageLinksMenuItem);
+  FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
+  with FThumbMenu.Items[FThumbMenu.Items.Count - 1] do
+  begin
+    Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
+    OnClick := ShowCommentOverviewMenuClick;
+  end;
 
   FThumbMenu.Items.Add(TMenuItem.Create(FThumbMenu));
   FThumbMenu.Items[FThumbMenu.Items.Count - 1].Caption := '-';
@@ -4503,9 +4558,9 @@ begin
     FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
-  if (FLinkMenuItem <> nil) and (FThumbMenu <> nil) and
-     (FLinkMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
-    FThumbMenu.Items[FLinkMenuItem.MenuIndex + 1].Caption :=
+  if (FManageLinksMenuItem <> nil) and (FThumbMenu <> nil) and
+     (FManageLinksMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
+    FThumbMenu.Items[FManageLinksMenuItem.MenuIndex + 1].Caption :=
       ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
@@ -4513,6 +4568,20 @@ begin
     FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   if FSignatureMenuItem <> nil then
     FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  if FMeasureScaleMenuItem <> nil then
+    FMeasureScaleMenuItem.Caption := ToolbarHint('Maßstab ...', 'Scale ...');
+  if FInsertLinkItem <> nil then
+    FInsertLinkItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
+  if FInsertSignatureItem <> nil then
+    FInsertSignatureItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  if FInsertImageWatermarkItem <> nil then
+    FInsertImageWatermarkItem.Caption := ToolbarHint('Bildwasserzeichen hinzufügen ...', 'Add image watermark ...');
+  if FInsertTextWatermarkItem <> nil then
+    FInsertTextWatermarkItem.Caption := ToolbarHint('Textwasserzeichen hinzufügen ...', 'Add text watermark ...');
+  if FInsertManageLinksItem <> nil then
+    FInsertManageLinksItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
+  if FInsertManageCommentsItem <> nil then
+    FInsertManageCommentsItem.Caption := ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FOutlineMenu <> nil then OutlineMenuPopup(nil);
   LayoutToolbar(nil);
 end;
@@ -5250,9 +5319,9 @@ begin
     FManageLinksMenuItem.Caption := ToolbarHint('Hyperlinks verwalten ...', 'Manage hyperlinks ...');
   if FLinkMenuItem <> nil then
     FLinkMenuItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
-  if (FLinkMenuItem <> nil) and (FThumbMenu <> nil) and
-     (FLinkMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
-    FThumbMenu.Items[FLinkMenuItem.MenuIndex + 1].Caption :=
+  if (FManageLinksMenuItem <> nil) and (FThumbMenu <> nil) and
+     (FManageLinksMenuItem.MenuIndex + 1 < FThumbMenu.Items.Count) then
+    FThumbMenu.Items[FManageLinksMenuItem.MenuIndex + 1].Caption :=
       ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
@@ -8047,7 +8116,7 @@ begin
     PlaceControl(FInsertButton, Px(94), EditH);
     PlaceControl(FMeasureButton, Px(94), EditH);
     PlaceControl(FMeasureUnitSelect, Px(52), EditH);
-    PlaceControl(FMeasureScaleButton, Px(90), EditH);
+    // Maßstab wird ausschließlich über das Messen-Dropdown angeboten.
     PlaceControl(FTextUndoButton, Px(36), EditH);
     PlaceControl(FTextRedoButton, Px(36), EditH);
     // Text-Eingabezeile waehrend der Messung vollstaendig ausblenden.
@@ -9876,6 +9945,7 @@ begin
   FInsertTextItem.Checked := FTextInsertMode;
   FInsertNoteItem.Checked := FNoteMode;
   FInsertNoteItem.Enabled := CanModifyComments(False);
+  FInsertLinkItem.Checked := FLinkMode;
   P := FInsertButton.ClientToScreen(Point(0, FInsertButton.Height));
   FInsertPopup.Popup(P.X, P.Y);
 end;
