@@ -1,4 +1,4 @@
-﻿unit uFreePDF64PDFiumView;
+unit uFreePDF64PDFiumView;
 
 interface
 
@@ -304,7 +304,11 @@ type
     FNoteButton: TButton;
     FNotePopup: TPopupMenu;
     FNoteSelected: TPDFNote;
-    FNoteMovePending: Boolean;
+    FNoteDragging: Boolean;
+    FNoteDragPage: Integer;
+    FNoteDragStart: TPoint;
+    FNoteDragOverlay: TImage;
+    FNoteDragOffset: TPoint;
     FHighlightAreaDragging: Boolean;
     FHighlightAreaPage: Integer;
     FHighlightAreaStartX, FHighlightAreaStartY: Integer;
@@ -1701,6 +1705,7 @@ var
   M: TMemo;
   B: TPDFDesignButton;
   Footer: TPanel;
+  MoveHint: TLabel;
   P: Integer;
 begin
   Result := False;
@@ -1728,17 +1733,31 @@ begin
       Footer.Align := alBottom;
       Footer.Height := MulDiv(44, CurrentPPI, 96);
       Footer.BevelOuter := bvNone;
+      MoveHint := TLabel.Create(D);
+      MoveHint.Parent := Footer;
+      MoveHint.SetBounds(MulDiv(9, CurrentPPI, 96),
+        MulDiv(13, CurrentPPI, 96), MulDiv(220, CurrentPPI, 96),
+        MulDiv(20, CurrentPPI, 96));
+      MoveHint.Caption := ToolbarHint('Mit Strg+Klick an Position verschieben',
+        'Move to position with Ctrl+click');
+      MoveHint.AutoSize := False;
+      MoveHint.Font.Size := 8;
+      MoveHint.Layout := tlCenter;
       B := TPDFDesignButton.Create(D);
       B.Parent := Footer;
-      B.SetBounds(MulDiv(235, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96),
+      B.SetBounds(D.ClientWidth - MulDiv(195, CurrentPPI, 96),
+        MulDiv(7, CurrentPPI, 96),
         MulDiv(88, CurrentPPI, 96), MulDiv(29, CurrentPPI, 96));
+      B.Anchors := [akTop, akRight];
       B.Caption := 'OK';
       B.ModalResult := mrOk;
       B.Default := True;
       B := TPDFDesignButton.Create(D);
       B.Parent := Footer;
-      B.SetBounds(MulDiv(330, CurrentPPI, 96), MulDiv(7, CurrentPPI, 96),
+      B.SetBounds(D.ClientWidth - MulDiv(100, CurrentPPI, 96),
+        MulDiv(7, CurrentPPI, 96),
         MulDiv(90, CurrentPPI, 96), MulDiv(29, CurrentPPI, 96));
+      B.Anchors := [akTop, akRight];
       B.Caption := ToolbarHint('Abbrechen', 'Cancel');
       B.ModalResult := mrCancel;
     end;
@@ -1780,10 +1799,6 @@ begin
              RefreshTextPage(FNoteSelected.PageIndex);
              UpdateSaveState;
            end;
-       end;
-    2: begin
-         FNoteMovePending := True;
-         Screen.Cursor := crCross;
        end;
     3: if PDFModernMessageDlg(ToolbarHint('Kommentar wirklich löschen?',
            'Delete this comment?'), mtConfirmation, [mbYes, mbNo], 0) = mrYes then
@@ -11310,6 +11325,59 @@ begin
     end;
     Exit;
   end;
+  // Kommentar direkt mit Strg + linker Maustaste ziehen.
+  if (Button = mbLeft) and (ssCtrl in Shift) and
+     (Sender is TPDFiumImage) and (FCore <> nil) and
+     CanModifyComments and
+     NoteAtPoint(TPDFiumImage(Sender), X, Y, FNoteSelected) then
+  begin
+    FNoteDragging := True;
+    FNoteDragPage := TPDFiumImage(Sender).Tag;
+    FNoteDragStart := Point(X, Y);
+    // Unabhängiges VCL-Bild statt Neuzeichnen der PDF-Seite.
+    // Die eigentliche PDF-Anmerkung bleibt bis MouseUp unverändert.
+    if FNoteDragOverlay = nil then
+    begin
+      FNoteDragOverlay := TImage.Create(Self);
+      FNoteDragOverlay.Parent := FScroll;
+      FNoteDragOverlay.Enabled := False;
+      FNoteDragOverlay.Transparent := True;
+      FNoteDragOverlay.AutoSize := False;
+      FNoteDragOverlay.Picture.Bitmap.SetSize(MulDiv(20, CurrentPPI, 96),
+        MulDiv(17, CurrentPPI, 96));
+      with FNoteDragOverlay.Picture.Bitmap do
+      begin
+        Transparent := True;
+        TransparentColor := clFuchsia;
+        Canvas.Brush.Color := clFuchsia;
+        Canvas.FillRect(Rect(0, 0, Width, Height));
+        Canvas.Brush.Color := RGB(255, 228, 38);
+        Canvas.Pen.Color := clBlack;
+        Canvas.Pen.Width := 1;
+        Canvas.RoundRect(0, 0, Width, Height,
+          MulDiv(3, CurrentPPI, 96), MulDiv(3, CurrentPPI, 96));
+        Canvas.MoveTo(MulDiv(5, CurrentPPI, 96), MulDiv(5, CurrentPPI, 96));
+        Canvas.LineTo(MulDiv(15, CurrentPPI, 96), MulDiv(5, CurrentPPI, 96));
+        Canvas.MoveTo(MulDiv(5, CurrentPPI, 96), MulDiv(9, CurrentPPI, 96));
+        Canvas.LineTo(MulDiv(15, CurrentPPI, 96), MulDiv(9, CurrentPPI, 96));
+        Canvas.MoveTo(MulDiv(5, CurrentPPI, 96), MulDiv(13, CurrentPPI, 96));
+        Canvas.LineTo(MulDiv(12, CurrentPPI, 96), MulDiv(13, CurrentPPI, 96));
+      end;
+      FNoteDragOverlay.Width := FNoteDragOverlay.Picture.Bitmap.Width;
+      FNoteDragOverlay.Height := FNoteDragOverlay.Picture.Bitmap.Height;
+    end;
+    // Mauszeiger exakt in der Mitte des gelben Kommentarsymbols.
+    FNoteDragOffset := Point(FNoteDragOverlay.Width div 2,
+      FNoteDragOverlay.Height div 2);
+    FNoteDragOverlay.SetBounds(TPDFiumImage(Sender).Left + X - FNoteDragOffset.X,
+      TPDFiumImage(Sender).Top + Y - FNoteDragOffset.Y,
+      FNoteDragOverlay.Width, FNoteDragOverlay.Height);
+    FNoteDragOverlay.Visible := True;
+    FNoteDragOverlay.BringToFront;
+    TPDFiumImage(Sender).MouseCapture := True;
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    Exit;
+  end;
   if (Button = mbLeft) and (ssCtrl in Shift) and
      (Sender is TPDFiumImage) and (FCore <> nil) and
      LinkAtImagePoint(Sender, X, Y, Target) and
@@ -11398,14 +11466,6 @@ begin
         begin
           Caption := ToolbarHint('Kommentar bearbeiten', 'Edit comment');
           Tag := 1;
-          OnClick := NoteMenuClick;
-          FNotePopup.Items.Add(NoteItem);
-        end;
-        NoteItem := TMenuItem.Create(FNotePopup);
-        with NoteItem do
-        begin
-          Caption := ToolbarHint('Kommentar verschieben', 'Move comment');
-          Tag := 2;
           OnClick := NoteMenuClick;
           FNotePopup.Items.Add(NoteItem);
         end;
@@ -11519,27 +11579,6 @@ begin
     end;
     if Button = mbLeft then
     begin
-      if FNoteMovePending then
-      begin
-        if not CanModifyComments then
-        begin
-          FNoteMovePending := False;
-          Screen.Cursor := crDefault;
-          Img.Cursor := crDefault;
-          Exit;
-        end;
-        FNoteMovePending := False;
-        Screen.Cursor := crDefault;
-        Img.Cursor := crDefault;
-        if FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height, X, Y, PX, PY) and
-           (Img.Tag = FNoteSelected.PageIndex) then
-          if FCore.ChangeNote(FNoteSelected, '', PX, PY, True) then
-          begin
-            RefreshTextPage(Img.Tag);
-            UpdateSaveState;
-          end;
-        Exit;
-      end;
       if NoteAtPoint(Img, X, Y, FNoteSelected) then Exit;
       if FNoteMode then
       begin
@@ -11578,8 +11617,8 @@ begin
     FTextEditor.OnMouseDown := TextEditorMouseDown;
     FTextEditor.OnMouseMove := TextEditorMouseMove;
     FTextEditor.OnMouseUp := TextEditorMouseUp;
-    FTextEditor.Hint := Tr('Enter: Text einfügen | Esc: Abbrechen') + ' | ' +
-      Tr('Strg + Ziehen: Position ändern');
+    FTextEditor.Hint := ToolbarHint('Enter: Text einfügen. Mit Strg+Klick an Position verschieben',
+      'Enter: Insert text. Move to position with Ctrl+click');
     FTextEditor.ShowHint := True;
     FTextResizeGrip := TPanel.Create(Self);
     FTextResizeGrip.Parent := Img.Parent;
@@ -12135,6 +12174,17 @@ begin
     end;
     Exit;
   end;
+  if FNoteDragging and (Sender is TPDFiumImage) then
+  begin
+    TPDFiumImage(Sender).Cursor := crSizeAll;
+    if (FNoteDragOverlay <> nil) and
+       (TPDFiumImage(Sender).Tag = FNoteDragPage) then
+    begin
+      FNoteDragOverlay.Left := TPDFiumImage(Sender).Left + X - FNoteDragOffset.X;
+      FNoteDragOverlay.Top := TPDFiumImage(Sender).Top + Y - FNoteDragOffset.Y;
+    end;
+    Exit;
+  end;
   if FHandToolActive and (Sender is TPDFiumImage) and
      not FDraggingPage then
   begin
@@ -12149,11 +12199,6 @@ begin
     Exit;
   end;
   if FLinkMode and (Sender is TPDFiumImage) and not FHighlightAreaDragging then
-  begin
-    TPDFiumImage(Sender).Cursor := crCross;
-    Exit;
-  end;
-  if (Sender is TPDFiumImage) and FNoteMovePending then
   begin
     TPDFiumImage(Sender).Cursor := crCross;
     Exit;
@@ -12315,6 +12360,38 @@ begin
       TPDFiumImage(Sender).MouseCapture := False;
       // Die fertige Messung bleibt nach Loslassen sichtbar.
       TPDFiumImage(Sender).Repaint;
+    end;
+    Exit;
+  end;
+  if FNoteDragging then
+  begin
+    FNoteDragging := False;
+    if FNoteDragOverlay <> nil then
+      FNoteDragOverlay.Visible := False;
+    if Sender is TPDFiumImage then
+    begin
+      TPDFiumImage(Sender).MouseCapture := False;
+      TPDFiumImage(Sender).Cursor := crDefault;
+      if (Button = mbLeft) and (FCore <> nil) and
+         (TPDFiumImage(Sender).Tag = FNoteDragPage) and
+         CanModifyComments and
+         ((Abs(X - FNoteDragStart.X) > 1) or
+          (Abs(Y - FNoteDragStart.Y) > 1)) and
+         FCore.DevicePointToPage(FNoteDragPage,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           FNoteDragStart.X, FNoteDragStart.Y, AX1, AY1) and
+         FCore.DevicePointToPage(FNoteDragPage,
+           TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+           X, Y, AX2, AY2) then
+      begin
+        if FCore.ChangeNote(FNoteSelected, '',
+          FNoteSelected.Bounds.Left + (AX2 - AX1),
+          FNoteSelected.Bounds.Top + (AY2 - AY1), True) then
+        begin
+          RefreshTextPage(FNoteDragPage);
+          UpdateSaveState;
+        end;
+      end;
     end;
     Exit;
   end;

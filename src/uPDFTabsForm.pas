@@ -3364,9 +3364,10 @@ begin
         'Enable Comment in the tools toolbar, click a position on the PDF page and enter your comment '
         + 'in the multiline text field. A yellow speech-bubble icon marks the comment. '
         + 'Move the mouse over the icon to display your comment, including line breaks. '
-        + 'Right-click the icon for Edit comment, Move comment or Delete comment. '
-        + 'To move it, select Move comment and click the new position on the page; '
-        + 'the mouse pointer changes to a crosshair while choosing the position. '
+        + 'Right-click the icon for Edit comment or Delete comment. '
+        + 'To move a comment, hold Ctrl, grab the yellow comment icon with the left mouse button and drag it. '
+        + 'The icon follows the mouse pointer immediately, with the pointer centered on the icon. '
+        + 'Release the mouse button to place the comment at its new position. '
         + 'Comments are stored as PDF annotations when you save the PDF and can be '
         + 'edited again after reopening, provided the document permissions allow it.');
       AddSection('Undo and redo text and highlights',
@@ -3691,9 +3692,10 @@ begin
         'In der Werkzeugleiste „Kommentar“ aktivieren, auf die gewünschte Stelle der PDF-Seite klicken '
         + 'und den Kommentar mehrzeilig eingeben. Eine gelbe Sprechblase kennzeichnet die Notiz. '
         + 'Beim Überfahren des Symbols mit der Maus erscheint der eigene Kommentartext einschließlich Zeilenumbrüchen. '
-        + 'Per Rechtsklick stehen „Kommentar bearbeiten“, „Kommentar verschieben“ und „Kommentar löschen“ zur Verfügung. '
-        + 'Zum Verschieben „Kommentar verschieben“ wählen und anschließend auf die neue Position der Seite klicken; '
-        + 'während der Positionswahl erscheint ein Fadenkreuz. '
+        + 'Per Rechtsklick stehen „Kommentar bearbeiten“ und „Kommentar löschen“ zur Verfügung. '
+        + 'Zum Verschieben Strg gedrückt halten, das gelbe Kommentarsymbol mit der linken Maustaste greifen und ziehen. '
+        + 'Das Symbol folgt unmittelbar dem Mauszeiger, der mittig auf dem Symbol liegt. '
+        + 'Beim Loslassen der Maustaste wird der Kommentar an der neuen Position abgelegt. '
         + 'Beim Speichern werden Kommentare als echte PDF-Anmerkungen übernommen und können nach erneutem Öffnen '
         + 'weiter bearbeitet werden, sofern die Dokumentberechtigungen dies zulassen.');
       AddSection('Text und Hervorhebungen rückgängig machen und wiederholen',

@@ -70,9 +70,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
 
 [ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZCcm93c2VyRm9ybS5wYXM=]
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
-CursorX=1
-CursorY=1
-TopLine=1
+CursorX=31
+CursorY=3199
+TopLine=3177
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -297,7 +297,6 @@ LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-
 [ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZTaWduYXR1cmVEaWFsb2cucGFz
 ]
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
