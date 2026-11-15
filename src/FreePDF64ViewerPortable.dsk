@@ -17,9 +17,9 @@ File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Hilfe_Unit.pas
 
 [Modules]
 Module0=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
-Module2=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
-Module3=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
+Module2=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
+Module3=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
 Module5=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 Module6=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
@@ -30,13 +30,13 @@ EditWindowCount=1
 [D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
 ModuleType=TSourceModule
 
+[D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas]
+ModuleType=TSourceModule
+
 [D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas]
 ModuleType=TSourceModule
 
 [c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas]
@@ -98,9 +98,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-CursorX=77
-CursorY=12446
-TopLine=12424
+CursorX=27
+CursorY=1
+TopLine=1
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -306,7 +306,7 @@ ClientWidth=1895
 ClientHeight=3312
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=8812
+TBDockHeight=9014
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -321,11 +321,11 @@ State=0
 Left=0
 Top=0
 Width=1996
-Height=6464
+Height=8543
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=6464
+ClientHeight=8543
 TBDockHeight=5957
 LRDockWidth=2512
 Dockable=1
@@ -337,8 +337,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=-2039
-Top=336
+Left=0
+Top=0
 Width=273
 Height=362
 MaxLeft=-1
@@ -349,8 +349,8 @@ TBDockHeight=362
 LRDockWidth=273
 Dockable=1
 StayOnTop=0
-Name=77
-Description=214
+Name=96
+Description=267
 filter=1
 
 [DebugLogView]
@@ -461,11 +461,11 @@ State=0
 Left=0
 Top=0
 Width=2340
-Height=978
+Height=1210
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2340
-ClientHeight=978
+ClientHeight=1210
 TBDockHeight=2319
 LRDockWidth=2824
 Dockable=1
@@ -526,11 +526,11 @@ State=0
 Left=0
 Top=0
 Width=1996
-Height=6464
+Height=8543
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=6464
+ClientHeight=8543
 TBDockHeight=4884
 LRDockWidth=7148
 Dockable=1
@@ -542,8 +542,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=505
-Top=1083
+Left=0
+Top=0
 Width=2855
 Height=3210
 MaxLeft=-1
@@ -656,8 +656,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=1270
-Top=36
+Left=8
+Top=8
 Width=3824
 Height=1420
 MaxLeft=-1
@@ -692,7 +692,7 @@ ClientWidth=1996
 ClientHeight=4551
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=8812
+TBDockHeight=9014
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0
@@ -718,7 +718,7 @@ ClientWidth=1895
 ClientHeight=3500
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=8812
+TBDockHeight=9014
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -744,7 +744,7 @@ ClientWidth=1996
 ClientHeight=2261
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=8812
+TBDockHeight=9014
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0
