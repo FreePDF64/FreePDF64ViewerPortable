@@ -20,6 +20,9 @@ type
   private
     FHighlighted: Boolean;
     FDesign: Integer;
+    FHover: Boolean;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure SetHighlighted(const Value: Boolean);
     procedure UpdateSaveGlyph;
@@ -29,6 +32,21 @@ type
     constructor Create(AOwner: TComponent); override;
     procedure SetDesign(AValue: Integer);
     property Highlighted: Boolean read FHighlighted write SetHighlighted;
+  end;
+
+  // Hover-Rahmen fuer die Dropdown-Felder der Symbolleiste.
+  // Kein Aendern von Style, Font, ItemHeight oder Auswahl beim Hover.
+  TPDFHoverComboBox = class(TComboBox)
+  private
+    FHover: Boolean;
+    FHoverDesign: Integer;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
+    procedure WMNCPaint(var Message: TWMNCPaint); message WM_NCPAINT;
+    procedure DrawHoverBorder;
+  public
+    procedure SetHoverDesign(AValue: Integer);
   end;
 
   // Owner-drawn toolbar button; original Windows rendering for design 0.
@@ -1140,6 +1158,17 @@ begin
   if (FDesign <> 0) or FSelectionCapable then Invalidate;
 end;
 
+// Einheitliche Hover-Palette fuer beide Toolbar-Buttonklassen.
+// Nur die betroffene Schaltflaeche wird neu gezeichnet.
+procedure PDFToolbarHoverColors(const ADesign: Integer;
+  var ABack, AEdge: TColor);
+begin
+  case ADesign of
+    3: begin ABack := RGB(225, 225, 225); AEdge := RGB(96, 96, 96); end;
+    5: begin ABack := RGB(230, 244, 255); AEdge := RGB(55, 110, 166); end;
+  end;
+end;
+
 procedure TPDFThemeBitBtn.CNDrawItem(var Message: TWMDrawItem);
 var
   DC: HDC;
@@ -1173,8 +1202,7 @@ begin
   if FHover and Enabled then
     case FDesign of
       1: Back := RGB(229, 239, 251);
-      3: Back := RGB(208, 208, 208);
-      5: Back := RGB(174, 204, 233);
+      3, 5: PDFToolbarHoverColors(FDesign, Back, Edge);
     end;
   if (State and ODS_SELECTED) <> 0 then
     case FDesign of
@@ -1202,6 +1230,11 @@ begin
         DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
       else
         DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+      if FHover and Enabled and ((State and ODS_SELECTED) = 0) then
+      begin
+        SetDCBrushColor(DC, ColorToRGB(Edge));
+        FrameRect(DC, R, GetStockObject(DC_BRUSH));
+      end;
     end
     else
     begin
@@ -1312,14 +1345,14 @@ procedure TPDFDesignButton.CMMouseEnter(var Message: TMessage);
 begin
   inherited;
   FHover := True;
-  if (FDesign <> 0) or FAccentCapable then Invalidate;
+  if (FDesign <> 0) or FAccentCapable or FForceStandardDraw then Invalidate;
 end;
 
 procedure TPDFDesignButton.CMMouseLeave(var Message: TMessage);
 begin
   inherited;
   FHover := False;
-  if (FDesign <> 0) or FAccentCapable then Invalidate;
+  if (FDesign <> 0) or FAccentCapable or FForceStandardDraw then Invalidate;
 end;
 
 procedure TPDFDesignButton.CNDrawItem(var Message: TWMDrawItem);
@@ -1371,7 +1404,7 @@ begin
       1: Back := RGB(229, 239, 251);
       2: Back := RGB(86, 94, 107);
       4: Back := RGB(68, 73, 81);
-      5: Back := RGB(183, 212, 243);
+      3, 5: PDFToolbarHoverColors(FDesign, Back, Edge);
     else
       Back := RGB(213, 226, 242);
     end;
@@ -1395,6 +1428,11 @@ begin
       DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
     else
       DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+    if FHover and Enabled and ((State and ODS_SELECTED) = 0) then
+    begin
+      SetDCBrushColor(DC, ColorToRGB(Edge));
+      FrameRect(DC, R, GetStockObject(DC_BRUSH));
+    end;
   end
   else
   begin
@@ -2018,6 +2056,95 @@ begin
   end;
 end;
 
+procedure TPDFHoverComboBox.DrawHoverBorder;
+var
+  DC: HDC;
+  R: TRect;
+  Edge: TColor;
+  Brush: HBRUSH;
+  I, BorderWidth: Integer;
+begin
+  if not (FHover and Enabled and HandleAllocated) then Exit;
+  case FHoverDesign of
+    0: Edge := RGB(68, 127, 190);
+    1: Edge := RGB(75, 125, 180);
+    3: Edge := RGB(65, 65, 65);
+    5: Edge := RGB(30, 85, 140);
+  else
+    Edge := clHighlight;
+  end;
+  DC := GetWindowDC(Handle);
+  if DC = 0 then Exit;
+  try
+    GetWindowRect(Handle, R);
+    OffsetRect(R, -R.Left, -R.Top);
+    // Zwei physische Pixel (DPI-skaliert) bleiben auch bei nativen
+    // Windows-ComboBox-Rahmen sichtbar, ohne Text/Pfeil zu veraendern.
+    BorderWidth := MulDiv(2, CurrentPPI, 96);
+    if BorderWidth < 2 then BorderWidth := 2;
+    Brush := CreateSolidBrush(ColorToRGB(Edge));
+    try
+      for I := 0 to BorderWidth - 1 do
+      begin
+        FrameRect(DC, R, Brush);
+        InflateRect(R, -1, -1);
+      end;
+    finally
+      DeleteObject(Brush);
+    end;
+  finally
+    ReleaseDC(Handle, DC);
+  end;
+end;
+
+procedure TPDFHoverComboBox.SetHoverDesign(AValue: Integer);
+begin
+  if FHoverDesign = AValue then Exit;
+  FHoverDesign := AValue;
+  Invalidate;
+end;
+
+procedure TPDFHoverComboBox.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  FHover := True;
+  DrawHoverBorder;
+end;
+
+procedure TPDFHoverComboBox.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FHover := False;
+  if HandleAllocated then
+    RedrawWindow(Handle, nil, 0, RDW_INVALIDATE or RDW_FRAME);
+end;
+
+procedure TPDFHoverComboBox.WMPaint(var Message: TWMPaint);
+begin
+  inherited;
+  DrawHoverBorder;
+end;
+
+procedure TPDFHoverComboBox.WMNCPaint(var Message: TWMNCPaint);
+begin
+  inherited;
+  DrawHoverBorder;
+end;
+
+procedure TPDFiumSaveButton.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  FHover := True;
+  Invalidate;
+end;
+
+procedure TPDFiumSaveButton.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FHover := False;
+  Invalidate;
+end;
+
 constructor TPDFiumSaveButton.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -2038,6 +2165,7 @@ procedure TPDFiumSaveButton.SetDesign(AValue: Integer);
 begin
   if FDesign = AValue then Exit;
   FDesign := AValue;
+  FHover := False;
   Invalidate;
 end;
 
@@ -2076,6 +2204,12 @@ begin
     else
       begin Back := clBtnFace; Edge := clBtnShadow; end;
     end;
+    if FHover and Enabled and not FHighlighted then
+      case FDesign of
+        1: Back := RGB(229, 239, 251);
+        3: begin Back := RGB(225, 225, 225); Edge := RGB(96, 96, 96); end;
+        5: begin Back := RGB(230, 244, 255); Edge := RGB(55, 110, 166); end;
+      end;
     if (State and ODS_SELECTED) <> 0 then
       case FDesign of
         1: Back := RGB(209, 225, 245);
@@ -2125,7 +2259,7 @@ begin
       try
         if not Enabled then ThemeState := 4
         else if (State and ODS_SELECTED) <> 0 then ThemeState := 3
-        else if (State and ODS_HOTLIGHT) <> 0 then ThemeState := 2
+        else if FHover or ((State and ODS_HOTLIGHT) <> 0) then ThemeState := 2
         else ThemeState := 1;
         DrawThemeBackground(Theme, DC, 1, ThemeState, R, nil);
       finally
@@ -2618,7 +2752,7 @@ begin
   FActionSeparator := TBevel.Create(Self);
   FActionSeparator.Parent := FBar;
   FActionSeparator.Shape := bsLeftLine;
-  FViewSelect := TComboBox.Create(Self);
+  FViewSelect := TPDFHoverComboBox.Create(Self);
   FViewSelect.Parent := FBar;
   FViewSelect.Style := csDropDownList;
   FViewSelect.OnDrawItem := DrawViewModeItem;
@@ -2698,7 +2832,7 @@ begin
   FRedactionPreviewPages := TList<Integer>.Create;
   FRedactionRedo := TObjectList<TPDFInkStroke>.Create(True);
   FRedactionRedoPages := TList<Integer>.Create;
-  FShapeSelect := TComboBox.Create(Self);
+  FShapeSelect := TPDFHoverComboBox.Create(Self);
   FShapeSelect.Parent := FBar;
   FShapeSelect.Style := csDropDownList;
   FShapeSelect.SetBounds(866, 5, 165, 26);
@@ -2717,7 +2851,7 @@ begin
   // Der Hint wird passend zum gewählten Werkzeug gesetzt.
   ShapeSelectChange(FShapeSelect);
   FShapeSelect.ShowHint := True;
-  FWidthSelect := TComboBox.Create(Self);
+  FWidthSelect := TPDFHoverComboBox.Create(Self);
   FWidthSelect.Parent := FBar;
   FWidthSelect.Style := csDropDownList;
   FWidthSelect.SetBounds(982, 5, 54, 26);
@@ -2802,7 +2936,7 @@ begin
     OnDrawItem := PopupDrawItem;
     OnMeasureItem := PopupMeasureItem;
   end;
-  FMeasureUnitSelect := TComboBox.Create(Self);
+  FMeasureUnitSelect := TPDFHoverComboBox.Create(Self);
   FMeasureUnitSelect.Parent := FEditBar;
   FMeasureUnitSelect.Style := csDropDownList;
   FMeasureUnitSelect.Items.Add('mm');
@@ -2909,7 +3043,7 @@ begin
   FRedactionFinalizeButton.ShowHint := True;
   FRedactionFinalizeButton.SetAccentOrange(
     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6));
-  FTextFontSelect := TComboBox.Create(Self);
+  FTextFontSelect := TPDFHoverComboBox.Create(Self);
   FTextFontSelect.Parent := FEditBar;
   FTextFontSelect.Style := csDropDownList;
   // Windows-Schriftarten statt einer fest kodierten Dreierliste.
@@ -2921,7 +3055,7 @@ begin
   FTextFontSelect.Hint := ToolbarHint('Schriftart für eingefügten Text', 'Font for inserted text');
   FTextFontSelect.ShowHint := True;
   FTextFontSelect.OnChange := TextStyleChange;
-  FTextSizeSelect := TComboBox.Create(Self);
+  FTextSizeSelect := TPDFHoverComboBox.Create(Self);
   FTextSizeSelect.Parent := FEditBar;
   FTextSizeSelect.Style := csDropDown;
   FTextSizeSelect.Items.CommaText := '8,10,12,14,16,18,20,24,28,32,36,48,72';
@@ -3652,27 +3786,36 @@ procedure TFreePDF64PDFiumView.DrawViewModeItem(Control: TWinControl;
 var
   C: TComboBox;
   R: TRect;
+  BackColor, TextColor: TColor;
 begin
   C := TComboBox(Control);
-  // Bei einem neu erzeugten ComboBox-Handle nach dem Splitwechsel
-  // kann Windows fuer das geschlossene Auswahlfeld Index = -1 liefern.
-  // Die tatsaechliche Auswahl dann fuer die Anzeige verwenden.
+  // Bei neu erzeugtem ComboBox-Handle kann Windows fuer das geschlossene
+  // Auswahlfeld Index = -1 liefern.
   if (Index < 0) and (C.ItemIndex >= 0) and
      (C.ItemIndex < C.Items.Count) then
     Index := C.ItemIndex;
-  // 32cm: Im Design Modern Hell den aktiven Listeneintrag dezent
-  // hervorheben. Die geschlossene ComboBox bleibt im Feldfarbton.
-  // Keine Layoutaenderung und kein erneutes Anwenden der Palette.
-  if (C.Color = RGB(249, 251, 254)) and C.DroppedDown and
-     (odSelected in State) then
-    C.Canvas.Brush.Color := RGB(222, 234, 248)
-  else
-    C.Canvas.Brush.Color := C.Color;
+
+  BackColor := C.Color;
+  TextColor := C.Font.Color;
+  // Nur die geoeffnete Liste hervorheben, nicht das geschlossene Feld.
+  // Fuer Windows Klassik und Klassisch Blau auch die Schrift kontrastieren.
+  if C.DroppedDown and (odSelected in State) then
+  begin
+    case FEditToggle.FDesign of
+      1: BackColor := RGB(222, 234, 248); // Modern Hell: bisheriger Farbton
+      3: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
+      5: begin BackColor := RGB(34, 94, 157); TextColor := clWhite; end;
+    else
+      if C.Color = RGB(249, 251, 254) then
+        BackColor := RGB(222, 234, 248);
+    end;
+  end;
+  C.Canvas.Brush.Color := BackColor;
   C.Canvas.FillRect(ARect);
   if (Index >= 0) and (Index < C.Items.Count) then
   begin
     C.Canvas.Font.Assign(C.Font);
-    C.Canvas.Font.Color := C.Font.Color;
+    C.Canvas.Font.Color := TextColor;
     R := ARect;
     Inc(R.Left, MulDiv(6, C.CurrentPPI, 96));
     DrawText(C.Canvas.Handle, PChar(C.Items[Index]), -1, R,
@@ -3798,6 +3941,7 @@ begin
     if ADesign = 0 then FViewSelect.Style := csDropDownList
     else FViewSelect.Style := csOwnerDrawFixed;
     FViewSelect.Color := FieldColor;
+    TPDFHoverComboBox(FViewSelect).SetHoverDesign(ADesign);
     FViewSelect.Font.Color := TextColor;
     if ADesign <> 0 then FViewSelect.Font.Style := [fsBold]
     else FViewSelect.Font.Style := [];
@@ -3840,6 +3984,7 @@ begin
     else FShapeSelect.Style := csOwnerDrawFixed;
     FShapeSelect.OnDrawItem := DrawViewModeItem;
     FShapeSelect.Color := FieldColor;
+    TPDFHoverComboBox(FShapeSelect).SetHoverDesign(ADesign);
     FShapeSelect.Font.Color := TextColor;
     if ADesign <> 0 then FShapeSelect.Font.Style := [fsBold]
     else FShapeSelect.Font.Style := [];
@@ -3857,6 +4002,7 @@ begin
     else FWidthSelect.Style := csOwnerDrawFixed;
     FWidthSelect.OnDrawItem := DrawViewModeItem;
     FWidthSelect.Color := FieldColor;
+    TPDFHoverComboBox(FWidthSelect).SetHoverDesign(ADesign);
     FWidthSelect.Font.Color := TextColor;
     if ADesign <> 0 then FWidthSelect.Font.Style := [fsBold]
     else FWidthSelect.Font.Style := [];
@@ -3881,6 +4027,7 @@ begin
       if FTextFontSelect.ItemIndex < 0 then FTextFontSelect.ItemIndex := 0;
     end;
     FTextFontSelect.Color := FieldColor;
+    TPDFHoverComboBox(FTextFontSelect).SetHoverDesign(ADesign);
     FTextFontSelect.Font.Color := TextColor;
     if ADesign <> 0 then FTextFontSelect.Font.Style := [fsBold]
     else FTextFontSelect.Font.Style := [];
@@ -3905,6 +4052,7 @@ begin
        (FMeasureUnitSelect.ItemIndex >= FMeasureUnitSelect.Items.Count) then
       FMeasureUnitSelect.ItemIndex := 0;
     FMeasureUnitSelect.Color := FieldColor;
+    TPDFHoverComboBox(FMeasureUnitSelect).SetHoverDesign(ADesign);
     FMeasureUnitSelect.Font.Color := TextColor;
     if ADesign <> 0 then FMeasureUnitSelect.Font.Style := [fsBold]
     else FMeasureUnitSelect.Font.Style := [];
@@ -3923,6 +4071,7 @@ begin
     FTextSizeSelect.Style := csDropDown;
     FTextSizeSelect.OnDrawItem := DrawViewModeItem;
     FTextSizeSelect.Color := FieldColor;
+    TPDFHoverComboBox(FTextSizeSelect).SetHoverDesign(ADesign);
     FTextSizeSelect.Font.Color := TextColor;
     if ADesign <> 0 then FTextSizeSelect.Font.Style := [fsBold]
     else FTextSizeSelect.Font.Style := [];
@@ -10798,11 +10947,11 @@ begin
   Item := TMenuItem(Sender);
   PPI := CurrentPPI;
   case FEditToggle.FDesign of
-    1: begin BackColor := RGB(249,251,254); TextColor := RGB(35,48,65); AccentColor := RGB(222,234,248); end;
+    1: begin BackColor := RGB(249,251,254); TextColor := RGB(35,48,65); AccentColor := clHighlight; end;
     2: begin BackColor := RGB(65,70,79); TextColor := clWhite; AccentColor := RGB(83,105,135); end;
-    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := RGB(166,189,215); end;
+    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := clHighlight; end;
     4: begin BackColor := RGB(45,48,54); TextColor := clWhite; AccentColor := RGB(69,91,124); end;
-    5: begin BackColor := RGB(205,225,245); TextColor := RGB(24,55,88); AccentColor := RGB(161,198,233); end;
+    5: begin BackColor := RGB(205,225,245); TextColor := RGB(24,55,88); AccentColor := clHighlight; end;
   else
     begin BackColor := clMenu; TextColor := clMenuText; AccentColor := clHighlight; end;
   end;
@@ -10810,7 +10959,11 @@ begin
   if Selected then ACanvas.Brush.Color := AccentColor
   else ACanvas.Brush.Color := BackColor;
   ACanvas.FillRect(ARect);
-  ACanvas.Font.Color := TextColor;
+  // Modern Hell, Windows Klassik und Klassisch Blau: einheitliche Windows-Auswahlfarben.
+  if Selected and (FEditToggle.FDesign in [1, 3, 5]) then
+    ACanvas.Font.Color := clHighlightText
+  else
+    ACanvas.Font.Color := TextColor;
   ACanvas.Font.Style := [];
   if Item.Checked then
   begin
