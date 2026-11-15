@@ -1,4 +1,4 @@
-unit uFreePDF64PDFiumView;
+﻿unit uFreePDF64PDFiumView;
 
 interface
 
@@ -67,6 +67,7 @@ type
     FHover: Boolean;
     FAccentOrange: Boolean;
     FAccentCapable: Boolean;
+    FForceStandardDraw: Boolean;
     procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -75,6 +76,7 @@ type
   public
     procedure SetDesign(AValue: Integer);
     procedure SetAccentOrange(AValue: Boolean);
+    procedure SetForceStandardDraw(AValue: Boolean);
   end;
 
   // Ein einzelnes, DPI-abhaengig gezeichnetes Stift-und-Lineal-Symbol.
@@ -143,6 +145,7 @@ type
     X1, Y1, X2, Y2: Double;
     Scale: Double;
     UnitIndex: Integer;
+    Color: TColor;
   end;
 
   // Jede Aktion merkt sich Rechteck und ursprüngliche Position.
@@ -255,6 +258,8 @@ type
     FLinkMovePage: Integer;
     FLinkMoveStart: TPoint;
     FLinkMoveEnd: TPoint;
+    FLinkDragOverlay: TImage;
+    FLinkDragOffset: TPoint;
     FWatermarkMenuItem: TMenuItem;
     FImageWatermarkMenuItem: TMenuItem;
     FSignatureMenuItem: TMenuItem;
@@ -289,7 +294,8 @@ type
     FMeasureDirty: Boolean;
     FSaveSuccessSerial: Integer;
     FMeasurePopup: TPopupMenu;
-    FMeasureMenuItem, FMeasureScaleMenuItem: TMenuItem;
+    FMeasureMenuItem, FMeasureScaleMenuItem, FMeasureColorMenuItem: TMenuItem;
+    FMeasureColor: TColor;
     FMeasureMode: Boolean;
     FMeasureDragging: Boolean;
     FMeasurePage: Integer;
@@ -297,6 +303,7 @@ type
     FMeasureScale: Double; // real-world millimetres per PDF point
     FMeasureUnit: Integer; // 0 mm, 1 cm, 2 in
     FMeasureButton: TButton;
+    FMeasureColorSwatch: TPanel;
     FMeasureUnitSelect: TComboBox;
     FMeasureScaleButton: TButton;
     FNoteMode: Boolean;
@@ -496,6 +503,7 @@ type
     procedure MeasureClick(Sender: TObject);
     procedure MeasureUnitChange(Sender: TObject);
     procedure MeasureScaleClick(Sender: TObject);
+    procedure MeasureColorClick(Sender: TObject);
     procedure DrawMeasurement(Sender: TObject);
     procedure CancelMeasurement;
 
@@ -504,6 +512,7 @@ type
     procedure ClearStrokeRedo;
     procedure ClearRedactionRedo;
     procedure RefreshRedactionPage(APage: Integer);
+    procedure SetActiveModeButton(AButton: TButton; AActive: Boolean);
     procedure UpdateTextUndoButtons;
     procedure RefreshTextPage(APageIndex: Integer);
     procedure TextStyleChange(Sender: TObject);
@@ -527,6 +536,7 @@ type
     procedure SaveClick(Sender: TObject);
     procedure SaveDropdownClick(Sender: TObject);
     procedure ExportPagesAsImages(Sender: TObject);
+    procedure ExportPagesAsText(Sender: TObject);
     function LinkAtImagePoint(Sender: TObject; X, Y: Integer;
       out ATarget: TPDFLinkTarget): Boolean;
     procedure FormOptionDoubleClick(Sender: TObject);
@@ -669,7 +679,7 @@ var
 begin
   ApplyPDFDialogDesign(AForm);
   case ADesign of
-    1: begin ListBack := RGB(248, 250, 253); ListText := RGB(35, 48, 65); end;
+    1: begin ListBack := RGB(249, 251, 254); ListText := RGB(35, 48, 65); end;
     2: begin ListBack := RGB(65, 70, 79); ListText := clWhite; end;
     3: begin ListBack := clWhite; ListText := clBlack; end;
     4: begin ListBack := RGB(45, 48, 54); ListText := clWhite; end;
@@ -1149,7 +1159,7 @@ begin
   R := Message.DrawItemStruct^.rcItem;
   State := Message.DrawItemStruct^.itemState;
   case FDesign of
-    1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); Fore := RGB(35, 48, 65); end;
+    1: begin Back := RGB(248, 250, 253); Edge := RGB(209, 219, 232); Fore := RGB(35, 48, 65); end;
     3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
@@ -1162,13 +1172,13 @@ begin
   end;
   if FHover and Enabled then
     case FDesign of
-      1: Back := RGB(213, 226, 242);
+      1: Back := RGB(229, 239, 251);
       3: Back := RGB(208, 208, 208);
       5: Back := RGB(174, 204, 233);
     end;
   if (State and ODS_SELECTED) <> 0 then
     case FDesign of
-      1: Back := RGB(190, 211, 236);
+      1: Back := RGB(209, 225, 245);
       3: Back := RGB(176, 176, 176);
       5: Back := RGB(155, 190, 225);
     end;
@@ -1197,7 +1207,12 @@ begin
     begin
       C.Pen.Color := Edge;
       if FSelectedVisual then C.Pen.Width := 2;
-      C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+      if (FDesign = 1) and not FSelectedVisual then
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom,
+          MulDiv(8, Max(96, CurrentPPI), 96),
+          MulDiv(8, Max(96, CurrentPPI), 96))
+      else
+        C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
     end;
     S := Caption;
     C.Font.Assign(Font);
@@ -1233,7 +1248,7 @@ begin
   // VCL/Windows setzt beim Fokuswechsel den Button-Typ per BM_SETSTYLE
   // auf BS_PUSHBUTTON oder BS_DEFPUSHBUTTON zurueck. In alternativen
   // Designs muss BS_OWNERDRAW auch danach erhalten bleiben.
-  if (FDesign <> 0) or FAccentCapable then
+  if (FDesign <> 0) or FAccentCapable or FForceStandardDraw then
     Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
   inherited;
 end;
@@ -1241,8 +1256,16 @@ end;
 procedure TPDFDesignButton.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
-  if (FDesign <> 0) or FAccentCapable then
+  if (FDesign <> 0) or FAccentCapable or FForceStandardDraw then
     Params.Style := (Params.Style and not $000F) or BS_OWNERDRAW;
+end;
+
+procedure TPDFDesignButton.SetForceStandardDraw(AValue: Boolean);
+begin
+  if FForceStandardDraw = AValue then Exit;
+  FForceStandardDraw := AValue;
+  if HandleAllocated then RecreateWnd;
+  Invalidate;
 end;
 
 procedure TPDFDesignButton.SetAccentOrange(AValue: Boolean);
@@ -1310,8 +1333,9 @@ var
   ChildIndex: Integer;
   IconImage: TImage;
   PaintCanvas: TCanvas;
+  PaintRect: TRect;
 begin
-  if (FDesign = 0) and not FAccentCapable then
+  if (FDesign = 0) and not FAccentCapable and not FForceStandardDraw then
   begin
     inherited;
     Exit;
@@ -1320,7 +1344,7 @@ begin
   R := Message.DrawItemStruct^.rcItem;
   State := Message.DrawItemStruct^.itemState;
   case FDesign of
-    1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); Fore := RGB(35, 48, 65); end;
+    1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); Fore := RGB(35, 48, 65); end;
     2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); Fore := clWhite; end;
     3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
     4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); Fore := clWhite; end;
@@ -1328,6 +1352,9 @@ begin
   else
     begin Back := clBtnFace; Edge := clBtnShadow; Fore := clWindowText; end;
   end;
+  // Weisser Hintergrund des Oeffnen-Buttons im Standard-Design.
+  if (FDesign = 0) and FForceStandardDraw and (Caption = '📂') then
+    Back := clWhite;
   // Die Schaltflaeche fuer die endgueltige Schwaerzung bleibt im
   // Vorschau-Modus in jedem Design eindeutig orange hervorgehoben.
   if FAccentOrange then
@@ -1341,6 +1368,7 @@ begin
       Back := RGB(255, 169, 55)
     else
     case FDesign of
+      1: Back := RGB(229, 239, 251);
       2: Back := RGB(86, 94, 107);
       4: Back := RGB(68, 73, 81);
       5: Back := RGB(183, 212, 243);
@@ -1352,6 +1380,7 @@ begin
       Back := RGB(235, 139, 32)
     else
     case FDesign of
+      1: Back := RGB(209, 225, 245);
       2, 4: Back := RGB(91, 106, 128);
     else
       Back := RGB(177, 202, 230);
@@ -1379,7 +1408,19 @@ begin
     try
       SetBkMode(DC, TRANSPARENT);
       SetTextColor(DC, ColorToRGB(Fore));
-      DrawText(DC, PChar(S), Length(S), R, DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX);
+      // Das Ordner-Emoji besitzt asymmetrische Font-Raender. Eine kleine
+      // optische Korrektur nach rechts zentriert es bei hoher DPI.
+      if S = '📂' then
+      begin
+        PaintRect := R;
+        OffsetRect(PaintRect, MulDiv(2, Max(96, Font.PixelsPerInch), 96),
+          -MulDiv(3, Max(96, Font.PixelsPerInch), 96));
+        DrawText(DC, PChar(S), Length(S), PaintRect,
+          DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX);
+      end
+      else
+        DrawText(DC, PChar(S), Length(S), R,
+          DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX);
     finally
       SelectObject(DC, OldFont);
     end;
@@ -1646,7 +1687,7 @@ begin
     begin
       FMeasureMode := False;
       CancelMeasurement;
-      if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+      if FMeasureButton <> nil then SetActiveModeButton(FMeasureButton, False);
     end;
     FTextInsertMode := False;
     FHighlightMode := False;
@@ -2014,7 +2055,7 @@ var
   State: UINT;
   Theme: HTHEME;
   ThemeState: Integer;
-  GX, GY, ArrowX, ArrowY, ArrowW: Integer;
+  GX, GY, ArrowX, ArrowY, ArrowW, IconSize, IconRight: Integer;
   ArrowPoints: array[0..2] of TPoint;
   OldPen, OldBrush: HGDIOBJ;
   ArrowColor: TColor;
@@ -2027,7 +2068,7 @@ begin
   if FDesign <> 0 then
   begin
     case FDesign of
-      1: begin Back := RGB(232, 238, 246); Edge := RGB(151, 168, 188); end;
+      1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); end;
       2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); end;
       3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
       4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); end;
@@ -2037,6 +2078,7 @@ begin
     end;
     if (State and ODS_SELECTED) <> 0 then
       case FDesign of
+        1: Back := RGB(209, 225, 245);
         2, 4: Back := RGB(91, 106, 128);
       else
         Back := RGB(177, 202, 230);
@@ -2050,6 +2092,22 @@ begin
         DrawEdge(DC, R, BDR_SUNKENOUTER, BF_RECT)
       else
         DrawEdge(DC, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+    end
+    else if FDesign = 1 then
+    begin
+      // Modern Hell: gleiche dezente Kontur wie Werkzeuge anzeigen.
+      C := TCanvas.Create;
+      try
+        C.Handle := DC;
+        C.Brush.Style := bsClear;
+        C.Pen.Color := Edge;
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom,
+          MulDiv(8, Max(96, CurrentPPI), 96),
+          MulDiv(8, Max(96, CurrentPPI), 96));
+        C.Handle := 0;
+      finally
+        C.Free;
+      end;
     end
     else
     begin
@@ -2092,7 +2150,21 @@ begin
     C := TCanvas.Create;
     try
       C.Handle := DC;
-      C.Draw(GX, GY, Glyph);
+      if CurrentPPI >= 192 then
+      begin
+        // Auf 4K das Symbol anhand des verfuegbaren Buttonplatzes zeichnen.
+        // Rechts bleibt der Bereich fuer den Dropdown-Pfeil frei.
+        IconRight := R.Right - MulDiv(13, Max(96, CurrentPPI), 96);
+        IconSize := Min(MulDiv(35, Max(96, CurrentPPI), 96),
+          Min(R.Bottom - R.Top - MulDiv(5, Max(96, CurrentPPI), 96),
+            IconRight - R.Left - MulDiv(3, Max(96, CurrentPPI), 96)));
+        IconSize := Max(1, IconSize);
+        GX := R.Left + Max(0, (IconRight - R.Left - IconSize) div 2);
+        GY := (R.Top + R.Bottom - IconSize) div 2;
+        C.StretchDraw(Rect(GX, GY, GX + IconSize, GY + IconSize), Glyph);
+      end
+      else
+        C.Draw(GX, GY, Glyph);
       C.Handle := 0;
     finally
       C.Free;
@@ -2133,10 +2205,12 @@ var
   Dpi, S, X, Y, LineW: Integer;
   function P(N: Integer): Integer;
   begin
-    Result := MulDiv(N, Dpi, 96);
+    if Dpi >= 192 then Result := MulDiv(MulDiv(N, 26, 28), Dpi, 96)
+    else Result := MulDiv(N, Dpi, 96);
   end;
 begin
   Dpi := Max(96, CurrentPPI);
+  // 4K: vollstaendig sichtbares Symbol innerhalb der 28-Pixel-Buttonhoehe.
   S := P(28);
   B := TBitmap.Create;
   try
@@ -2205,7 +2279,7 @@ var
   R: TRect;
   Brush: HBRUSH;
   C: TCanvas;
-  GX, GY: Integer;
+  GX, GY, IconSize: Integer;
   Theme: HTHEME;
   State: Integer;
 begin
@@ -2226,7 +2300,7 @@ begin
   else if FDesign <> 0 then
   begin
     case FDesign of
-      1: Brush := CreateSolidBrush(RGB(232, 238, 246));
+      1: Brush := CreateSolidBrush(RGB(249, 251, 254));
       3: Brush := CreateSolidBrush(RGB(192, 192, 192));
       5: Brush := CreateSolidBrush(RGB(190, 214, 237));
     else
@@ -2237,7 +2311,21 @@ begin
     finally
       DeleteObject(Brush);
     end;
-    if FHighlighted or ((Message.DrawItemStruct^.itemState and ODS_SELECTED) <> 0) then
+    if FDesign = 1 then
+    begin
+      // Gleicher dezenter Rahmen wie bei den anderen Modern-Hell-Buttons.
+      C := TCanvas.Create;
+      try
+        C.Handle := DC;
+        C.Brush.Style := bsClear;
+        C.Pen.Color := RGB(206, 217, 230);
+        C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+        C.Handle := 0;
+      finally
+        C.Free;
+      end;
+    end
+    else if FHighlighted or ((Message.DrawItemStruct^.itemState and ODS_SELECTED) <> 0) then
       DrawEdge(DC, R, EDGE_SUNKEN, BF_RECT)
     else
       DrawEdge(DC, R, EDGE_RAISED, BF_RECT);
@@ -2303,7 +2391,18 @@ begin
     C := TCanvas.Create;
     try
       C.Handle := DC;
-      C.Draw(GX, GY, Glyph);
+      if CurrentPPI >= 192 then
+      begin
+        IconSize := Min(MulDiv(35, Max(96, CurrentPPI), 96),
+          Min(R.Right - R.Left, R.Bottom - R.Top) -
+            MulDiv(5, Max(96, CurrentPPI), 96));
+        IconSize := Max(1, IconSize);
+        GX := (R.Left + R.Right - IconSize) div 2;
+        GY := (R.Top + R.Bottom - IconSize) div 2;
+        C.StretchDraw(Rect(GX, GY, GX + IconSize, GY + IconSize), Glyph);
+      end
+      else
+        C.Draw(GX, GY, Glyph);
       C.Handle := 0;
     finally
       C.Free;
@@ -2350,7 +2449,8 @@ var
     B.Canvas.LineTo(P(X2), P(Y2));
   end;
 begin
-  S := MulDiv(28, CurrentPPI, 96);
+  if CurrentPPI >= 192 then S := MulDiv(26, CurrentPPI, 96)
+  else S := MulDiv(28, CurrentPPI, 96);
   if S < 14 then S := 14;
   B := TBitmap.Create;
   try
@@ -2650,6 +2750,12 @@ begin
   FStrokeRedo := TList<TPDFInkStroke>.Create;
   FStrokeRedoPages := TList<Integer>.Create;
   FMeasureScale := 25.4 / 72.0;
+  with TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini') do
+  try
+    FMeasureColor := TColor(ReadInteger('Viewer', 'MeasureColor', Integer(clRed)));
+  finally
+    Free;
+  end;
   FMeasureUnit := 0;
   FMeasurePage := -1;
   FMeasureButton := Btn(ToolbarHint('Messen', 'Measure') + ' ' + #$25BE,
@@ -2658,6 +2764,16 @@ begin
   FMeasureButton.Hint := ToolbarHint('Messfunktion oder Messbericht auswählen',
     'Choose measurement tool or measurement report');
   FMeasureButton.ShowHint := True;
+  FMeasureColorSwatch := TPanel.Create(Self);
+  FMeasureColorSwatch.Parent := FEditBar;
+  FMeasureColorSwatch.BevelOuter := bvLowered;
+  FMeasureColorSwatch.ParentBackground := False;
+  FMeasureColorSwatch.Color := FMeasureColor;
+  FMeasureColorSwatch.Caption := '';
+  FMeasureColorSwatch.Cursor := crHandPoint;
+  FMeasureColorSwatch.OnClick := MeasureColorClick;
+  FMeasureColorSwatch.Hint := ToolbarHint('Messfarbe auswählen', 'Choose measurement color');
+  FMeasureColorSwatch.ShowHint := True;
   FMeasurePopup := TPopupMenu.Create(Self);
   FMeasurePopup.OwnerDraw := True;
   FMeasureMenuItem := TMenuItem.Create(FMeasurePopup);
@@ -2672,6 +2788,12 @@ begin
   FMeasureScaleMenuItem.OnDrawItem := PopupDrawItem;
   FMeasureScaleMenuItem.OnMeasureItem := PopupMeasureItem;
   FMeasurePopup.Items.Add(FMeasureScaleMenuItem);
+  FMeasureColorMenuItem := TMenuItem.Create(FMeasurePopup);
+  FMeasureColorMenuItem.Caption := ToolbarHint('Messfarbe ...', 'Measurement color ...');
+  FMeasureColorMenuItem.OnClick := MeasureColorClick;
+  FMeasureColorMenuItem.OnDrawItem := PopupDrawItem;
+  FMeasureColorMenuItem.OnMeasureItem := PopupMeasureItem;
+  FMeasurePopup.Items.Add(FMeasureColorMenuItem);
   FMeasurePopup.Items.Add(TMenuItem.Create(FMeasurePopup));
   with FMeasurePopup.Items[FMeasurePopup.Items.Count - 1] do
   begin
@@ -2825,7 +2947,7 @@ begin
   FColorSwatch.Color := FMarkColor;
   FColorSwatch.Caption := '';
   FColorSwatch.ParentBackground := False;
-  FColorSwatch.SetBounds(FColorButton.Left + FColorButton.Width + 5, 8, 22, 20);
+  FColorSwatch.SetBounds(FColorButton.Left + FColorButton.Width + 5, 8, 18, 20);
   FColorSwatch.Cursor := crHandPoint;
   FColorSwatch.OnClick := ColorClick;
   FColorButton.Hint := Tr('Farbe der neuen Markierungen auswählen');
@@ -2846,6 +2968,11 @@ begin
   FSavePopup.Items[1].OnClick := ExportPagesAsImages;
   FSavePopup.Items[1].OnDrawItem := PopupDrawItem;
   FSavePopup.Items[1].OnMeasureItem := PopupMeasureItem;
+  FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
+  FSavePopup.Items[2].Caption := ToolbarHint('Seiten als Text exportieren ...', 'Export Pages as Text ...');
+  FSavePopup.Items[2].OnClick := ExportPagesAsText;
+  FSavePopup.Items[2].OnDrawItem := PopupDrawItem;
+  FSavePopup.Items[2].OnMeasureItem := PopupMeasureItem;
   FQuickSave.Hint := ToolbarHint('Speichern unter ... (Strg+S)', 'Save As ... (Ctrl+S)');
   FQuickSave.ShowHint := True;
   FMarker.Visible := False; // Bearbeiten schaltet den Markierungsmodus direkt.
@@ -3533,14 +3660,21 @@ begin
   if (Index < 0) and (C.ItemIndex >= 0) and
      (C.ItemIndex < C.Items.Count) then
     Index := C.ItemIndex;
-  C.Canvas.Brush.Color := C.Color;
+  // 32cm: Im Design Modern Hell den aktiven Listeneintrag dezent
+  // hervorheben. Die geschlossene ComboBox bleibt im Feldfarbton.
+  // Keine Layoutaenderung und kein erneutes Anwenden der Palette.
+  if (C.Color = RGB(249, 251, 254)) and C.DroppedDown and
+     (odSelected in State) then
+    C.Canvas.Brush.Color := RGB(222, 234, 248)
+  else
+    C.Canvas.Brush.Color := C.Color;
   C.Canvas.FillRect(ARect);
   if (Index >= 0) and (Index < C.Items.Count) then
   begin
     C.Canvas.Font.Assign(C.Font);
     C.Canvas.Font.Color := C.Font.Color;
     R := ARect;
-    Inc(R.Left, 5);
+    Inc(R.Left, MulDiv(6, C.CurrentPPI, 96));
     DrawText(C.Canvas.Handle, PChar(C.Items[Index]), -1, R,
       DT_SINGLELINE or DT_VCENTER or DT_LEFT or DT_NOPREFIX);
   end;
@@ -3586,7 +3720,7 @@ begin
   // Nicht nur die OwnerDraw-Buttons: auch die Container und die
   // Beschriftungen muessen die aktive Designpalette erhalten.
   case ADesign of
-    1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := RGB(245, 247, 250); end;
+    1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := RGB(249, 251, 254); end;
     2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
     3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
     4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
@@ -3690,6 +3824,14 @@ begin
     FFlowSelect.Font.Color := TextColor;
     if ADesign <> 0 then FFlowSelect.Font.Style := [fsBold]
     else FFlowSelect.Font.Style := [];
+    // 32cq: Auch die Flussauswahl braucht bei 4K dieselbe
+    // DPI-gerechte Zeilenhoehe wie die anderen OwnerDraw-Felder.
+    if ADesign = 1 then
+    begin
+      FFlowSelect.Canvas.Font.Assign(FFlowSelect.Font);
+      FFlowSelect.ItemHeight := FFlowSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FFlowSelect.CurrentPPI, 96);
+    end;
   end;
   if FShapeSelect <> nil then
   begin
@@ -3731,6 +3873,13 @@ begin
     if ADesign = 0 then FTextFontSelect.Style := csDropDownList
     else FTextFontSelect.Style := csOwnerDrawFixed;
     FTextFontSelect.OnDrawItem := DrawViewModeItem;
+    // Beim Stilwechsel kann Windows die Auswahl des geschlossenen Feldes verlieren.
+    // Vor der ersten Anzeige eine gueltige Schriftart sicherstellen.
+    if (FTextFontSelect.ItemIndex < 0) and (FTextFontSelect.Items.Count > 0) then
+    begin
+      FTextFontSelect.ItemIndex := FTextFontSelect.Items.IndexOf('Arial');
+      if FTextFontSelect.ItemIndex < 0 then FTextFontSelect.ItemIndex := 0;
+    end;
     FTextFontSelect.Color := FieldColor;
     FTextFontSelect.Font.Color := TextColor;
     if ADesign <> 0 then FTextFontSelect.Font.Style := [fsBold]
@@ -3742,31 +3891,68 @@ begin
         MulDiv(6, FTextFontSelect.CurrentPPI, 96);
     end;
   end;
+  // 32cn: Die Messeinheit (mm/cm/in) gehoert ebenfalls zur
+  // Designpalette. OwnerDraw ist fuer die geschlossene Liste notwendig,
+  // da Windows bei csDropDownList die Feldfarbe selbst zeichnen kann.
+  if FMeasureUnitSelect <> nil then
+  begin
+    FMeasureUnitSelect.ParentFont := False;
+    if ADesign = 0 then FMeasureUnitSelect.Style := csDropDownList
+    else FMeasureUnitSelect.Style := csOwnerDrawFixed;
+    FMeasureUnitSelect.OnDrawItem := DrawViewModeItem;
+    // Einheit nach der Style-Umschaltung explizit wiederherstellen.
+    if (FMeasureUnitSelect.ItemIndex < 0) or
+       (FMeasureUnitSelect.ItemIndex >= FMeasureUnitSelect.Items.Count) then
+      FMeasureUnitSelect.ItemIndex := 0;
+    FMeasureUnitSelect.Color := FieldColor;
+    FMeasureUnitSelect.Font.Color := TextColor;
+    if ADesign <> 0 then FMeasureUnitSelect.Font.Style := [fsBold]
+    else FMeasureUnitSelect.Font.Style := [];
+    if ADesign <> 0 then
+    begin
+      FMeasureUnitSelect.Canvas.Font.Assign(FMeasureUnitSelect.Font);
+      FMeasureUnitSelect.ItemHeight := FMeasureUnitSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FMeasureUnitSelect.CurrentPPI, 96);
+    end;
+  end;
   if FTextSizeSelect <> nil then
   begin
     FTextSizeSelect.ParentFont := False;
+    // 32cr: Schriftgroesse muss editierbar bleiben (auch freie Werte 1..200).
+    // OwnerDrawFixed/DropDownList verlieren den initialen Text "12".
+    FTextSizeSelect.Style := csDropDown;
+    FTextSizeSelect.OnDrawItem := DrawViewModeItem;
     FTextSizeSelect.Color := FieldColor;
     FTextSizeSelect.Font.Color := TextColor;
     if ADesign <> 0 then FTextSizeSelect.Font.Style := [fsBold]
     else FTextSizeSelect.Font.Style := [];
+    if ADesign = 1 then
+    begin
+      FTextSizeSelect.Canvas.Font.Assign(FTextSizeSelect.Font);
+      FTextSizeSelect.ItemHeight := FTextSizeSelect.Canvas.TextHeight('Ag') +
+        MulDiv(6, FTextSizeSelect.CurrentPPI, 96);
+    end;
   end;
   Walk(Self);
+  // Die geschlossenen OwnerDraw-Felder nach der Palette einmalig neu zeichnen.
+  if FTextFontSelect <> nil then FTextFontSelect.Invalidate;
+  if FMeasureUnitSelect <> nil then FMeasureUnitSelect.Invalidate;
   // Einfuegen und Messen: Fett nur bei aktivem Werkzeugmodus.
   if FInsertButton <> nil then
   begin
     FInsertButton.ParentFont := False;
     if FTextInsertMode or FNoteMode then
-      FInsertButton.Font.Style := [fsBold]
+      SetActiveModeButton(FInsertButton, True)
     else
-      FInsertButton.Font.Style := [];
+      SetActiveModeButton(FInsertButton, False);
   end;
   if FMeasureButton <> nil then
   begin
     FMeasureButton.ParentFont := False;
     if FMeasureMode then
-      FMeasureButton.Font.Style := [fsBold]
+      SetActiveModeButton(FMeasureButton, True)
     else
-      FMeasureButton.Font.Style := [];
+      SetActiveModeButton(FMeasureButton, False);
   end;
   // Der Werkzeuge-Button kann in die gemeinsame Browser-Symbolleiste
   // umgehaengt sein und liegt dann ausserhalb von Self/Walk(Self).
@@ -4227,7 +4413,19 @@ begin
   begin
     FMeasureMode := False;
     CancelMeasurement;
-    FMeasureButton.Font.Style := [];
+    SetActiveModeButton(FMeasureButton, False);
+    Key := 0;
+    Exit;
+  end;
+  if (Key = VK_ESCAPE) and FLinkMovePending then
+  begin
+    FLinkMovePending := False;
+    if FLinkDragOverlay <> nil then FLinkDragOverlay.Visible := False;
+    if FImage <> nil then
+    begin
+      FImage.MouseCapture := False;
+      FImage.Cursor := crDefault;
+    end;
     Key := 0;
     Exit;
   end;
@@ -4703,6 +4901,7 @@ begin
   begin
     FSavePopup.Items[0].Caption := ToolbarHint('PDF speichern unter ...', 'Save PDF As ...');
     FSavePopup.Items[1].Caption := ToolbarHint('Seiten als Bilder exportieren ...', 'Export Pages as Images ...');
+    FSavePopup.Items[2].Caption := ToolbarHint('Seiten als Text exportieren ...', 'Export Pages as Text ...');
   end;
   UpdateSaveState;
   UpdateTwoPageIcon();
@@ -4781,6 +4980,8 @@ begin
     FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
   if FMeasureScaleMenuItem <> nil then
     FMeasureScaleMenuItem.Caption := ToolbarHint('Maßstab ...', 'Scale ...');
+    FMeasureColorMenuItem.Caption := ToolbarHint('Messfarbe ...', 'Measurement color ...');
+    FMeasureColorSwatch.Hint := ToolbarHint('Messfarbe auswählen', 'Choose measurement color');
   if FInsertLinkItem <> nil then
     FInsertLinkItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   if FInsertSignatureItem <> nil then
@@ -5617,7 +5818,7 @@ function AskHyperlinkDetails(AOwner: TComponent; const AEnglish: Boolean;
   out ACaption, ATarget: string): Boolean;
 var
   Dlg: TForm;
-  L1, L2: TLabel;
+  L1, L2, MoveHint: TLabel;
   E1, E2: TEdit;
   OKBtn, CancelBtn: TButton;
   PPI: Integer;
@@ -5660,6 +5861,15 @@ begin
     E2.Parent := Dlg;
     E2.SetBounds(Px(16), Px(86), Px(388), Px(25));
     E2.Text := ATarget;
+    MoveHint := TLabel.Create(Dlg);
+    MoveHint.Parent := Dlg;
+    MoveHint.SetBounds(Px(16), Px(135), Px(200), Px(20));
+    MoveHint.Caption := 'Mit Strg+Klick an Position verschieben';
+    if AEnglish then
+      MoveHint.Caption := 'Move to position with Ctrl+click';
+    MoveHint.AutoSize := False;
+    MoveHint.Font.Size := 8;
+    MoveHint.Layout := tlCenter;
     OKBtn := TButton.Create(Dlg);
     OKBtn.Parent := Dlg;
     OKBtn.SetBounds(Px(222), Px(131), Px(85), Px(28));
@@ -5673,6 +5883,7 @@ begin
     if AEnglish then CancelBtn.Caption := 'Cancel';
     CancelBtn.ModalResult := mrCancel;
     CancelBtn.Cancel := True;
+    ApplyPDFDialogDesign(Dlg);
     Dlg.ActiveControl := E1;
     // Bei ungueltiger Eingabe den Dialog offen lassen, damit der Benutzer
     // den fehlerhaften Wert direkt korrigieren kann.
@@ -5688,7 +5899,10 @@ begin
       end;
       ATarget := Trim(E2.Text);
       if (Pos('@', ATarget) > 0) and (Pos(':', ATarget) = 0) then
-        ATarget := 'mailto:' + ATarget;
+        ATarget := 'mailto:' + ATarget
+      else if (ATarget <> '') and (Pos('://', ATarget) = 0) and
+              (Pos(':', ATarget) = 0) then
+        ATarget := 'https://' + ATarget;
       if not ((Pos('https://', LowerCase(ATarget)) = 1) or
               (Pos('http://', LowerCase(ATarget)) = 1) or
               (Pos('mailto:', LowerCase(ATarget)) = 1)) or
@@ -5875,9 +6089,15 @@ begin
     FNoteMode := False;
     FMeasureMode := False;
     CancelMeasurement;
-    FMeasureButton.Font.Style := [];
+    SetActiveModeButton(FMeasureButton, False);
     FMarkMode := False;
     if FTextEditor <> nil then FinishTextEditor(False);
+    if FNoteButton <> nil then
+      FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
+    if FTextInsertButton <> nil then
+      FTextInsertButton.Caption := Tr('Text einfügen');
+    if FHighlightButton <> nil then
+      FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
     Screen.Cursor := crCross;
   end
   else
@@ -5885,6 +6105,7 @@ begin
     Screen.Cursor := crDefault;
     if FImage <> nil then FImage.Cursor := crDefault;
   end;
+  UpdateTextUndoButtons;
 end;
 
 procedure TFreePDF64PDFiumView.TextWatermarkClick(Sender: TObject);
@@ -5974,6 +6195,7 @@ begin
     BtnCancel.SetBounds(MulDiv(284, Scale, 96), MulDiv(301, Scale, 96),
       MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
 
+    ApplyPDFDialogDesign(D);
     if D.ShowModal <> mrOk then Exit;
     if Trim(EditText.Text) = '' then Exit;
     FontSize := StrToFloat(CbSize.Text);
@@ -6465,7 +6687,7 @@ begin
   FSignatureMode := True;
   FMeasureMode := False;
   CancelMeasurement;
-  if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+  if FMeasureButton <> nil then SetActiveModeButton(FMeasureButton, False);
   FLinkMode := False;
   FTextInsertMode := False;
   FHighlightMode := False;
@@ -6546,6 +6768,7 @@ begin
     BtnCancel.Cancel := True;
     BtnCancel.SetBounds(MulDiv(284, Scale, 96), MulDiv(242, Scale, 96),
       MulDiv(84, Scale, 96), MulDiv(28, Scale, 96));
+    ApplyPDFDialogDesign(D);
     if D.ShowModal <> mrOk then Exit;
     Opacity := StrToInt(StringReplace(CbOpacity.Text, ' %', '', []));
     if CbScope.ItemIndex = 1 then
@@ -7085,6 +7308,7 @@ begin
       // in einem lokalen modalen Dialog ueber die Button-ModalResults.
       CopyButton.ModalResult := mrRetry;
       ExportButton.ModalResult := mrYes;
+      ApplyPDFDialogDesign(Dialog);
       repeat
         case Dialog.ShowModal of
           mrRetry:
@@ -8045,7 +8269,7 @@ begin
     FMeasureMode := False;
     CancelMeasurement;
     if FMeasureButton <> nil then
-      FMeasureButton.Font.Style := [];
+      SetActiveModeButton(FMeasureButton, False);
     FMarkMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
     Screen.Cursor := crDefault;
@@ -8473,9 +8697,7 @@ begin
   PlaceControl(FFitSeparator, Px(2), Px(22));
   PlaceButton(FFit, 38);
   PlaceControl(FViewSelect, Px(130), EditH);
-  // Das native Dropdown sitzt optisch etwas hoeher als die Buttons;
-  // daher in der gemeinsamen Leiste leicht nach unten versetzen.
-  FViewSelect.Top := FViewSelect.Top + Px(4);
+  // 32cr: Kein nachtraeglicher Y-Versatz; mittig zu den Nachbarbuttons.
   PlaceControl(FPageModeSeparator, Px(2), Px(22));
   PlaceButton(FTwoPageButton, 32);
   PlaceControl(FFlowSeparator, Px(2), Px(22));
@@ -8556,10 +8778,11 @@ begin
     PlaceControl(FWidthSelect, Px(54), EditH);
     PlaceControl(FHighlightButton, Px(116), EditH);
     PlaceControl(FColorButton, Px(60), EditH);
-    PlaceControl(FColorSwatch, Px(22), EditH);
+    PlaceControl(FColorSwatch, Px(18), EditH);
     PlaceControl(FTextInsertSeparator, Px(8), EditH);
     PlaceControl(FInsertButton, Px(94), EditH);
     PlaceControl(FMeasureButton, Px(94), EditH);
+    PlaceControl(FMeasureColorSwatch, Px(18), EditH);
     PlaceControl(FMeasureUnitSelect, Px(52), EditH);
     // Maßstab wird ausschließlich über das Messen-Dropdown angeboten.
     PlaceControl(FTextUndoButton, Px(36), EditH);
@@ -8578,7 +8801,7 @@ begin
       PlaceControl(FTextFontSelect, Px(128), EditH);
       PlaceControl(FTextSizeSelect, Px(48), EditH);
       PlaceControl(FTextColorButton, Px(84), EditH);
-      PlaceControl(FTextColorSwatch, Px(22), EditH);
+      PlaceControl(FTextColorSwatch, Px(18), EditH);
     end;
     H := Y + RowH + Px(1);
     if FEditBar.Height <> H then FEditBar.Height := H;
@@ -10305,15 +10528,28 @@ begin
   end;
 end;
 
+procedure TFreePDF64PDFiumView.SetActiveModeButton(AButton: TButton;
+  AActive: Boolean);
+begin
+  if AButton = nil then Exit;
+  AButton.ParentFont := False;
+  if AActive then
+    AButton.Font.Style := AButton.Font.Style + [fsBold]
+  else
+    AButton.Font.Style := AButton.Font.Style - [fsBold];
+  if AButton is TPDFDesignButton then
+    TPDFDesignButton(AButton).SetAccentOrange(AActive);
+end;
+
 procedure TFreePDF64PDFiumView.UpdateTextUndoButtons;
 begin
   // Gleiche Aktiv-Kennzeichnung wie beim Dropdown "Messen".
   if FInsertButton <> nil then
   begin
     if FTextInsertMode or FNoteMode then
-      FInsertButton.Font.Style := [fsBold]
+      SetActiveModeButton(FInsertButton, True)
     else
-      FInsertButton.Font.Style := [];
+      SetActiveModeButton(FInsertButton, False);
   end;
   if FTextUndoButton <> nil then
     FTextUndoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionPreviews.Count > 0)) or (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
@@ -10562,7 +10798,7 @@ begin
   Item := TMenuItem(Sender);
   PPI := CurrentPPI;
   case FEditToggle.FDesign of
-    1: begin BackColor := RGB(245,247,250); TextColor := RGB(35,48,65); AccentColor := RGB(215,228,244); end;
+    1: begin BackColor := RGB(249,251,254); TextColor := RGB(35,48,65); AccentColor := RGB(222,234,248); end;
     2: begin BackColor := RGB(65,70,79); TextColor := clWhite; AccentColor := RGB(83,105,135); end;
     3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := RGB(166,189,215); end;
     4: begin BackColor := RGB(45,48,54); TextColor := clWhite; AccentColor := RGB(69,91,124); end;
@@ -10624,7 +10860,7 @@ begin
     begin
       FMeasureMode := False;
       CancelMeasurement;
-      if FMeasureButton <> nil then FMeasureButton.Font.Style := [];
+      if FMeasureButton <> nil then SetActiveModeButton(FMeasureButton, False);
     end;
     FNoteMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
@@ -11013,13 +11249,38 @@ begin
   // Layout muss die Text-Steuerelemente im Messmodus ausblenden.
   LayoutToolbar(nil);
   if FMeasureMode then
-    FMeasureButton.Font.Style := [fsBold]
+    SetActiveModeButton(FMeasureButton, True)
   else
-    FMeasureButton.Font.Style := [];
+    SetActiveModeButton(FMeasureButton, False);
   // Erst nach der Modusumschaltung zeichnen, nicht vorher.
   for var I := 0 to FPages.Count - 1 do
     if TObject(FPages[I]) is TPDFiumImage then
       TPDFiumImage(FPages[I]).Invalidate;
+end;
+
+procedure TFreePDF64PDFiumView.MeasureColorClick(Sender: TObject);
+var
+  D: TColorDialog;
+  Ini: TIniFile;
+begin
+  D := TColorDialog.Create(Self);
+  try
+    D.Color := FMeasureColor;
+    D.Options := [cdFullOpen];
+    if not D.Execute then Exit;
+    FMeasureColor := D.Color;
+    FMeasureColorSwatch.Color := FMeasureColor;
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      Ini.WriteInteger('Viewer', 'MeasureColor', Integer(FMeasureColor));
+    finally
+      Ini.Free;
+    end;
+    if (FMeasurePage >= 0) and (FMeasurePage < FPages.Count) then
+      TPDFiumImage(FPages[FMeasurePage]).Invalidate;
+  finally
+    D.Free;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.MeasureUnitChange(Sender: TObject);
@@ -11084,7 +11345,7 @@ begin
     Prompt.Font.Color := D.Font.Color;
     Edit.ParentColor := False;
     case FEditToggle.FDesign of
-      1: begin Edit.Color := RGB(245,247,250); Edit.Font.Color := RGB(35,48,65); end;
+      1: begin Edit.Color := RGB(249,251,254); Edit.Font.Color := RGB(35,48,65); end;
       2: begin Edit.Color := RGB(65,70,79); Edit.Font.Color := clWhite; end;
       3: begin Edit.Color := clWhite; Edit.Font.Color := clBlack; end;
       4: begin Edit.Color := RGB(45,48,54); Edit.Font.Color := clWhite; end;
@@ -11127,10 +11388,11 @@ var
   M: TPDFMeasureRect;
   I: Integer;
   AX, AY, BX, BY: Double;
-  P1, P2: TPoint;
+  P1, P2, UnitStart, UnitEnd: TPoint;
+  LineWidthPixels: Integer;
 
   procedure PaintOne(const A, B: TPoint; AScale: Double; AUnit: Integer;
-    const PAX, PAY, PBX, PBY: Double);
+    const PAX, PAY, PBX, PBY: Double; AColor: TColor);
   var
     WMM, HMM, Factor: Double;
     UnitName, WT, HT: string;
@@ -11149,11 +11411,11 @@ var
     HT := FormatFloat('0.##', HMM / Factor) + UnitName;
     R := Rect(Min(A.X, B.X), Min(A.Y, B.Y),
       Max(A.X, B.X), Max(A.Y, B.Y));
-    C.Pen.Color := clRed;
-    C.Pen.Width := Max(2, MulDiv(2, CurrentPPI, 96));
+    C.Pen.Color := AColor;
+    C.Pen.Width := LineWidthPixels;
     C.Brush.Style := bsClear;
     C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
-    C.Font.Color := clRed;
+    C.Font.Color := AColor;
     C.Brush.Style := bsClear;
     TW := C.TextWidth(WT);
     TH := C.TextHeight(WT);
@@ -11174,6 +11436,16 @@ begin
   // verwenden. TControlCanvas zeichnet direkt auf das Parent-Fenster und
   // wird durch dessen DoubleBuffer-Paint unmittelbar wieder uebermalt.
   C := TPDFGraphicCanvasAccess(Img).Canvas;
+  // Dieselbe Linienbreite wie die PDF-Anmerkung verwenden (0,75 PDF-Punkte).
+  // Aus der tatsaechlichen Seitentransformation folgt die Pixelbreite
+  // automatisch fuer Zoom, DPI und Seitendrehung.
+  LineWidthPixels := 1;
+  if FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+       0, 0, UnitStart.X, UnitStart.Y) and
+     FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+       100, 0, UnitEnd.X, UnitEnd.Y) then
+    LineWidthPixels := Max(1, Round(0.75 / 100.0 *
+      Sqrt(Sqr(UnitEnd.X - UnitStart.X) + Sqr(UnitEnd.Y - UnitStart.Y))));
   try
     for I := 0 to FMeasureRects.Count - 1 do
     begin
@@ -11184,7 +11456,7 @@ begin
          FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
           M.X2, M.Y2, P2.X, P2.Y) then
         PaintOne(P1, P2, M.Scale, M.UnitIndex,
-          M.X1, M.Y1, M.X2, M.Y2);
+          M.X1, M.Y1, M.X2, M.Y2, M.Color);
     end;
     if FMeasureMode and (FMeasurePage = Img.Tag) and
        FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height,
@@ -11192,7 +11464,7 @@ begin
        FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height,
          FMeasureEnd.X, FMeasureEnd.Y, BX, BY) then
       PaintOne(FMeasureStart, FMeasureEnd, FMeasureScale,
-        FMeasureUnit, AX, AY, BX, BY);
+        FMeasureUnit, AX, AY, BX, BY, FMeasureColor);
   finally
     C.Brush.Style := bsSolid;
   end;
@@ -11387,6 +11659,34 @@ begin
     FLinkMovePage := TPDFiumImage(Sender).Tag;
     FLinkMoveStart := Point(X, Y);
     FLinkMoveEnd := FLinkMoveStart;
+    // Vorschau aus dem bereits gerenderten Seitenbild ausschneiden.
+    // Die eigentliche PDF wird erst beim Loslassen geaendert.
+    var LinkRect: TRect;
+    if FCore.GetMovableLinkDeviceRect(FLinkMovePage,
+      TPDFiumImage(Sender).Width, TPDFiumImage(Sender).Height,
+      X, Y, LinkRect) and (TPDFiumImage(Sender).Picture.Bitmap <> nil) then
+    begin
+      if FLinkDragOverlay = nil then
+      begin
+        FLinkDragOverlay := TImage.Create(Self);
+        FLinkDragOverlay.Parent := FScroll;
+        FLinkDragOverlay.Enabled := False;
+        FLinkDragOverlay.Transparent := False;
+        FLinkDragOverlay.AutoSize := False;
+      end;
+      FLinkDragOffset := Point(X - LinkRect.Left, Y - LinkRect.Top);
+      FLinkDragOverlay.Picture.Bitmap.SetSize(
+        LinkRect.Right - LinkRect.Left, LinkRect.Bottom - LinkRect.Top);
+      FLinkDragOverlay.Picture.Bitmap.Canvas.CopyRect(
+        Rect(0, 0, FLinkDragOverlay.Picture.Bitmap.Width,
+          FLinkDragOverlay.Picture.Bitmap.Height),
+        TPDFiumImage(Sender).Picture.Bitmap.Canvas, LinkRect);
+      FLinkDragOverlay.SetBounds(TPDFiumImage(Sender).Left + X - FLinkDragOffset.X,
+        TPDFiumImage(Sender).Top + Y - FLinkDragOffset.Y,
+        FLinkDragOverlay.Picture.Bitmap.Width, FLinkDragOverlay.Picture.Bitmap.Height);
+      FLinkDragOverlay.Visible := True;
+      FLinkDragOverlay.BringToFront;
+    end;
     TPDFiumImage(Sender).MouseCapture := True;
     TPDFiumImage(Sender).Cursor := crSizeAll;
     Exit;
@@ -12060,6 +12360,7 @@ var
   HoverNote: TPDFNote;
   Target: TPDFLinkTarget;
   CurrentScreen: TPoint;
+  URL: string;
 begin
   if FSignatureMode then
   begin
@@ -12195,6 +12496,11 @@ begin
   if FLinkMovePending and (Sender is TPDFiumImage) then
   begin
     FLinkMoveEnd := Point(X, Y);
+    if (FLinkDragOverlay <> nil) and FLinkDragOverlay.Visible then
+    begin
+      FLinkDragOverlay.Left := TPDFiumImage(Sender).Left + X - FLinkDragOffset.X;
+      FLinkDragOverlay.Top := TPDFiumImage(Sender).Top + Y - FLinkDragOffset.Y;
+    end;
     TPDFiumImage(Sender).Cursor := crSizeAll;
     Exit;
   end;
@@ -12212,8 +12518,9 @@ begin
       TPDFiumImage(Sender).ShowHint := True;
       Exit;
     end;
-    TPDFiumImage(Sender).Hint := '';
-    TPDFiumImage(Sender).ShowHint := False;
+    // Link-Hints werden weiter unten ermittelt. Hier nicht bei jedem
+    // MouseMove loeschen: sonst wird der Hint bei stillstehender Maus
+    // nie lange genug angezeigt.
   end;
   if FDraggingPage then
   begin
@@ -12259,19 +12566,31 @@ begin
   begin
     TPDFiumImage(Sender).Cursor := crHandPoint;
     if Target.URI <> '' then
-      TPDFiumImage(Sender).Hint := Target.URI
+      URL := Target.URI
     else if Target.PageIndex >= 0 then
-      TPDFiumImage(Sender).Hint := ToolbarHint('Seite ', 'Page ') +
-        IntToStr(Target.PageIndex + 1)
+      URL := ToolbarHint('Seite ', 'Page ') + IntToStr(Target.PageIndex + 1)
     else
-      TPDFiumImage(Sender).Hint := '';
-    TPDFiumImage(Sender).ShowHint := TPDFiumImage(Sender).Hint <> '';
+      URL := '';
+    // Das Bild bleibt unter dem Mauszeiger: OnMouseEnter wird beim
+    // Wechsel auf einen Link nicht erneut ausgeloest. Den Hint daher
+    // beim erstmaligen Betreten des Links explizit aktivieren.
+    if TPDFiumImage(Sender).Hint <> URL then
+    begin
+      TPDFiumImage(Sender).Hint := URL;
+      TPDFiumImage(Sender).ShowHint := URL <> '';
+      if URL <> '' then
+        Application.ActivateHint(Mouse.CursorPos);
+    end;
   end
   else
   begin
     TPDFiumImage(Sender).Cursor := crDefault;
-    TPDFiumImage(Sender).Hint := '';
-    TPDFiumImage(Sender).ShowHint := False;
+    if TPDFiumImage(Sender).Hint <> '' then
+    begin
+      Application.CancelHint;
+      TPDFiumImage(Sender).Hint := '';
+      TPDFiumImage(Sender).ShowHint := False;
+    end;
   end;
   if FSelecting then
   begin
@@ -12351,6 +12670,7 @@ begin
         M.X2 := AX2; M.Y2 := AY2;
         M.Scale := FMeasureScale;
         M.UnitIndex := FMeasureUnit;
+        M.Color := FMeasureColor;
         RecordMeasureAction(M, FMeasureRects.Count, False);
         FMeasureRects.Add(M);
         UpdateTextUndoButtons;
@@ -12398,6 +12718,7 @@ begin
   if FLinkMovePending then
   begin
     FLinkMovePending := False;
+    if FLinkDragOverlay <> nil then FLinkDragOverlay.Visible := False;
     if Sender is TPDFiumImage then
     begin
       TPDFiumImage(Sender).MouseCapture := False;
@@ -12483,6 +12804,15 @@ begin
                      LinkTextBounds.Top + 2, LinkURL) then
                   begin
                     RefreshTextPage(Pg);
+                    // Der neue Link ist bereits in der PDFium-Sitzung vorhanden.
+                    // Beim naechsten MouseMove muss sein Hint ohne Speichern
+                    // oder erneutes Oeffnen sofort erscheinen.
+                    if Sender is TPDFiumImage then
+                    begin
+                      Application.CancelHint;
+                      TPDFiumImage(Sender).Hint := '';
+                      TPDFiumImage(Sender).ShowHint := False;
+                    end;
                     if not FEditVisible then
                     begin
                       ToggleEditBar(nil);
@@ -12770,6 +13100,54 @@ begin
   FSavePopup.Popup(P.X, P.Y);
 end;
 
+procedure TFreePDF64PDFiumView.ExportPagesAsText(Sender: TObject);
+var
+  D: TSaveDialog;
+  Lines: TStringList;
+  PageIndex, CharCount: Integer;
+  PageText: string;
+begin
+  if (FCore = nil) or (FCore.PageCount <= 0) then Exit;
+  D := TSaveDialog.Create(Self);
+  try
+    D.Title := ToolbarHint('Seiten als Text exportieren', 'Export Pages as Text');
+    D.Filter := ToolbarHint('Textdateien (*.txt)|*.txt', 'Text files (*.txt)|*.txt');
+    D.DefaultExt := 'txt';
+    D.Options := D.Options + [ofOverwritePrompt, ofPathMustExist];
+    D.InitialDir := ExtractFilePath(FCore.FileName);
+    D.FileName := ChangeFileExt(ExtractFileName(FCore.FileName), '.txt');
+    if not D.Execute then Exit;
+    Lines := TStringList.Create;
+    try
+      for PageIndex := 0 to FCore.PageCount - 1 do
+      begin
+        if PageIndex > 0 then
+        begin
+          Lines.Add('');
+          Lines.Add('');
+        end;
+        CharCount := FCore.TextCharCount(PageIndex);
+        if CharCount > 0 then
+        begin
+          PageText := FCore.TextRange(PageIndex, 0, CharCount);
+          Lines.Add(PageText);
+        end;
+      end;
+      Lines.SaveToFile(D.FileName, TEncoding.UTF8);
+      PDFModernMessageDlg(ToolbarHint('Textexport abgeschlossen.',
+        'Text export completed.'), mtInformation, [mbOK], 0, True);
+    finally
+      Lines.Free;
+    end;
+  except
+    on E: Exception do
+      PDFModernMessageDlg(
+        ToolbarHint('Textexport fehlgeschlagen: ', 'Text export failed: ') +
+        E.Message, mtError, [mbOK], 0);
+  end;
+  D.Free;
+end;
+
 procedure TFreePDF64PDFiumView.ExportPagesAsImages(Sender: TObject);
 var
   Dialog: TForm;
@@ -12861,7 +13239,7 @@ begin
     // Palette nur einmal beim Erzeugen anwenden; kein wiederholtes Umfärben.
     ApplyManagedDialogPalette(Dialog, nil, FEditToggle.FDesign);
     case FEditToggle.FDesign of
-      1: begin FieldBack := RGB(248,250,253); FieldText := RGB(35,48,65); end;
+      1: begin FieldBack := RGB(249,251,254); FieldText := RGB(35,48,65); end;
       2: begin FieldBack := RGB(65,70,79); FieldText := clWhite; end;
       3: begin FieldBack := clWhite; FieldText := clBlack; end;
       4: begin FieldBack := RGB(45,48,54); FieldText := clWhite; end;
@@ -12984,7 +13362,7 @@ begin
         end;
       finally Bitmap.Free; end;
     end;
-    PDFModernMessageDlg(ToolbarHint('Bildexport abgeschlossen.', 'Image export completed.'), mtInformation, [mbOK], 0);
+    PDFModernMessageDlg(ToolbarHint('Bildexport abgeschlossen.', 'Image export completed.'), mtInformation, [mbOK], 0, True);
   finally
     Dialog.Free;
   end;
@@ -13067,6 +13445,7 @@ begin
             Measurements[I].Y2 := FMeasureRects[I].Y2;
             Measurements[I].Scale := FMeasureRects[I].Scale;
             Measurements[I].UnitIndex := FMeasureRects[I].UnitIndex;
+            Measurements[I].Color := FMeasureRects[I].Color;
           end;
           FCore.SaveAsWithMeasurements(D.FileName, Measurements);
         end

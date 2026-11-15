@@ -653,8 +653,8 @@ begin
   Color := BackColor;
   Font.Color := ForeColor;
   L.Font.Color := ForeColor;
-  FEdit.Color := clWindow;
-  FEdit.Font.Color := clWindowText;
+  FEdit.Color := BackColor;
+  FEdit.Font.Color := ForeColor;
   OKPanel := TPanel.Create(Self);
   OKPanel.Parent := Self;
   OKPanel.Caption := 'OK';

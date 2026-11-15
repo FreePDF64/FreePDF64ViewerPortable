@@ -74,6 +74,7 @@ type
     X1, Y1, X2, Y2: Double;
     Scale: Double;
     UnitIndex: Integer;
+    Color: TColor;
   end;
   TPDFTextMatch = record
     PageIndex: Integer;
@@ -241,6 +242,8 @@ type
     function GetManagedLinks: TArray<TPDFManagedLink>;
     function ChangeManagedLink(const ALink: TPDFManagedLink; const ATarget: string): Boolean;
     function DeleteManagedLink(const ALink: TPDFManagedLink): Boolean;
+    function GetMovableLinkDeviceRect(APageIndex, AWidth, AHeight,
+      X, Y: Integer; out ARect: TRect): Boolean;
     function MoveLinkAtPoint(APageIndex: Integer; AX, AY, DX, DY: Double): Boolean;
     function AnalyzeRedactionRegion(APageIndex: Integer;
       const ARegion: TPDFInkRect;
@@ -3084,6 +3087,52 @@ begin
   end;
 end;
 
+function TFreePDF64PDFiumCore.GetMovableLinkDeviceRect(APageIndex,
+  AWidth, AHeight, X, Y: Integer; out ARect: TRect): Boolean;
+var
+  P, A: Pointer;
+  I, X1, Y1, X2, Y2: Integer;
+  PX, PY: Double;
+  R: TPDFInkRect;
+begin
+  Result := False;
+  ARect := Rect(0, 0, 0, 0);
+  if (FDocument = nil) or (APageIndex < 0) or
+     (APageIndex >= FPageCount) or (AWidth <= 0) or (AHeight <= 0) then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    if FPDF_DeviceToPage(P, 0, 0, AWidth, AHeight, 0,
+      X, Y, PX, PY) = 0 then Exit;
+    for I := FPDFPage_GetAnnotCount(P) - 1 downto 0 do
+    begin
+      A := FPDFPage_GetAnnot(P, I);
+      if A = nil then Continue;
+      try
+        if (FPDFAnnot_GetSubtype(A) = 2) and
+           (FPDFAnnot_GetRect(A, R) <> 0) and
+           (PX >= R.Left) and (PX <= R.Right) and
+           (PY >= R.Bottom) and (PY <= R.Top) and
+           (FPDF_PageToDevice(P, 0, 0, AWidth, AHeight, 0,
+             R.Left, R.Top, X1, Y1) <> 0) and
+           (FPDF_PageToDevice(P, 0, 0, AWidth, AHeight, 0,
+             R.Right, R.Bottom, X2, Y2) <> 0) then
+        begin
+          ARect := Rect(Max(0, Min(X1, X2)), Max(0, Min(Y1, Y2)),
+            Min(AWidth, Max(X1, X2)), Min(AHeight, Max(Y1, Y2)));
+          Result := (ARect.Right > ARect.Left) and
+            (ARect.Bottom > ARect.Top);
+          Exit;
+        end;
+      finally
+        FPDFPage_CloseAnnot(A);
+      end;
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
 function TFreePDF64PDFiumCore.MoveLinkAtPoint(APageIndex: Integer;
   AX, AY, DX, DY: Double): Boolean;
 var
@@ -3407,6 +3456,22 @@ begin
   try
     if FPDF_DeviceToPage(Page, 0, 0, AWidth, AHeight, 0,
       X, Y, PX, PY) = 0 then Exit;
+    // Neue Links sind bereits als Textaktionen im Speicher vorhanden.
+    // PDFium erkennt deren Link-Annotationen vor dem Speichern/Neuladen
+    // nicht immer mit FPDFLink_GetLinkAtPoint. Deshalb zuerst die
+    // aktuell eingefuegten und noch gueltigen Link-Rechtecke pruefen.
+    for I := FTextActionPos - 1 downto 0 do
+      if FTextActions[I].Inserted and FTextActions[I].IsVisibleLink and
+         (FTextActions[I].PageIndex = PhysicalPage(APageIndex)) and
+         (FTextActions[I].LinkURI <> '') and
+         (PX >= FTextActions[I].LinkRect.Left) and
+         (PX <= FTextActions[I].LinkRect.Right) and
+         (PY >= FTextActions[I].LinkRect.Bottom) and
+         (PY <= FTextActions[I].LinkRect.Top) then
+      begin
+        ATarget.URI := FTextActions[I].LinkURI;
+        Exit(True);
+      end;
     Link := FPDFLink_GetLinkAtPoint(Page, PX, PY);
     if Link = nil then
     begin
@@ -4387,7 +4452,7 @@ begin
   Lines.Add('Grenzen / Limitations: This is not a forensic security certification.');
   Lines.Add('Die Prüfung beweist nicht, dass auf nicht gerasterten Seiten keine');
   Lines.Add('vertraulichen Inhalte verbleiben. Bitte Sichtprüfung und externe');
-  Lines.Add('Textextraktion (pdftotext) vor einer Weitergabe durchführen.');
+  Lines.Add('unabhängige Textextraktion vor einer Weitergabe durchführen.');
   Lines.Add('The test does not certify unaffected pages or visual coverage.');
   AReport := Lines.Text;
   Lines.Free;
@@ -4681,6 +4746,7 @@ var
   R: TPDFInkRect;
   M: TPDFMeasureAnnotation;
   L, B, RR, T, W, H, Factor: Double;
+  MeasureRGB: COLORREF;
   UnitName, WidthText, HeightText: string;
   Added: TList<TPair<Integer, Integer>>;
 
@@ -4691,8 +4757,10 @@ var
     P := FPDFPageObj_CreateNewPath(X1, Y1);
     if P = nil then raise EPDFiumViewer.Create('Messlinie konnte nicht erzeugt werden.');
     if (FPDFPath_LineTo(P, X2, Y2) = 0) or
-       (FPDFPageObj_SetStrokeColor(P, 220, 25, 25, 255) = 0) or
-       (FPDFPageObj_SetStrokeWidth(P, 1.4) = 0) or
+       (FPDFPageObj_SetStrokeColor(P,
+          GetRValue(MeasureRGB), GetGValue(MeasureRGB),
+          GetBValue(MeasureRGB), 255) = 0) or
+       (FPDFPageObj_SetStrokeWidth(P, 0.75) = 0) or
        (FPDFPath_SetDrawMode(P, 0, 1) = 0) then
     begin
       FPDFPageObj_Destroy(P);
@@ -4712,7 +4780,9 @@ var
     P := FPDFPageObj_CreateTextObj(FDocument, Font, 9);
     if P = nil then raise EPDFiumViewer.Create('Messbeschriftung konnte nicht erzeugt werden.');
     if (FPDFText_SetText(P, PWideChar(S)) = 0) or
-       (FPDFPageObj_SetFillColor(P, 220, 25, 25, 255) = 0) then
+       (FPDFPageObj_SetFillColor(P,
+          GetRValue(MeasureRGB), GetGValue(MeasureRGB),
+          GetBValue(MeasureRGB), 255) = 0) then
     begin
       FPDFPageObj_Destroy(P);
       raise EPDFiumViewer.Create('Messbeschriftung konnte nicht gesetzt werden.');
@@ -4740,6 +4810,7 @@ begin
       for I := 0 to High(AMeasurements) do
       begin
         M := AMeasurements[I];
+        MeasureRGB := ColorToRGB(M.Color);
         if (M.PageIndex < 0) or (M.PageIndex >= PageCount) then
           raise EPDFiumViewer.Create('Ungueltige Messungs-Seitennummer.');
         PageIndex := PhysicalPage(M.PageIndex);

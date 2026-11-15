@@ -714,7 +714,7 @@ begin
     Dialog.ClientWidth := MulDiv(660, OwnerForm.CurrentPPI, 96);
     Dialog.ClientHeight := MulDiv(390, OwnerForm.CurrentPPI, 96);
     case DesignIndex of
-      1: Dialog.Color := RGB(229,236,246);
+      1: Dialog.Color := RGB(249,251,254);
       3: Dialog.Color := RGB(232,232,232);
       5: Dialog.Color := RGB(220,233,247);
     else Dialog.Color := clWhite;
@@ -727,6 +727,13 @@ begin
     Memo.WordWrap := False;
     Memo.Font.Name := 'Segoe UI';
     Memo.Font.Size := 10;
+    // Auch die Dateipfadanzeige im Inhaltsdialog an das gewählte Design anpassen.
+    case DesignIndex of
+      1: begin Memo.Color := RGB(249,251,254); Memo.Font.Color := RGB(35,48,65); end;
+      3: begin Memo.Color := RGB(232,232,232); Memo.Font.Color := clBlack; end;
+      5: begin Memo.Color := RGB(220,233,247); Memo.Font.Color := RGB(24,55,88); end;
+    else begin Memo.Color := clWindow; Memo.Font.Color := clWindowText; end;
+    end;
     Ini := TIniFile.Create(FilePath);
     try
       Count := Ini.ReadInteger('PDFs', 'Count', 0);
@@ -782,7 +789,7 @@ begin
     Dialog.Font.Name := 'Segoe UI';
     Dialog.Font.Size := 11;
     case ADesign of
-      1: begin BackColor := RGB(229,236,246); ForeColor := RGB(35,48,65); end;
+      1: begin BackColor := RGB(249,251,254); ForeColor := RGB(35,48,65); end;
       3: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
       5: begin BackColor := RGB(220,233,247); ForeColor := RGB(24,55,88); end;
     else begin BackColor := clWhite; ForeColor := clWindowText; end;
@@ -828,6 +835,11 @@ begin
       Edit := TEdit.Create(Dialog);
       Edit.Parent := Dialog;
       Edit.Font.Size := 11;
+      if ADesign = 1 then
+      begin
+        Edit.Color := RGB(249,251,254);
+        Edit.Font.Color := RGB(35,48,65);
+      end;
       Edit.SetBounds(Margin, Y, ContentW, MulDiv(36, D, 96));
       Edit.Text := AValue;
       Y := Edit.Top + Edit.Height + Gap;
@@ -2237,7 +2249,7 @@ begin
     Form.Font.Name := 'Segoe UI';
     Form.Font.Size := 10;
     case FDesignIndex of
-      1: begin BackColor := RGB(229,236,246); HeadColor := RGB(225,232,241); ForeColor := RGB(35,48,65); end;
+      1: begin BackColor := RGB(249,251,254); HeadColor := RGB(225,232,241); ForeColor := RGB(35,48,65); end;
       3: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
       5: begin BackColor := RGB(220,233,247); HeadColor := RGB(190,214,237); ForeColor := RGB(24,55,88); end;
     else begin BackColor := $00FAFAFA; HeadColor := clWhite; ForeColor := clWindowText; end;
@@ -2283,6 +2295,11 @@ begin
       MulDiv(29, UIUnit, 96));
     SearchBox.Anchors := [akLeft, akTop, akRight];
     SearchBox.TextHint := Tr('Arbeitsbereich suchen ...');
+    if FDesignIndex = 1 then
+    begin
+      SearchBox.Color := RGB(249,251,254);
+      SearchBox.Font.Color := RGB(35,48,65);
+    end;
     Controller := TWorkspaceListController.Create;
     Controller.Search := SearchBox;
     Controller.OwnerForm := Form;
@@ -2309,7 +2326,12 @@ begin
     List.ReadOnly := True;
     List.RowSelect := True;
     List.HideSelection := False;
-    List.Color := clWhite;
+    if FDesignIndex = 1 then
+    begin
+      List.Color := RGB(249,251,254);
+      List.Font.Color := RGB(35,48,65);
+    end
+    else List.Color := clWhite;
     List.GridLines := False;
     List.DoubleBuffered := True;
     List.Columns.Add.Caption := Tr('Name');
@@ -3178,7 +3200,7 @@ begin
           'are provided in the accompanying PDFium subfolder (LICENSE file and licenses folder).' + sLineBreak +
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
-          'Additional tools: QPDF and Xpdf (subject to their respective licenses).' + sLineBreak +
+          'Additional tool: QPDF (subject to its own license).' + sLineBreak +
           'FreePDF64-Viewer Portable is not an official PDFium, V8 or Google product.');
         AddSection('Settings file',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
@@ -3203,7 +3225,7 @@ begin
           'Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner PDFium (Datei LICENSE und Ordner licenses).' + sLineBreak +
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
-          'Weitere Werkzeuge: QPDF und Xpdf (jeweils unter eigener Lizenz).' + sLineBreak +
+          'Weiteres Werkzeug: QPDF (unter eigener Lizenz).' + sLineBreak +
           'FreePDF64-Viewer Portable ist kein offizielles Produkt von PDFium, V8 oder Google.');
         AddSection('Einstellungsdatei',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
@@ -3318,6 +3340,10 @@ begin
         + 'Choose PNG, JPEG or TIFF, the current page, all pages or a page range, '
         + 'and 150, 300 or 600 DPI. Each page is exported as a separate image. '
         + 'Ctrl+S opens the regular PDF Save As dialog.');
+      AddSection('Export PDF pages as text',
+        'Open the Save As dropdown and select Export Pages as Text. The viewer extracts the available PDF text '
+        + 'into a UTF-8 .txt file and suggests the folder of the current PDF. The completion dialog can be closed with Esc. '
+        + 'Scanned pages without a text layer require OCR, which is not part of this export.');
       AddSection('Editing and saving',
         'Edit opens the annotation and drawing tools. Visual redaction draws black rectangles over text, but the underlying text is NOT removed and can still be extracted. Do not use this for secure redaction of confidential information. Save changes with Save As….');
       AddSection('Secure redaction: preview and finalization',
@@ -3395,6 +3421,10 @@ begin
         + 'Hover to see the link target and a hand cursor. Hold Ctrl and drag with the left mouse button '
         + 'to move the hyperlink text, underline and clickable area together. Save the PDF to keep the changes. '
         + 'These editing features are available for PDF files only, not images.');
+      AddSection('Automatic HTTPS for hyperlinks',
+        'When adding a hyperlink, a web address without http:// or https:// automatically receives https://. '
+        + 'Existing http:// and https:// prefixes remain unchanged. Email addresses use mailto:. '
+        + 'For example, example.com becomes https://example.com.');
       AddSection('Undo and redo watermarks',
         'After inserting a text or image watermark, the Tools toolbar is shown so that Undo and Redo ' +
         'are accessible. A watermark applied to all pages can be undone or restored as one action. ' +
@@ -3413,6 +3443,9 @@ begin
         + 'Drag a rectangle on a PDF page with the left mouse button. '
         + 'Its width is displayed above the rectangle and its height beside the left edge. '
         + 'You can create multiple measurement rectangles on a document. Press Esc to exit measurement mode.');
+      AddSection('Active Insert and Measure tools',
+        'When an Insert or Measure tool is active, its toolbar button is shown in bold with an orange accent. '
+        + 'The highlighting disappears when the tool is deactivated or another tool takes over.');
       AddSection('Measurement units and drawing scale',
         'Select millimetres (mm), centimetres (cm) or inches (in) in the measurement toolbar. '
         + 'Use Drawing scale to enter a ratio such as 1:1 or 1:50. '
@@ -3513,7 +3546,7 @@ begin
         'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
       AddSection('Design auswählen',
-        'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Modern Dunkel, Windows Klassik und Klassisch Blau. '
+        'Vier Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik und Klassisch Blau. '
         + 'Symbolleisten, Schaltflächen und Bedienelemente werden farblich an das gewählte Design angepasst. '
         + 'Wählen Sie das gewünschte Design unter Optionen → Design.');
       AddSection('Bilder und mehrseitige TIFF-Dateien', '');
@@ -3637,6 +3670,10 @@ begin
         'Seiten werden im geoeffneten PDFium-Dokument direkt im Speicher gedreht. ' +
         'Das Original wird dadurch nicht sofort ueberschrieben. ' +
         'Die Aenderungen werden erst beim Speichern dauerhaft uebernommen.');
+      AddSection('PDF-Seiten als Text exportieren',
+        'Wählen Sie im Dropdown „Speichern unter ...“ den Eintrag „Seiten als Text exportieren ...“. '
+        + 'Der extrahierbare PDF-Text wird als UTF-8-TXT-Datei gespeichert; als Speicherort wird der Ordner der geöffneten PDF vorgeschlagen. '
+        + 'Die Abschlussmeldung kann mit ESC geschlossen werden. Eingescannte Seiten ohne Textebene benötigen eine separate OCR-Erkennung.');
       AddSection('PDF-Seiten als Bilder exportieren',
         'Öffnen Sie das Dropdown „Speichern unter ...“ und wählen Sie '
         + '„Seiten als Bilder exportieren ...“. Wählen Sie PNG, JPEG oder TIFF, '
@@ -3730,6 +3767,10 @@ begin
         + 'Mit gedrückter Strg-Taste und linker Maustaste verschieben Sie Text, Unterstrich und '
         + 'anklickbaren Linkbereich gemeinsam. Speichern Sie die PDF, um die Änderungen zu übernehmen. '
         + 'Diese Bearbeitungsfunktionen stehen nur für PDF-Dateien zur Verfügung, nicht für Bilder.');
+      AddSection('HTTPS bei Hyperlinks automatisch ergänzen',
+        'Beim Hinzufügen eines Hyperlinks wird einer Webadresse ohne http:// oder https:// automatisch https:// vorangestellt. '
+        + 'Bereits vorhandene http://- und https://-Angaben bleiben unverändert. E-Mail-Adressen erhalten mailto:. '
+        + 'Beispiel: beispiel.de wird zu https://beispiel.de.');
       AddSection('Wasserzeichen rückgängig machen und wiederholen',
         'Nach dem Einfügen eines Text- oder Bildwasserzeichens wird die Symbolleiste „Werkzeuge“ ' +
         'eingeblendet, damit Rückgängig und Wiederholen erreichbar sind. Ein Wasserzeichen auf ' +
@@ -3745,6 +3786,9 @@ begin
         'ändern oder die anklickbare Linkannotation löschen. Beim Löschen bleibt der sichtbare ' +
         'Text erhalten. Speichern Sie die PDF, um die Änderungen zu übernehmen.');
       AddSection('PDF-Messwerkzeuge', '');
+      AddSection('Aktive Werkzeuge Einfügen und Messen erkennen',
+        'Wenn ein Werkzeug aus „Einfügen“ oder „Messen“ aktiv ist, wird die entsprechende Schaltfläche fett und orange hervorgehoben. '
+        + 'Beim Beenden oder Wechseln des Werkzeugs verschwindet die Hervorhebung.');
       AddSection('Rechtecke auf PDF-Seiten messen',
         'Die Werkzeug-Symbolleiste öffnen und im Dropdown „Messen“ den Eintrag „Messen“ wählen. '
         + 'Mit gedrückter linker Maustaste ein Rechteck auf der PDF-Seite aufziehen. '
@@ -4576,6 +4620,47 @@ begin
   begin
     if FTabActionsPanel <> nil then FTabActionsPanel.Font.Style := [];
     if FEmptyTabStrip <> nil then FEmptyTabStrip.Font.Style := [];
+  end;
+  // 32cr: Registerkartensuche nur beim Designwechsel aktualisieren.
+  if FTabSearchForm <> nil then
+  begin
+    if FDesignIndex = 0 then
+    begin
+      FTabSearchForm.Color := clBtnFace;
+      FTabSearchForm.Font.Color := clWindowText;
+      FTabSearchList.Color := clWindow;
+      FTabSearchList.Font.Color := clWindowText;
+      FTabSearchEdit.Color := clWindow;
+      FTabSearchEdit.Font.Color := clWindowText;
+    end
+    else
+    begin
+      ApplyPDFDialogDesign(FTabSearchForm);
+      if FDesignIndex = 1 then
+      begin
+        FTabSearchEdit.Color := RGB(249, 251, 254);
+        FTabSearchEdit.Font.Color := RGB(35, 48, 65);
+      end;
+    end;
+  end;
+  // 32cy: Registerkarten-Vorschau nur bei einem echten Designwechsel
+  // angleichen. Keine zusaetzliche Arbeit beim Tab-Wechsel oder Hover.
+  if FTabPreviewForm <> nil then
+  begin
+    if FDesignIndex = 1 then
+    begin
+      FTabPreviewForm.Color := RGB(249, 251, 254);
+      FTabPreviewTitle.Font.Color := RGB(35, 48, 65);
+      FTabPreviewPath.Font.Color := RGB(35, 48, 65);
+    end
+    else if FDesignIndex = 0 then
+    begin
+      FTabPreviewForm.Color := clWhite;
+      FTabPreviewTitle.Font.Color := clWindowText;
+      FTabPreviewPath.Font.Color := clWindowText;
+    end
+    else
+      ApplyPDFDialogDesign(FTabPreviewForm);
   end;
   // Bereits geoeffnete Zusatzfenster bei einem Designwechsel aktualisieren.
   for TabIndex := 0 to Screen.FormCount - 1 do
@@ -5447,8 +5532,23 @@ begin
   // Die Registerkartensuche braucht bei hoher DPI mehr nutzbare Flaeche.
   // Die Werte sind logische 96-DPI-Einheiten und werden genau einmal skaliert.
   FTabSearchForm.Font.Size := 9;
-  FTabSearchForm.ClientWidth := MulDiv(560, Dpi, 96);
-  FTabSearchForm.ClientHeight := MulDiv(420, Dpi, 96);
+  // 32cv: Zielgroessen in physischen Pixeln, NICHT nochmals DPI-skalieren.
+  // Die Schrift und die Kindsteuerelemente bleiben unabhaengig DPI-gerecht.
+  if Dpi >= 192 then
+  begin
+    FTabSearchForm.ClientWidth := 950;
+    FTabSearchForm.ClientHeight := 700;
+  end
+  else if Dpi >= 120 then
+  begin
+    FTabSearchForm.ClientWidth := 480;
+    FTabSearchForm.ClientHeight := 360;
+  end
+  else
+  begin
+    FTabSearchForm.ClientWidth := 480;
+    FTabSearchForm.ClientHeight := 360;
+  end;
   // Kein automatisches Ausblenden bei Fokuswechsel: sonst oeffnet der
   // Bei Fokuswechsel ausserhalb der Suche ausblenden.
   // Klick auf die Lupe wird gesondert behandelt (Toggle).
@@ -5474,6 +5574,13 @@ begin
   FTabSearchList.OnMouseMove := TabSearchListMouseMove;
   FTabSearchList.OnKeyDown := TabSearchKeyDown;
   FTabSearchList.ShowHint := True;
+  // 32cr: Die Registerkartensuche direkt in der aktiven Designpalette erzeugen.
+  ApplyPDFDialogDesign(FTabSearchForm);
+  if FDesignIndex = 1 then
+  begin
+    FTabSearchEdit.Color := RGB(249, 251, 254);
+    FTabSearchEdit.Font.Color := RGB(35, 48, 65);
+  end;
   FPendingExplorerFiles := TStringList.Create;
   FExplorerBatchTimer := TTimer.Create(Self);
   FExplorerBatchTimer.Enabled := False;
@@ -6249,11 +6356,26 @@ end;
 procedure TPDFTabsForm.TabSearchClick(Sender: TObject);
 var
   P: TPoint;
+  SearchDpi: Integer;
 begin
   if FTabSearchForm.Visible then
   begin
     FTabSearchForm.Hide;
     Exit;
+  end;
+  // 32cv: Physische Zielgroesse bei jedem Oeffnen erneut anwenden.
+  // Keine Multiplikation mit SearchDpi: das fuehrte zu uebergrossen Fenstern.
+  SearchDpi := CurrentPPI;
+  if SearchDpi < 96 then SearchDpi := 96;
+  if SearchDpi >= 192 then
+  begin
+    FTabSearchForm.ClientWidth := 950;
+    FTabSearchForm.ClientHeight := 700;
+  end
+  else
+  begin
+    FTabSearchForm.ClientWidth := 480;
+    FTabSearchForm.ClientHeight := 360;
   end;
   FTabSearchEdit.Clear;
   TabSearchChanged(nil);
@@ -6814,6 +6936,19 @@ begin
       D.ClientWidth - Margin - ButtonW - Gap);
     AddButton(Tr('Alle speichern'), mrYes,
       D.ClientWidth - Margin - 2 * (ButtonW + Gap));
+    // 32cy: Auch der Dialog fuer ungespeicherte PDFs ist in Modern Hell
+    // vollstaendig in der gewaehlten Palette, einschliesslich Dateiliste.
+    // Andere Designs und die Warn-/Schaltflaechenlogik bleiben unveraendert.
+    if (AOwner is TPDFTabsForm) and
+       (TPDFTabsForm(AOwner).FDesignIndex = 1) then
+    begin
+      D.Color := RGB(229, 236, 246);
+      D.Font.Color := RGB(35, 48, 65);
+      Description.Font.Color := RGB(35, 48, 65);
+      FileList.Color := RGB(249, 251, 254);
+      FileList.Font.Color := RGB(35, 48, 65);
+      Footer.Color := RGB(225, 232, 241);
+    end;
     D.ActiveControl := nil;
     Result := D.ShowModal;
   finally
@@ -9091,6 +9226,15 @@ begin
     FTabPreviewPath.SetBounds(MulDiv(8, CurrentPPI, 96),
       MulDiv(27, CurrentPPI, 96),
       FTabPreviewForm.Width - MulDiv(16, CurrentPPI, 96), MulDiv(18, CurrentPPI, 96));
+    // Neue Vorschau unmittelbar in der bereits aktiven Palette anlegen.
+    if FDesignIndex = 1 then
+    begin
+      FTabPreviewForm.Color := RGB(249, 251, 254);
+      FTabPreviewTitle.Font.Color := RGB(35, 48, 65);
+      FTabPreviewPath.Font.Color := RGB(35, 48, 65);
+    end
+    else if FDesignIndex <> 0 then
+      ApplyPDFDialogDesign(FTabPreviewForm);
   end;
   if not Winapi.Windows.IsWindowVisible(FTabPreviewForm.Handle) then
   begin

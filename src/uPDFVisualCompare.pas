@@ -1,4 +1,4 @@
-unit uPDFVisualCompare;
+ï»¿unit uPDFVisualCompare;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Math, System.Types,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs,
   Vcl.ComCtrls,
-  uFreePDF64PDFiumCore;
+  uFreePDF64PDFiumCore, uPDFLanguage;
 
 // Visueller Seitenvergleich. Veraendert die Original-PDFs nicht.
 procedure ShowPDFVisualComparison(AOwner: TComponent;
@@ -161,7 +161,7 @@ begin
   FNext.SetBounds(136, 8, 120, 28);
   FNext.Caption := '>>';
   FNext.Hint := 'Next page';
-  if not FEnglish then FNext.Hint := 'Nächste Seite';
+  if not FEnglish then FNext.Hint := 'NÃ¤chste Seite';
   FNext.ShowHint := True;
   FNext.OnClick := ChangePage;
   FPreviousDifference := TButton.Create(Self);
@@ -183,8 +183,8 @@ begin
   FNextDifference.Hint := 'Next difference';
   if not FEnglish then
   begin
-    FNextDifference.Caption := 'Nächster';
-    FNextDifference.Hint := 'Nächster Unterschied';
+    FNextDifference.Caption := 'NÃ¤chster';
+    FNextDifference.Hint := 'NÃ¤chster Unterschied';
   end;
   FNextDifference.ShowHint := True;
   FNextDifference.OnClick := SelectDifference;
@@ -251,6 +251,8 @@ begin
   FLeftCore.OpenFile(ALeftFile);
   FRightCore.OpenFile(ARightFile);
   FPage := 0;
+  // Designfarben einmalig nach dem Erzeugen der Steuerelemente anwenden.
+  ApplyPDFDialogDesign(Self);
   OnResize := CompareResize;
   CompareResize(Self);
   Render;
@@ -322,9 +324,9 @@ begin
     Gap := Winapi.Windows.MulDiv(6, CurrentPPI, 96);
     Margin := Winapi.Windows.MulDiv(8, CurrentPPI, 96);
     ButtonH := Max(Winapi.Windows.MulDiv(30, CurrentPPI, 96),
-      Canvas.TextHeight('Ägjy') + Winapi.Windows.MulDiv(12, CurrentPPI, 96));
+      Canvas.TextHeight('Ã„gjy') + Winapi.Windows.MulDiv(12, CurrentPPI, 96));
     InfoH := Max(Winapi.Windows.MulDiv(22, CurrentPPI, 96),
-      Canvas.TextHeight('Ägjy') + Winapi.Windows.MulDiv(5, CurrentPPI, 96));
+      Canvas.TextHeight('Ã„gjy') + Winapi.Windows.MulDiv(5, CurrentPPI, 96));
     WPrev := ButtonWidth(FPrev, 34);
     WNext := ButtonWidth(FNext, 34);
     WBack := ButtonWidth(FPreviousDifference, 90);
@@ -541,10 +543,10 @@ begin
   FNextDifference.Enabled := Length(FRegions) > 0;
   Pages := Max(FLeftCore.PageCount, FRightCore.PageCount);
   if FEnglish then
-    FInfo.Caption := Format('Page %d / %d – %d difference regions',
+    FInfo.Caption := Format('Page %d / %d â€“ %d difference regions',
       [FPage + 1, Pages, Length(FRegions)])
   else
-    FInfo.Caption := Format('Seite %d / %d – %d Unterschiedsbereiche',
+    FInfo.Caption := Format('Seite %d / %d â€“ %d Unterschiedsbereiche',
       [FPage + 1, Pages, Length(FRegions)]);
   if (FSelectedRegion >= 0) and (Length(FRegions) > 0) then
     FInfo.Caption := FInfo.Caption + Format(' (%d/%d)',

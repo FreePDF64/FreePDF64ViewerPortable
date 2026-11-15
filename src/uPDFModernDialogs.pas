@@ -198,25 +198,9 @@ begin
     end;
     D.Caption := TitleText + ' – FreePDF64-Viewer';
 
-    // Sicherheitswarnung als eigenen Absatz darstellen, damit Frage und
-    // Warnhinweis optisch klar voneinander getrennt sind.
+    // Den vom Aufrufer vorgegebenen Zeilenabstand unveraendert lassen.
+    // Insbesondere keine Leerzeile in Sicherheitshinweise einfuegen.
     DisplayMsg := Trim(Msg);
-    // Sicherheitswarnung unabhängig davon absetzen, ob der Aufrufer davor
-    // ein Leerzeichen oder bereits einen Zeilenumbruch übergibt.
-    DisplayMsg := StringReplace(DisplayMsg,
-      sLineBreak + 'Öffnen Sie nur Anlagen', 'Öffnen Sie nur Anlagen',
-      [rfReplaceAll, rfIgnoreCase]);
-    DisplayMsg := StringReplace(DisplayMsg, 'Öffnen Sie nur Anlagen',
-      sLineBreak + sLineBreak + 'Öffnen Sie nur Anlagen',
-      [rfReplaceAll, rfIgnoreCase]);
-
-    // Bei Anlagen-Informationsmeldungen die Anzahl/Überschrift optisch von
-    // den Dateipfaden trennen. Die dynamische Texthöhe berücksichtigt den Abstand.
-    if DlgType = mtInformation then
-      DisplayMsg := StringReplace(DisplayMsg,
-        'Anlage(n) wurden hinzugefügt:' + sLineBreak,
-        'Anlage(n) wurden hinzugefügt:' + sLineBreak + sLineBreak,
-        [rfReplaceAll, rfIgnoreCase]);
 
     // Formular-Kompatibilitaetswarnung: Nur diesen Hinweis optisch hervorheben.
     // Die eigentliche Nachricht bleibt unveraendert und scrollbar.
@@ -230,7 +214,10 @@ begin
 
     // Sehr lange Pfade oder Dateinamen enthalten oft keine Leerzeichen. Solche
     // Textteile werden für die Anzeige umgebrochen, damit nichts rechts abgeschnitten wird.
-    DisplayMsg := WrapLongTokens(DisplayMsg, 58);
+    if (Pos('Anlage(n) wurden hinzugefügt:', DisplayMsg) = 0) and
+       (Pos('PDF mit entfernten Anlagen gespeichert:', DisplayMsg) = 0) and
+       (Pos('attachment(s) added:', LowerCase(DisplayMsg)) = 0) then
+      DisplayMsg := WrapLongTokens(DisplayMsg, 58);
 
     // Etwas breiterer Dialog, damit die Nachricht den verfügbaren Platz besser nutzt.
     DialogW := MulDiv(620, Scale, 96);
@@ -342,6 +329,7 @@ begin
         B.Cancel := True;
       Inc(X, BtnW + Gap);
     end;
+    ApplyPDFDialogDesign(D);
     Result := D.ShowModal;
   finally
     D.Free;

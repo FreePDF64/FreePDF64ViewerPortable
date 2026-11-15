@@ -936,11 +936,15 @@ begin
 
   // Datei- und Arbeitsbereichsaktionen vor der Textsuche.
   FOpenPDFButton := TPDFDesignButton.Create(Self);
+  // Das Windows-Standardbutton-Rendering zentriert Segoe-UI-Emoji
+  // vertikal anders als die alternativen Designs.
+  TPDFDesignButton(FOpenPDFButton).SetForceStandardDraw(True);
   FOpenPDFButton.Parent := FToolbar;
   FOpenPDFButton.Caption := '📂';
   FOpenPDFButton.Font.Name := 'Segoe UI Emoji';
   // Emoji-Schrift bei 4K nicht proportional zur riesigen Schaltflaeche skalieren.
-  FOpenPDFButton.Font.Size := 10;
+  if Dpi >= 192 then FOpenPDFButton.Font.Size := 28
+  else FOpenPDFButton.Font.Size := 15;
   FOpenPDFButton.Width := ScalePx(32);
   FOpenPDFButton.Height := 28;
   FOpenPDFButton.Hint := ToolbarHintBrowser('PDFs und Bilder öffnen ... (Strg+O)', 'Open PDFs and images... (Ctrl+O)');
@@ -1028,7 +1032,8 @@ begin
   FHandToolButton.Parent := FToolbar;
   FHandToolButton.Caption := '✋';
   FHandToolButton.Font.Name := 'Segoe UI Emoji';
-  FHandToolButton.Font.Size := 12;
+  if Dpi >= 192 then FHandToolButton.Font.Size := 26
+  else FHandToolButton.Font.Size := 14;
   FHandToolButton.ParentFont := False;
   FHandToolButton.ShowHint := True;
   FHandToolButton.Hint := ToolbarHintBrowser('Hand-Werkzeug: PDF-Seite verschieben',
@@ -1123,6 +1128,10 @@ procedure TPDFBrowserForm.HandToolStateChanged(Sender: TObject);
 begin
   if (FHandToolButton <> nil) and (FPDFiumView <> nil) then
   begin
+    // Aktivzustand direkt an den OwnerDraw-Button uebergeben.
+    // Nur die Schrift fett zu setzen faerbt den Button nicht orange.
+    if FHandToolButton is TPDFThemeBitBtn then
+      TPDFThemeBitBtn(FHandToolButton).SelectedVisual := FPDFiumView.HandToolActive;
     if FPDFiumView.HandToolActive then
       FHandToolButton.Font.Style := [fsBold]
     else
@@ -2617,6 +2626,24 @@ begin
   if FToolbarLayoutLocked then Exit;
   if FToolbar = nil then Exit;
   if FToolbar.ClientWidth <= 0 then Exit;
+  // Nur diese beiden Emoji-Symbole bei hoher DPI besser lesbar machen.
+  // WQHD (125 %) und die Geometrie der Symbolleiste bleiben unveraendert.
+  if FOpenPDFButton <> nil then
+  begin
+    if CurrentPPI >= 192 then
+    begin
+      if FOpenPDFButton.Font.Size <> 28 then FOpenPDFButton.Font.Size := 28;
+    end
+    else if FOpenPDFButton.Font.Size <> 15 then FOpenPDFButton.Font.Size := 15;
+  end;
+  if FHandToolButton <> nil then
+  begin
+    if CurrentPPI >= 192 then
+    begin
+      if FHandToolButton.Font.Size <> 26 then FHandToolButton.Font.Size := 26;
+    end
+    else if FHandToolButton.Font.Size <> 14 then FHandToolButton.Font.Size := 14;
+  end;
   // Owner-Suche statt Control-Suche: Im Einzeilenmodus liegen diese
   // Controls im gemeinsamen PDFium-Panel und nicht mehr in FToolbar.
   if FPDFiumView <> nil then EditButton := FPDFiumView.EditToggleButton
@@ -3044,7 +3071,7 @@ begin
   // Ausschliesslich Darstellung: keine Aenderung an Position, Groesse,
   // Symbolen, Ereignissen oder der PDFium-Zeichenflaeche.
   case ADesign of
-    1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := clWhite; end;
+    1: begin BackColor := RGB(247, 250, 254); TextColor := RGB(35, 48, 65); FieldColor := clWhite; end;
     2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
     3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := clWhite; end;
     4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;

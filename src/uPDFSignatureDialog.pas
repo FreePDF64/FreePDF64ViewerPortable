@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Types, System.Math,
   Vcl.Forms, Vcl.Controls, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Graphics,
-  Vcl.Dialogs, Vcl.Imaging.pngimage;
+  Vcl.Dialogs, Vcl.Imaging.pngimage, uPDFLanguage;
 
 type
   TPDFSignaturePad = class(TCustomControl)
@@ -307,6 +307,7 @@ begin
       SavedButton := NewButton('Select saved signature ...',
         20, 172, 550, 44, mrRetry);
     CancelButton := NewButton(ACancelText, 438, 241, 132, 36, mrCancel);
+    ApplyPDFDialogDesign(D);
     Result := D.ShowModal;
   finally
     Actions.Free;
@@ -441,6 +442,7 @@ begin
     CancelButton := AddAction(ACancelText, 484, 330, 116, 38, Actions.CancelClick);
     // Native Schaltflaechen uebernehmen die System-/Designfarben ohne
     // OwnerDraw; das verhindert Flackern und erhaelt Tastaturbedienung.
+    ApplyPDFDialogDesign(D);
     if (D.ShowModal <> mrOk) or not Pad.HasInk then Exit;
     Tmp := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
       'FreePDF64_signature_' + IntToHex(GetTickCount,8) + '.png';

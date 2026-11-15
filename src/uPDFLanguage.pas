@@ -54,31 +54,78 @@ var
         TScrollBox(C).Color := BaseColor;
         TScrollBox(C).Font.Color := TextColor;
       end
+      else if C is TGroupBox then
+      begin
+        TGroupBox(C).Font.Color := TextColor;
+      end
+      else if C is TCheckBox then
+      begin
+        TCheckBox(C).Font.Color := TextColor;
+      end
+      else if C is TRadioButton then
+      begin
+        TRadioButton(C).Font.Color := TextColor;
+      end
+      else if C is TPageControl then
+      begin
+        TPageControl(C).Font.Color := TextColor;
+      end
+      else if C is TTabSheet then
+      begin
+        TTabSheet(C).Font.Color := TextColor;
+      end
       else if C is TLabel then
         TLabel(C).Font.Color := TextColor
+      else if C is TMemo then
+      begin
+        TMemo(C).Color := ListColor;
+        TMemo(C).Font.Color := TextColor;
+      end
+      else if C is TEdit then
+      begin
+        TEdit(C).Color := ListColor;
+        TEdit(C).Font.Color := TextColor;
+      end
+      else if C is TComboBox then
+      begin
+        TComboBox(C).Color := ListColor;
+        TComboBox(C).Font.Color := TextColor;
+      end
       else if C is TListBox then
       begin
         TListBox(C).Color := ListColor;
         TListBox(C).Font.Color := TextColor;
+      end
+      else if C is TListView then
+      begin
+        TListView(C).Color := ListColor;
+        TListView(C).Font.Color := TextColor;
       end;
-      // Eingabefelder behalten ihren hellen, gut lesbaren Hintergrund.
       if C is TWinControl then ApplyChildren(TWinControl(C));
     end;
   end;
 begin
-  if (AForm = nil) or (FPDFDialogDesign = 0) then Exit;
+  if AForm = nil then Exit;
+  // Gemeinsame Dialogpalette fuer alle vier angebotenen Designs.
+  // Keine Aenderung an Groessen, Positionen oder PDF-Renderern.
   case FPDFDialogDesign of
+    0: begin
+      BaseColor := clBtnFace;
+      HeaderColor := clBtnFace;
+      TextColor := clWindowText;
+      ListColor := clWindow;
+    end;
     1: begin
       BaseColor := RGB(229, 236, 246);
       HeaderColor := RGB(225, 232, 241);
       TextColor := RGB(35, 48, 65);
-      ListColor := RGB(248, 250, 253);
+      ListColor := RGB(249, 251, 254);
     end;
     3: begin
       BaseColor := RGB(232, 232, 232);
       HeaderColor := RGB(222, 222, 222);
       TextColor := clBlack;
-      ListColor := clWhite;
+      ListColor := RGB(248, 248, 248);
     end;
     5: begin
       BaseColor := RGB(220, 233, 247);
@@ -87,7 +134,7 @@ begin
       ListColor := RGB(246, 250, 255);
     end;
   else
-    Exit; // Nicht angebotene Designs unveraendert lassen.
+    Exit;
   end;
   AForm.Color := BaseColor;
   AForm.Font.Color := TextColor;
@@ -521,7 +568,6 @@ begin
   AddPair('Suchbegriff eingeben ...', 'Enter search term...');
   AddPair('%d Treffer – %d von %d Seiten durchsucht', '%d matches – %d of %d pages searched');
   AddPair('Fertig / angehalten: %d Treffer in %d durchsuchten Seiten', 'Finished / stopped: %d matches in %d pages searched');
-  AddPair('pdfdetach.exe wurde nicht gefunden.', 'pdfdetach.exe was not found.');
   AddPair('Die Anlage konnte nicht extrahiert werden.', 'The attachment could not be extracted.');
   AddPair('Bitte zuerst eine oder mehrere Anlagen markieren.', 'Select one or more attachments first.');
   AddPair('Datei existiert bereits:', 'File already exists:');

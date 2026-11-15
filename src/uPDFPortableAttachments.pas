@@ -85,7 +85,52 @@ end;
 
 
 function PDFTabsQpdfExe: string; forward;
-function PDFTabsPdfDetachExe: string; forward;
+function FPDF_LoadDocument(FileName, Password: PAnsiChar): Pointer; stdcall; external 'pdfium.dll';
+procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';
+function FPDFDoc_GetAttachmentCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFDoc_GetAttachment(Doc: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
+function FPDFAttachment_GetFile(Attachment, Buffer: Pointer; BufferLen: Cardinal;
+  var OutBufLen: Cardinal): LongBool; stdcall; external 'pdfium.dll';
+
+function PDFiumExtractAttachment(const SourcePDF: string; Index: Integer;
+  const TargetFile: string): Boolean;
+var
+  Doc, Attachment: Pointer;
+  Utf8Name: UTF8String;
+  Needed, Written: Cardinal;
+  Data: TBytes;
+  Stream: TFileStream;
+begin
+  Result := False;
+  if (Index < 0) or not FileExists(SourcePDF) then Exit;
+  Utf8Name := UTF8Encode(SourcePDF);
+  Doc := FPDF_LoadDocument(PAnsiChar(Utf8Name), nil);
+  if Doc = nil then Exit;
+  try
+    if Index >= FPDFDoc_GetAttachmentCount(Doc) then Exit;
+    Attachment := FPDFDoc_GetAttachment(Doc, Index);
+    if Attachment = nil then Exit;
+    Needed := 0;
+    if not FPDFAttachment_GetFile(Attachment, nil, 0, Needed) then Exit;
+    if Needed > 512 * 1024 * 1024 then Exit;
+    SetLength(Data, Integer(Needed));
+    Written := 0;
+    if (Needed > 0) and
+       (not FPDFAttachment_GetFile(Attachment, @Data[0], Needed, Written) or
+        (Written <> Needed)) then Exit;
+    Stream := TFileStream.Create(TargetFile, fmCreate);
+    try
+      if Needed > 0 then Stream.WriteBuffer(Data[0], Needed);
+      Result := True;
+    finally
+      Stream.Free;
+    end;
+  finally
+    FPDF_CloseDocument(Doc);
+  end;
+end;
+
+
 
 constructor TPDFAttachmentNoticeForm.CreateNotice(
   AOwner: TComponent;
@@ -335,11 +380,9 @@ end;
 procedure TPDFAttachmentNoticeForm.AttachmentDoubleClick(Sender: TObject);
 var
   Index: Integer;
-  Name, Ext, TargetFile, CmdLine, PdfDetachExe, TempBase: string;
+  Name, Ext, TargetFile, TempBase: string;
   TempDir: array[0..MAX_PATH] of Char;
   TempName: array[0..MAX_PATH] of Char;
-  ExitCode: Longword;
-  ProcID: Cardinal;
   PDF: TPDFBrowserForm;
   Viewer: TPDFTabsForm;
   OpenResult: HINST;
@@ -376,19 +419,26 @@ begin
     Exit;
   end;
 
-  if (Ext <> '.pdf') and
-     (PDFModernMessageDlg(Tr('Die Anlage öffnen?') + sLineBreak + ' + Name +  ' + Tr('mit dem zugeordneten Windows-Programm öffnen?') +
-       sLineBreak + Tr('Öffnen Sie nur Anlagen aus vertrauenswürdigen PDF-Dateien.'),
-       mtConfirmation, [mbYes, mbNo], 0) <> mrYes) then Exit;
-
-  PdfDetachExe := PDFTabsPdfDetachExe;
-  if not FileExists(PdfDetachExe) then
-    PdfDetachExe := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'pdfdetach.exe';
-  if not FileExists(PdfDetachExe) then
+  if Ext <> '.pdf' then
   begin
-    PDFModernMessageDlg(Tr('pdfdetach.exe wurde nicht gefunden.'), mtError, [mbOK], 0);
-    Exit;
+    if SameText(PDFLanguage, 'en') then
+    begin
+      if PDFModernMessageDlg('Open the attachment?' + sLineBreak + sLineBreak +
+        '"' + Name + '"' + sLineBreak + sLineBreak +
+        'with the associated Windows application?' + sLineBreak + sLineBreak +
+        'Security notice: Only open attachments from trusted PDF files.',
+        mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+    end
+    else
+    begin
+      if PDFModernMessageDlg('Die Anlage öffnen?' + sLineBreak + sLineBreak +
+        '"' + Name + '"' + sLineBreak + sLineBreak +
+        'mit dem zugeordneten Windows-Programm öffnen?' + sLineBreak + sLineBreak +
+        'Sicherheitshinweis: Öffnen Sie nur Anlagen aus vertrauenswürdigen PDF-Dateien.',
+        mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+    end;
   end;
+
   if GetTempPath(MAX_PATH, TempDir) = 0 then Exit;
   if GetTempFileName(TempDir, 'FPA', 0, TempName) = 0 then Exit;
   TempBase := IncludeTrailingPathDelimiter(string(TempDir)) +
@@ -397,11 +447,8 @@ begin
   // Die Endung beibehalten, damit Windows die passende Anwendung findet.
   TargetFile := TempBase + Ext;
   if Ext = '' then TargetFile := TempBase + '.bin';
-  CmdLine := '"' + PdfDetachExe + '" -save ' + IntToStr(Index + 1) +
-    ' -o "' + TargetFile + '" "' + FSourcePDF + '"';
-  ProcID := 0;
-  ExitCode := RunProcess(CmdLine, SW_HIDE, True, @ProcID);
-  if (ExitCode <> 0) or not FileExists(TargetFile) then
+  if (not PDFiumExtractAttachment(FSourcePDF, Index, TargetFile)) or
+     not FileExists(TargetFile) then
   begin
     DeleteFile(TargetFile);
     PDFModernMessageDlg(Tr('Die Anlage konnte nicht extrahiert werden.'), mtError, [mbOK], 0);
@@ -443,11 +490,9 @@ end;
 
 procedure TPDFAttachmentNoticeForm.ExtractButtonClick(Sender: TObject);
 var
-  PdfDetachExe, CmdLine, Destination, TargetFile, BaseName: string;
+  Destination, TargetFile, BaseName: string;
   SaveDialog: TSaveDialog;
   FolderDialog: TFileOpenDialog;
-  ExitCode: Longword;
-  ProcID: Cardinal;
   I, CountSelected, CountDone: Integer;
 begin
   CountSelected := 0;
@@ -463,15 +508,6 @@ begin
     PDFModernMessageDlg(Tr('Die zugehörige PDF-Datei wurde nicht gefunden.'), mtError, [mbOK], 0);
     Exit;
   end;
-  PdfDetachExe := PDFTabsPdfDetachExe;
-  if not FileExists(PdfDetachExe) then
-    PdfDetachExe := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'pdfdetach.exe';
-  if not FileExists(PdfDetachExe) then
-  begin
-    PDFModernMessageDlg(Tr('pdfdetach.exe wurde nicht gefunden.'), mtError, [mbOK], 0);
-    Exit;
-  end;
-
   Destination := '';
   if CountSelected = 1 then
   begin
@@ -520,18 +556,14 @@ begin
           Continue;
       end;
     end;
-    CmdLine := '"' + PdfDetachExe + '" -save ' + IntToStr(I + 1) +
-      ' -o "' + TargetFile + '" "' + FSourcePDF + '"';
-    ProcID := 0;
-    ExitCode := RunProcess(CmdLine, SW_HIDE, True, @ProcID);
-    if ExitCode = 0 then
+    if PDFiumExtractAttachment(FSourcePDF, I, TargetFile) then
     begin
       Inc(CountDone);
 
     end
     else
       PDFModernMessageDlg(Tr('Fehler beim Extrahieren von ') + FAttachmentList.Items[I] +
-        ' (Fehlercode ' + IntToStr(ExitCode) + ').', mtError, [mbOK], 0);
+        '.', mtError, [mbOK], 0);
   end;
   PDFModernMessageDlg(IntToStr(CountDone) + ' von ' + IntToStr(CountSelected) +
     ' markierten Anlagen extrahiert.', mtInformation, [mbOK], 0);
@@ -626,7 +658,7 @@ begin
       FAttachmentList.Items.Add(ExtractFileName(SelectedFiles[I]));
     DisplaySavedPDF(NewPDF);
     PDFModernMessageDlg(IntToStr(SelectedFiles.Count) + Tr(' Anlage(n) wurden hinzugefügt:') +
-      sLineBreak + NewPDF, mtInformation, [mbOK], 0);
+      sLineBreak + sLineBreak + ExtractFilePath(NewPDF) + ExtractFileName(NewPDF), mtInformation, [mbOK], 0);
   finally
     SelectedFiles.Free;
   end;
@@ -728,8 +760,8 @@ begin
   for I := FAttachmentList.Items.Count - 1 downto 0 do
     if FAttachmentList.Selected[I] then FAttachmentList.Items.Delete(I);
   DisplaySavedPDF(NewPDF);
-  PDFModernMessageDlg(Tr('PDF mit entfernten Anlagen gespeichert:') + sLineBreak + NewPDF,
-    mtInformation, [mbOK], 0);
+  PDFModernMessageDlg(Tr('PDF mit entfernten Anlagen gespeichert:') +
+    sLineBreak + sLineBreak + ExtractFilePath(NewPDF) + ExtractFileName(NewPDF), mtInformation, [mbOK], 0);
 end;
 
 function PDFTabsQpdfExe: string;
@@ -738,21 +770,6 @@ begin
   if (Result = '') or not FileExists(Result) then
     Result := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) +
       'qpdf\bin\qpdf.exe';
-end;
-
-function PDFTabsPdfDetachExe: string;
-var
-  Folder, AppDir: string;
-begin
-  Result := '';
-  AppDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName));
-  if Result <> '' then Exit;
-  if FileExists(AppDir + 'pdfdetach.exe') then
-    Result := AppDir + 'pdfdetach.exe'
-  else if FileExists(AppDir + 'xpdf\bin64\pdfdetach.exe') then
-    Result := AppDir + 'xpdf\bin64\pdfdetach.exe'
-  else if FileExists(AppDir + 'xpdf\bin\pdfdetach.exe') then
-    Result := AppDir + 'xpdf\bin\pdfdetach.exe';
 end;
 
 procedure ShowPDFEmbeddedAttachmentsPrepared(const PDFFileName: string;

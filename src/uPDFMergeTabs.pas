@@ -462,6 +462,7 @@ begin
     CancelButton.Caption := Tr('Abbrechen');
     CancelButton.ModalResult := mrCancel;
     CancelButton.Cancel := True; // ESC schließt den Dialog wie Abbrechen
+    ApplyPDFDialogDesign(Dialog);
     if Dialog.ShowModal <> mrOk then Exit;
     Selected := TStringList.Create;
     try
