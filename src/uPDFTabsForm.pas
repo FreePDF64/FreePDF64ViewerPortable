@@ -3297,8 +3297,8 @@ begin
         'Alt + drag pans a zoomed page. The PDF file is not modified. ' +
         'Scanned pages without a text layer cannot be selected this way.');
       AddSection('Hand Tool and panning',
-        'Choose Hand Tool from the drawing tool dropdown (next to Freehand) to move a zoomed PDF page by dragging with the left mouse button. ' +
-        'The pointer changes to a hand when the tool is active and to a move cursor while dragging. ' +
+        'Click the Hand Tool button directly to the left of Show Attachments in the main toolbar to move a zoomed PDF page by dragging with the left mouse button. ' +
+        'The button is highlighted in orange while the Hand Tool is active. The pointer changes to a hand when the tool is active and to a move cursor while dragging. ' +
         'Release the mouse button to stop panning. Alt + left mouse drag also pans the page without selecting Hand Tool. ' +
         'Choose another tool to return to its normal mouse behavior.');
       AddSection('Search modes and highlights',
@@ -3611,8 +3611,8 @@ begin
         'Alt + Ziehen verschiebt eine vergrößerte Seite. Die PDF-Datei bleibt unverändert. ' +
         'Bei gescannten Seiten ohne Textebene ist keine Textauswahl möglich.');
       AddSection('Hand-Werkzeug und Seiten verschieben',
-        'Wählen Sie im Zeichenwerkzeug-Dropdown neben „Freihand“ das „Hand-Werkzeug“, um eine vergrößerte PDF-Seite mit gedrückter linker Maustaste zu verschieben. ' +
-        'Der Mauszeiger zeigt bei aktiviertem Werkzeug eine Hand und während des Ziehens ein Verschiebesymbol. ' +
+        'Klicken Sie in der Hauptsymbolleiste direkt links neben „Anlagen anzeigen“ auf den Button „Hand-Werkzeug“, um eine vergrößerte PDF-Seite mit gedrückter linker Maustaste zu verschieben. ' +
+        'Der Button ist bei aktiviertem Hand-Werkzeug orange hervorgehoben. Der Mauszeiger zeigt eine Hand und während des Ziehens ein Verschiebesymbol. ' +
         'Beim Loslassen endet das Verschieben. Mit Alt + linker Maustaste können Sie die Seite auch ohne ausgewähltes Hand-Werkzeug verschieben. ' +
         'Beim Wechsel zu einem anderen Werkzeug gilt wieder dessen normale Mausbedienung.');
       AddSection('Sucharten und Markierungen',

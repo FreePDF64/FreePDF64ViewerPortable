@@ -125,6 +125,8 @@ type
     procedure UpdateSearchCount(Sender: TObject);
     procedure SetSearchTerm(const AValue: string);
     procedure ToggleAttachmentsClick(Sender: TObject);
+    procedure HandToolButtonClick(Sender: TObject);
+    procedure HandToolStateChanged(Sender: TObject);
     procedure PageNavigationTimerTimer(Sender: TObject);
     procedure ImageToolClick(Sender: TObject);
     procedure ImageContextClick(Sender: TObject);
@@ -132,6 +134,7 @@ type
     procedure CreateImageTools;
   public
     FAttachmentsButton: TBitBtn;
+    FHandToolButton: TBitBtn;
     FAttachmentSeparator: TBevel;
     FHasPDFEmbeddedAttachments: Boolean;
     OnGlobalSearch: TNotifyEvent;
@@ -791,8 +794,14 @@ begin
       'Alle geöffneten PDF-Dokumente durchsuchen (Strg+Umschalt+F)',
       'Search all open PDF documents (Ctrl+Shift+F)');
   SetAttachmentIndicator(FHasPDFEmbeddedAttachments);
+  if FHandToolButton <> nil then
+    FHandToolButton.Hint := ToolbarHintBrowser('Hand-Werkzeug: PDF-Seite verschieben',
+      'Hand Tool: Pan PDF page');
   if FPDFiumView <> nil then
+  begin
     FPDFiumView.RefreshLanguage;
+    UpdateSearchCount(Self);
+  end;
   if FImageButtons[0] <> nil then
   begin
     FImageButtons[0].Hint := ToolbarHintBrowser('Bild verkleinern', 'Zoom image out');
@@ -1015,6 +1024,17 @@ begin
   FAttachmentsButton.Height := ScalePx(28);
   FAttachmentsButton.OnClick := ToggleAttachmentsClick;
 
+  FHandToolButton := TPDFThemeBitBtn.Create(Self);
+  FHandToolButton.Parent := FToolbar;
+  FHandToolButton.Caption := '✋';
+  FHandToolButton.Font.Name := 'Segoe UI Emoji';
+  FHandToolButton.Font.Size := 12;
+  FHandToolButton.ParentFont := False;
+  FHandToolButton.ShowHint := True;
+  FHandToolButton.Hint := ToolbarHintBrowser('Hand-Werkzeug: PDF-Seite verschieben',
+    'Hand Tool: Pan PDF page');
+  FHandToolButton.OnClick := HandToolButtonClick;
+
   // Dezenter vertikaler Trennstrich zwischen Suche und PDF-Werkzeugen.
   FAttachmentSeparator := TBevel.Create(Self);
   FAttachmentSeparator.Parent := FToolbar;
@@ -1035,18 +1055,19 @@ begin
   PlaceControl(FFindButton, ScalePx(34));
   PlaceControl(FGlobalFindButton, ScalePx(34));
   // Trefferanzeige direkt rechts neben 'Text suchen'.
-  // Die Breite bleibt auch bei 0 Treffern reserviert, damit die
+  // Kompakte feste Breite fuer die Trefferanzeige, damit die
   // nachfolgenden Bedienelemente nicht hin- und herspringen.
   FSearchCountLabel.AutoSize := False;
   FSearchCountLabel.Layout := tlCenter;
   Canvas.Font.Assign(FSearchCountLabel.Font);
   FSearchCountLabel.SetBounds(XPos,
     (ToolbarHeight - ControlHeight) div 2,
-    Max(ScalePx(70), Max(Canvas.TextWidth(FSearchCountLabel.Caption + '  ...'), Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + ScalePx(12)),
+    ScalePx(112),
     ControlHeight);
   Inc(XPos, FSearchCountLabel.Width + Gap);
   FAttachmentSeparator.Visible := False;
   Inc(XPos, ScalePx(4));
+  PlaceControl(FHandToolButton, ScalePx(34));
   PlaceControl(FAttachmentsButton, ScalePx(34));
 
   // --------------------------------------------------
@@ -1091,6 +1112,23 @@ begin
   FAttachmentsButton.Hint := ToolbarHintBrowser(
     'PDF-Anlagen anzeigen',
     'Show PDF attachments');
+end;
+
+procedure TPDFBrowserForm.HandToolButtonClick(Sender: TObject);
+begin
+  if FPDFiumView <> nil then FPDFiumView.ToggleHandTool;
+end;
+
+procedure TPDFBrowserForm.HandToolStateChanged(Sender: TObject);
+begin
+  if (FHandToolButton <> nil) and (FPDFiumView <> nil) then
+  begin
+    if FPDFiumView.HandToolActive then
+      FHandToolButton.Font.Style := [fsBold]
+    else
+      FHandToolButton.Font.Style := [];
+    FHandToolButton.Invalidate;
+  end;
 end;
 
 procedure TPDFBrowserForm.ToggleAttachmentsClick(Sender: TObject);
@@ -1489,6 +1527,16 @@ begin
     if FPDFiumView.SearchRunning then
       FSearchCountLabel.Caption := FSearchCountLabel.Caption + '  ...';
   end;
+  // Der Hint nennt die aktive Suchart und zeigt die vollständige Trefferzahl.
+  if FGlobalSearchActive then
+    FSearchCountLabel.Hint := ToolbarHintBrowser(
+      'Globale Suche – alle geöffneten PDFs: ' + IntToStr(FGlobalSearchCount) + ' Treffer',
+      'Global search – all open PDFs: ' + IntToStr(FGlobalSearchCount) + ' matches')
+  else
+    FSearchCountLabel.Hint := ToolbarHintBrowser(
+      'Text suchen – aktuelle PDF: ' + IntToStr(FPDFiumView.SearchMatchCount) + ' Treffer',
+      'Text search – current PDF: ' + IntToStr(FPDFiumView.SearchMatchCount) + ' matches');
+  FSearchCountLabel.ShowHint := True;
 end;
 
 procedure TPDFBrowserForm.FindTermClick(Sender: TObject);
@@ -2315,6 +2363,7 @@ begin
     if FGlobalFindButton <> nil then FGlobalFindButton.Visible := False;
     if FSearchCountLabel <> nil then FSearchCountLabel.Visible := False;
     if FAttachmentsButton <> nil then FAttachmentsButton.Visible := False;
+    if FHandToolButton <> nil then FHandToolButton.Visible := False;
   end;
   if (FImageDisplay.Picture.Graphic = nil) or
      (FImageDisplay.Picture.Width = 0) then
@@ -2394,6 +2443,7 @@ begin
     if Parent <> nil then Parent.HandleNeeded;
     HandleNeeded;
     FPDFiumView := TFreePDF64PDFiumView.CreateInParent(Self, Self);
+    FPDFiumView.OnHandToolChanged := HandToolStateChanged;
     FPDFiumView.Align := alClient;
     FPDFiumView.OnSearchCountChanged := UpdateSearchCount;
     FPDFiumView.OnPDFPageClick := PDFPageClickClearSearch;
@@ -2631,6 +2681,8 @@ begin
   end;
   // Anlagen-Button hat exakt dieselbe DPI-Geometrie wie die
   // benachbarten PDFium-Symbolbuttons, auch nach einem Parent-Wechsel.
+  if FHandToolButton <> nil then
+    FHandToolButton.SetBounds(FHandToolButton.Left, FHandToolButton.Top, ScalePx(34), ScalePx(28));
   if FAttachmentsButton <> nil then
     FAttachmentsButton.SetBounds(FAttachmentsButton.Left,
       FAttachmentsButton.Top, ScalePx(34), ScalePx(28));
@@ -2657,6 +2709,8 @@ begin
   if FFindButton <> nil then Inc(Required, FFindButton.Width);
   if FGlobalFindButton <> nil then Inc(Required, FGlobalFindButton.Width);
   if FSearchCountLabel <> nil then Inc(Required, FSearchCountLabel.Width);
+  if (FHandToolButton <> nil) and (FHandToolButton.Parent = FToolbar) then
+    Inc(Required, FHandToolButton.Width + Gap);
   if (FAttachmentsButton <> nil) and (FAttachmentsButton.Parent = FToolbar) then
     Inc(Required, FAttachmentsButton.Width);
   if (FAttachmentSeparator <> nil) and FAttachmentSeparator.Visible and
@@ -2733,6 +2787,8 @@ begin
     FAttachmentSeparator.Visible := False;
   if (FImageButtons[0] = nil) and (FAttachmentsButton.Parent = FToolbar) then
     Inc(X, ScalePx(2));
+  if (FImageButtons[0] = nil) and (FHandToolButton.Parent = FToolbar) then
+    Put(FHandToolButton);
   if (FImageButtons[0] = nil) and (FAttachmentsButton.Parent = FToolbar) then
     Put(FAttachmentsButton);
   // Markierungswerkzeuge im zweizeiligen Layout ebenfalls platzieren.
@@ -3126,9 +3182,7 @@ begin
     ExtraWidth := 0;
     if not FPDFiumView.SearchRunning then
       ExtraWidth := Canvas.TextWidth('  ...');
-    FSearchCountLabel.Width := Max(Px(70),
-      Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
-          Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + Px(12));
+    FSearchCountLabel.Width := Px(112);
   end;
 
   LeftRequired := 2 * Margin + 8 * Gap + Px(22);
@@ -3160,6 +3214,8 @@ begin
     Inc(RightRequired, FAttachmentSeparator.Width + Gap);
   if FAttachmentsButton <> nil then
     Inc(RightRequired, FAttachmentsButton.Width + Gap);
+  if FHandToolButton <> nil then
+    Inc(RightRequired, FHandToolButton.Width + Gap);
   // Der Zoomwert benötigt mindestens 38 px; der Seitenstatus kann
   // je nach Sprache/Schrift breiter sein.
   Inc(RightRequired, Max(Px(38),
@@ -3179,12 +3235,11 @@ begin
     begin
       // Kompakte Trefferanzeige: keine Breite fuer fuenfstellige Trefferzahlen
       // reservieren. Die vollstaendige Information bleibt im Hint erhalten.
-      FSearchCountLabel.Hint := FSearchCountLabel.Caption;
-      FSearchCountLabel.ShowHint := True;
+      // Hint wird in UpdateSearchCount passend zur Suchart gesetzt.
       // Die Browser-Endgruppe wird im Einzeilenmodus hinter die
       // PDF-Navigationsgruppe verschoben.
       FPDFiumView.SetMergedToolbarTrailingControls(
-        [FAttachmentSeparator, FAttachmentsButton, EditButton], FPDFiumView.ToolbarPanel);
+        [FAttachmentSeparator, FHandToolButton, FAttachmentsButton, EditButton], FPDFiumView.ToolbarPanel);
       if FAttachmentSeparator <> nil then
         FAttachmentSeparator.Visible := True;
       // Schrift und Hoehe werden zentral in ReflowNavigationToolbar
@@ -3215,7 +3270,7 @@ begin
     begin
       // In der Zweizeilenansicht bleibt die Browser-Endgruppe oben.
       FPDFiumView.SetMergedToolbarTrailingControls(
-        [FAttachmentSeparator, FAttachmentsButton, EditButton], FToolbar);
+        [FAttachmentSeparator, FHandToolButton, FAttachmentsButton, EditButton], FToolbar);
       if FAttachmentSeparator <> nil then
         FAttachmentSeparator.Visible := True;
       if FToolbar.Parent <> Self then
@@ -3225,9 +3280,7 @@ begin
         ExtraWidth := 0;
         if not FPDFiumView.SearchRunning then
           ExtraWidth := Canvas.TextWidth('  ...');
-        FSearchCountLabel.Width := Max(Px(70),
-          Max(Canvas.TextWidth(FSearchCountLabel.Caption) + ExtraWidth,
-              Canvas.TextWidth(Tr('Alle PDFs: 99999 Treffer'))) + Px(12));
+        FSearchCountLabel.Width := Px(112);
         SetLength(SavedBounds, FToolbar.ControlCount);
         for I := 0 to FToolbar.ControlCount - 1 do
           SavedBounds[I] := FToolbar.Controls[I].BoundsRect;

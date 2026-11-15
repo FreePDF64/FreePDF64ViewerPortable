@@ -47,6 +47,9 @@ type
   private
     FDesign: Integer;
     FHover: Boolean;
+    FSelectedVisual: Boolean;
+    FSelectionCapable: Boolean;
+    procedure SetSelectedVisual(AValue: Boolean);
     procedure BMSetStyle(var Message: TMessage); message BM_SETSTYLE;
     procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -55,6 +58,7 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
   public
     procedure SetDesign(AValue: Integer);
+    property SelectedVisual: Boolean read FSelectedVisual write SetSelectedVisual;
   end;
 
   TPDFDesignButton = class(TButton)
@@ -314,6 +318,8 @@ type
     FInsertManageLinksItem, FInsertManageCommentsItem: TMenuItem;
     FTextUndoButton, FTextRedoButton: TBitBtn;
     FRedactionFinalizeButton: TPDFDesignButton;
+    FHandToolActive: Boolean;
+    FOnHandToolChanged: TNotifyEvent;
     FRedactionReportOpen: Boolean;
     FUndoRedoGlyphPPI: Integer;
     FTextInsertMode: Boolean;
@@ -579,6 +585,9 @@ type
     procedure ApplyPDFBackgroundDesign(ADesign: Integer);
     property ToolbarPanel: TPanel read FBar;
     property EditToggleButton: TPDFToolsButton read FEditToggle;
+    property HandToolActive: Boolean read FHandToolActive;
+    property OnHandToolChanged: TNotifyEvent read FOnHandToolChanged write FOnHandToolChanged;
+    procedure ToggleHandTool;
     procedure RefreshLanguage;
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomIn;
@@ -1060,7 +1069,7 @@ begin
   // VCL/Windows setzt beim Fokuswechsel den Button-Typ per BM_SETSTYLE
   // auf BS_PUSHBUTTON oder BS_DEFPUSHBUTTON zurueck. In alternativen
   // Designs muss BS_OWNERDRAW auch danach erhalten bleiben.
-  if FDesign <> 0 then
+  if (FDesign <> 0) or FSelectionCapable then
     Message.WParam := (Message.WParam and not WPARAM($000F)) or WPARAM(BS_OWNERDRAW);
   inherited;
 end;
@@ -1068,8 +1077,26 @@ end;
 procedure TPDFThemeBitBtn.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
-  if FDesign <> 0 then
+  if (FDesign <> 0) or FSelectionCapable then
     Params.Style := (Params.Style and not $000F) or BS_OWNERDRAW;
+end;
+
+procedure TPDFThemeBitBtn.SetSelectedVisual(AValue: Boolean);
+begin
+  if FSelectedVisual = AValue then Exit;
+  FSelectedVisual := AValue;
+  // Im Standard-Design OwnerDraw nach der ersten Aktivierung beibehalten.
+  // Sonst zeichnet Windows beim Deaktivieren erneut einen hellblauen
+  // Standard-Button (Hot-/Default-State) statt der Designfarbe.
+  if AValue and not FSelectionCapable then
+  begin
+    FSelectionCapable := True;
+    if HandleAllocated and (FDesign = 0) then RecreateWnd;
+  end;
+  FHover := False;
+  Invalidate;
+  if HandleAllocated then
+    RedrawWindow(Handle, nil, 0, RDW_INVALIDATE or RDW_ERASE or RDW_UPDATENOW);
 end;
 
 procedure TPDFThemeBitBtn.SetDesign(AValue: Integer);
@@ -1089,14 +1116,14 @@ procedure TPDFThemeBitBtn.CMMouseEnter(var Message: TMessage);
 begin
   inherited;
   FHover := True;
-  if FDesign <> 0 then Invalidate;
+  if (FDesign <> 0) or FSelectionCapable then Invalidate;
 end;
 
 procedure TPDFThemeBitBtn.CMMouseLeave(var Message: TMessage);
 begin
   inherited;
   FHover := False;
-  if FDesign <> 0 then Invalidate;
+  if (FDesign <> 0) or FSelectionCapable then Invalidate;
 end;
 
 procedure TPDFThemeBitBtn.CNDrawItem(var Message: TWMDrawItem);
@@ -1109,7 +1136,7 @@ var
   GX, GY: Integer;
   S: string;
 begin
-  if FDesign = 0 then
+  if (FDesign = 0) and not FSelectionCapable then
   begin
     inherited;
     Exit;
@@ -1122,7 +1149,12 @@ begin
     3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
-    begin Back := clBtnFace; Edge := clBtnShadow; Fore := clWindowText; end;
+    begin
+      // Standard: inaktiver Hand-Button weiss statt Windows-Hellblau.
+      Back := clWhite;
+      Edge := clBtnShadow;
+      Fore := clWindowText;
+    end;
   end;
   if FHover and Enabled then
     case FDesign of
@@ -1136,13 +1168,20 @@ begin
       3: Back := RGB(176, 176, 176);
       5: Back := RGB(155, 190, 225);
     end;
+  if FSelectedVisual and Enabled then
+  begin
+    // Dauerhaft sichtbarer Ein-Zustand, unabhaengig von Hover/Fokus/Design.
+    Back := RGB(255, 193, 105);
+    Edge := RGB(204, 102, 0);
+    Fore := RGB(85, 42, 0);
+  end;
   if not Enabled then Fore := clGrayText;
   C := TCanvas.Create;
   try
     C.Handle := DC;
     C.Brush.Color := Back;
     C.FillRect(R);
-    if FDesign = 3 then
+    if (FDesign = 3) and not FSelectedVisual then
     begin
       // Windows Klassik: derselbe 3D-Rahmen wie TPDFDesignButton.
       if (State and ODS_SELECTED) <> 0 then
@@ -1153,6 +1192,7 @@ begin
     else
     begin
       C.Pen.Color := Edge;
+      if FSelectedVisual then C.Pen.Width := 2;
       C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
     end;
     S := Caption;
@@ -2557,11 +2597,6 @@ begin
     FShapeSelect.Items.Add('Redaction preview')       // 6
   else
     FShapeSelect.Items.Add('Schwärzung (Vorschau)');
-  FShapeSelect.Items.Add('──────────────');           // 7: Trennlinie
-  if PDFLanguage = 'en' then
-    FShapeSelect.Items.Add('Hand Tool')               // 8
-  else
-    FShapeSelect.Items.Add('Hand-Werkzeug');
   FShapeSelect.OnChange := ShapeSelectChange;
   FShapeSelect.ItemIndex := 0;
   // Der Hint wird passend zum gewählten Werkzeug gesetzt.
@@ -2727,7 +2762,7 @@ begin
   FTextRedoButton.ShowHint := True;
   FRedactionFinalizeButton := TPDFDesignButton.Create(Self);
   FRedactionFinalizeButton.Parent := FBar;
-  FRedactionFinalizeButton.Visible := True;
+  FRedactionFinalizeButton.Visible := False;
   FRedactionFinalizeButton.Caption := ToolbarHint('Endgültig schwärzen ...', 'Apply secure redaction ...');
   FRedactionFinalizeButton.OnClick := FinalizeRedactionClick;
   FRedactionFinalizeButton.Enabled := False;
@@ -4747,11 +4782,33 @@ begin
   LayoutToolbar(nil);
 end;
 
+procedure TFreePDF64PDFiumView.ToggleHandTool;
+begin
+  FHandToolActive := not FHandToolActive;
+  if FHandToolActive then
+  begin
+    FMarkMode := False;
+    FHighlightMode := False;
+    FTextInsertMode := False;
+    FNoteMode := False;
+    Screen.Cursor := crHandPoint;
+  end
+  else
+    Screen.Cursor := crDefault;
+  if Assigned(FOnHandToolChanged) then FOnHandToolChanged(Self);
+end;
+
 procedure TFreePDF64PDFiumView.ShapeSelectChange(Sender: TObject);
 begin
+  if FHandToolActive then
+  begin
+    FHandToolActive := False;
+    Screen.Cursor := crDefault;
+    if Assigned(FOnHandToolChanged) then FOnHandToolChanged(Self);
+  end;
   // Trennlinien sind keine Werkzeuge. Zur letzten gültigen Auswahl zurückkehren.
   if FShapeSelect = nil then Exit;
-  if FShapeSelect.ItemIndex in [4, 7] then
+  if FShapeSelect.ItemIndex = 4 then
     FShapeSelect.ItemIndex := 0;
 
   // Schwaerzungswerkzeuge duerfen nicht vom aktiven Text-Hervorheben
@@ -7960,7 +8017,7 @@ begin
       FWidthSelect.ItemIndex := Min(3, FWidthSelect.Items.Count - 1);
   end;
   FEditToggle.Highlighted := FEditVisible;
-  FMarkMode := FEditVisible and not FTextInsertMode and not FHighlightMode and not FNoteMode;
+  FMarkMode := FEditVisible and not FHandToolActive and not FTextInsertMode and not FHighlightMode and not FNoteMode;
   if not FEditVisible then
   begin
     // Beim Schliessen der Werkzeugleiste keinen aktiven Texteingabemodus
@@ -8440,14 +8497,14 @@ begin
   // Aktionsgruppe als unteilbaren Block positionieren. Insbesondere darf
   // die Hilfe-Schaltflaeche nicht allein in die naechste Zeile springen.
   H := Px(34) + Px(34) + Px(40) + 2 * Gap;
-  if FRedactionFinalizeButton <> nil then
+  if (FRedactionFinalizeButton <> nil) and FRedactionFinalizeButton.Visible then
     Inc(H, Px(148) + Gap);
   if (X > Margin) and (X + H > W - Margin) then
     NextRow;
   X := Max(Margin, W - Margin - H);
   FInfo.SetBounds(X, Y + (RowH - ButtonH) div 2, Px(34), ButtonH);
   Inc(X, Px(34) + Gap);
-  if FRedactionFinalizeButton <> nil then
+  if (FRedactionFinalizeButton <> nil) and FRedactionFinalizeButton.Visible then
   begin
     FRedactionFinalizeButton.SetBounds(X, Y + (RowH - ButtonH) div 2,
       Px(148), ButtonH);
@@ -10257,6 +10314,11 @@ begin
       (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
       (FRedactionPreviews <> nil) and (FRedactionPreviews.Count > 0) and
       (FCore <> nil) and (FCore.PageCount > 0);
+    if FRedactionFinalizeButton.Visible <> FRedactionFinalizeButton.Enabled then
+    begin
+      FRedactionFinalizeButton.Visible := FRedactionFinalizeButton.Enabled;
+      if (FBar <> nil) and not FToolbarLayoutBusy then LayoutToolbar(nil);
+    end;
   end;
 end;
 
@@ -11578,7 +11640,7 @@ begin
   // Formular-Widgets haben Vorrang vor Hand-Werkzeug und Textauswahl.
   // Klick-Hit-Test als Grundlage fuer die naechste FormFill-Eingabestufe.
   if not FMarkMode and not (ssShift in Shift) and not (ssCtrl in Shift) and
-     not (FEditVisible and (FShapeSelect.ItemIndex = 8)) and
+     not (FHandToolActive) and
      (Sender is TPDFiumImage) then
   begin
     Img := TPDFiumImage(Sender);
@@ -11767,7 +11829,7 @@ begin
   end;
 
   if not (ssShift in Shift) and not (ssCtrl in Shift) and
-     not (FEditVisible and (FShapeSelect.ItemIndex in [6, 8])) and
+     not (((FEditVisible and (FShapeSelect.ItemIndex = 6)) or FHandToolActive)) and
      LinkAtImagePoint(Sender, X, Y, Target) then
   begin
     if Target.PageIndex >= 0 then
@@ -11783,8 +11845,7 @@ begin
   end;
   // Hand-Werkzeug: ausschliesslich bei linker Maustaste verschieben.
   // Die vorhandene Alt-Ziehen-Funktion bleibt unveraendert.
-  if (Button = mbLeft) and FEditVisible and
-     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 8) then
+  if (Button = mbLeft) and FHandToolActive then
   begin
     if (FScroll.HorzScrollBar.Range <= FScroll.ClientWidth) and
        (FScroll.VertScrollBar.Range <= FScroll.ClientHeight) then Exit;
@@ -12074,8 +12135,7 @@ begin
     end;
     Exit;
   end;
-  if FEditVisible and (FShapeSelect <> nil) and
-     (FShapeSelect.ItemIndex = 8) and (Sender is TPDFiumImage) and
+  if FHandToolActive and (Sender is TPDFiumImage) and
      not FDraggingPage then
   begin
     TPDFiumImage(Sender).Cursor := crHandPoint;
@@ -12287,8 +12347,7 @@ begin
   begin
     FDraggingPage := False;
     TPDFiumImage(Sender).MouseCapture := False;
-    if FEditVisible and (FShapeSelect <> nil) and
-       (FShapeSelect.ItemIndex = 8) then
+    if FHandToolActive then
       TPDFiumImage(Sender).Cursor := crHandPoint
     else
       TPDFiumImage(Sender).Cursor := crDefault;
