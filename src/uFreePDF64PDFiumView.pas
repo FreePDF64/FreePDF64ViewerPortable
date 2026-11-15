@@ -3073,6 +3073,7 @@ begin
   FTextColorSwatch.ParentBackground := False;
   FTextColorSwatch.Color := FTextInsertColor;
   FTextColorSwatch.Caption := '';
+  FTextColorSwatch.Cursor := crHandPoint;
   FTextColorSwatch.OnClick := TextColorClick;
 
   FColorButton := Btn(Tr('Farbe ...'), 1072, 60, ColorClick);
