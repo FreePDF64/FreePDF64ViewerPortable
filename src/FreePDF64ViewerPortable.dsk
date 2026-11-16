@@ -17,17 +17,23 @@ File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Hilfe_Unit.pas
 
 [Modules]
 Module0=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
-Module2=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
-Module3=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
-Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
-Module5=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-Module6=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
-Module7=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
+Module2=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+Module3=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
+Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
+Module5=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
+Module6=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
+Module7=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 Count=8
 EditWindowCount=1
 
 [D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas]
@@ -43,12 +49,6 @@ ModuleType=TSourceModule
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas]
 ModuleType=TSourceModule
 
 [EditWindow0]
@@ -98,9 +98,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-CursorX=27
-CursorY=1
-TopLine=1
+CursorX=76
+CursorY=13376
+TopLine=13354
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -142,9 +142,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 [View4]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
-CursorX=1
-CursorY=1
-TopLine=1
+CursorX=22
+CursorY=219
+TopLine=197
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -153,9 +153,9 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
 [View5]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
-CursorX=61
-CursorY=1
-TopLine=1
+CursorX=10
+CursorY=5669
+TopLine=5647
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -306,7 +306,7 @@ ClientWidth=1895
 ClientHeight=3312
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -337,8 +337,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=-2039
+Top=336
 Width=273
 Height=362
 MaxLeft=-1
@@ -542,8 +542,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=0
-Top=0
+Left=505
+Top=1083
 Width=2855
 Height=3210
 MaxLeft=-1
@@ -656,8 +656,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=8
-Top=8
+Left=1270
+Top=36
 Width=3824
 Height=1420
 MaxLeft=-1
@@ -692,7 +692,7 @@ ClientWidth=1996
 ClientHeight=4551
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0
@@ -718,7 +718,7 @@ ClientWidth=1895
 ClientHeight=3500
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -744,7 +744,7 @@ ClientWidth=1996
 ClientHeight=2261
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0

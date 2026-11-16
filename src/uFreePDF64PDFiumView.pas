@@ -6,7 +6,7 @@ uses
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
-  Vcl.Printers, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, Vcl.AppEvnts, System.IniFiles, System.Generics.Collections, Math,
+  Vcl.Printers, Vcl.FileCtrl, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, Vcl.AppEvnts, System.IniFiles, System.Generics.Collections, Math,
   System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, Winapi.GDIPAPI, Winapi.GDIPOBJ, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary;
 
 const
@@ -555,6 +555,7 @@ type
     procedure SaveDropdownClick(Sender: TObject);
     procedure ExportPagesAsImages(Sender: TObject);
     procedure ExportPagesAsText(Sender: TObject);
+    procedure ShowEmbeddedImages(Sender: TObject);
     function LinkAtImagePoint(Sender: TObject; X, Y: Integer;
       out ATarget: TPDFLinkTarget): Boolean;
     procedure FormOptionDoubleClick(Sender: TObject);
@@ -920,6 +921,10 @@ begin
     AddButton(ToolbarHint('Löschen', 'Delete'), 234, Controller.DeleteClick);
     AddButton(ToolbarHint('Schließen', 'Close'), 347, nil, True);
     ApplyManagedDialogPalette(D, L, FEditToggle.FDesign);
+    if L.Items.Count > 0 then
+    begin
+      L.Items[0].Selected := True;
+    end;
     D.ShowModal;
   finally
     D.Free;
@@ -3109,6 +3114,11 @@ begin
   FSavePopup.Items[2].OnClick := ExportPagesAsText;
   FSavePopup.Items[2].OnDrawItem := PopupDrawItem;
   FSavePopup.Items[2].OnMeasureItem := PopupMeasureItem;
+  FSavePopup.Items.Add(TMenuItem.Create(FSavePopup));
+  FSavePopup.Items[3].Caption := ToolbarHint('PDF-Bilder extrahieren ...', 'Extract Embedded Images ...');
+  FSavePopup.Items[3].OnClick := ShowEmbeddedImages;
+  FSavePopup.Items[3].OnDrawItem := PopupDrawItem;
+  FSavePopup.Items[3].OnMeasureItem := PopupMeasureItem;
   FQuickSave.Hint := ToolbarHint('Speichern unter ... (Strg+S)', 'Save As ... (Ctrl+S)');
   FQuickSave.ShowHint := True;
   FMarker.Visible := False; // Bearbeiten schaltet den Markierungsmodus direkt.
@@ -3433,7 +3443,7 @@ var
   OldPage: Integer;
 begin
   // Drehen erfolgt ausschliesslich im PDFium-Dokument im Speicher.
-  // Weder temporaere PDFs noch QPDF oder ein erneutes Oeffnen sind noetig.
+  // Weder temporaere PDFs noch ein erneutes Oeffnen sind noetig.
   if (AFirstPage < 1) or (ALastPage > FCore.PageCount) or
      (AFirstPage > ALastPage) or
      ((AAngle <> 90) and (AAngle <> -90) and
@@ -3477,7 +3487,7 @@ end;
 procedure TFreePDF64PDFiumView.ReleasePDFForExternalChange;
 begin
   FCommentOwnerAuthorized := False;
-  // QPDF muss die Originaldatei unter Windows ersetzen koennen.
+  // Die Originaldatei muss unter Windows ersetzt werden koennen.
   // Daher vorher das PDFium-Dokumenthandle freigeben.
   FCore.CloseFile;
   FDocumentFormType := 0;
@@ -5053,6 +5063,7 @@ begin
     FSavePopup.Items[0].Caption := ToolbarHint('PDF speichern unter ...', 'Save PDF As ...');
     FSavePopup.Items[1].Caption := ToolbarHint('Seiten als Bilder exportieren ...', 'Export Pages as Images ...');
     FSavePopup.Items[2].Caption := ToolbarHint('Seiten als Text exportieren ...', 'Export Pages as Text ...');
+    FSavePopup.Items[3].Caption := ToolbarHint('PDF-Bilder extrahieren ...', 'Extract Embedded Images ...');
   end;
   UpdateSaveState;
   UpdateTwoPageIcon();
@@ -5723,14 +5734,14 @@ begin
   FRenderTimer.Enabled := False;
   try
     try
-    // QPDF schreibt die PDF neu und oeffnet sie erneut. Solange dies
+    // Die PDF wird neu geschrieben und erneut geoeffnet. Solange dies
     // geschieht, keine Layout- oder Miniatur-Timer laufen lassen.
     // Keine vollstaendige PDF-Sicherung vor der Aktion mehr.
     NeedsLayout := (Index < Length(FPageWidths)) and
       (Target < Length(FPageWidths)) and
       ((FPageWidths[Index] <> FPageWidths[Target]) or
        (FPageHeights[Index] <> FPageHeights[Target]));
-    // Nur die virtuelle Seitenzuordnung aendern, keine QPDF-Datei schreiben.
+    // Nur die virtuelle Seitenzuordnung aendern, keine PDF-Datei schreiben.
     FCore.MovePage(Index, Target);
     FPage := Target;
     FThumbSelected.Clear;
@@ -8962,99 +8973,6 @@ begin
   end;
 end;
 
-function DetectPDFEncryptionQPDF(const APDFFile: string): string;
-var
-  ExePath, TempPath, Cmd, Output, Line, Method: string;
-  Startup: TStartupInfo;
-  ProcInfo: TProcessInformation;
-  OutHandle: THandle;
-  Lines: TStringList;
-  I, Bits: Integer;
-  R: DWORD;
-  Buffer: array[0..MAX_PATH] of Char;
-begin
-  Result := 'Nicht verfügbar';
-  ExePath := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    'qpdf\bin\qpdf.exe';
-  if not FileExists(ExePath) then Exit;
-  if GetTempPath(MAX_PATH, Buffer) = 0 then Exit;
-  TempPath := IncludeTrailingPathDelimiter(string(Buffer)) +
-    'FreePDF64_qpdf_' + IntToStr(GetCurrentProcessId) + '_' +
-    IntToStr(GetTickCount) + '.txt';
-  OutHandle := CreateFile(PChar(TempPath), GENERIC_WRITE,
-    FILE_SHARE_READ or FILE_SHARE_WRITE, nil, CREATE_ALWAYS,
-    FILE_ATTRIBUTE_TEMPORARY, 0);
-  if OutHandle = INVALID_HANDLE_VALUE then Exit;
-  try
-    FillChar(Startup, SizeOf(Startup), 0);
-    Startup.cb := SizeOf(Startup);
-    Startup.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
-    Startup.wShowWindow := SW_HIDE;
-    Startup.hStdOutput := OutHandle;
-    Startup.hStdError := OutHandle;
-    Startup.hStdInput := GetStdHandle(STD_INPUT_HANDLE);
-    FillChar(ProcInfo, SizeOf(ProcInfo), 0);
-    Cmd := '"' + ExePath + '" --show-encryption --password= "' + APDFFile + '"';
-    if not CreateProcess(nil, PChar(Cmd), nil, nil, True,
-      CREATE_NO_WINDOW, nil, nil, Startup, ProcInfo) then Exit;
-    try
-      R := WaitForSingleObject(ProcInfo.hProcess, 5000);
-      if R = WAIT_TIMEOUT then TerminateProcess(ProcInfo.hProcess, 1);
-    finally
-      CloseHandle(ProcInfo.hThread);
-      CloseHandle(ProcInfo.hProcess);
-    end;
-  finally
-    CloseHandle(OutHandle);
-  end;
-  Lines := TStringList.Create;
-  try
-    if not FileExists(TempPath) then Exit;
-    Lines.LoadFromFile(TempPath);
-    Bits := 0;
-    Method := '';
-    for I := 0 to Lines.Count - 1 do
-    begin
-      Line := LowerCase(Trim(Lines[I]));
-      // QPDF gibt beispielsweise "encryption key length = 128" aus.
-      // Sowohl '=' als auch ':' sind erlaubt.
-      if (Pos('encryption key length', Line) > 0) or
-         (Pos('key length', Line) > 0) then
-      begin
-        if Pos('=', Line) > 0 then
-          Line := Trim(Copy(Line, Pos('=', Line) + 1, MaxInt))
-        else if Pos(':', Line) > 0 then
-          Line := Trim(Copy(Line, Pos(':', Line) + 1, MaxInt))
-        else
-          Line := '';
-        // Ziffern am Anfang extrahieren, z.B. "128 bits".
-        while (Length(Line) > 0) and (Line[1] in ['0'..'9']) do
-        begin
-          Bits := Bits * 10 + Ord(Line[1]) - Ord('0');
-          Delete(Line, 1, 1);
-        end;
-        Continue;
-      end;
-      // Bei PDF-Verschluesselung sind Stream- und String-Verfahren
-      // ausschlaggebend. "AESv2" bedeutet AES-128, "AESv3" AES-256.
-      if (Pos('aesv3', Line) > 0) or (Pos('aes-256', Line) > 0) then Method := 'AES-256'
-      else if ((Pos('aesv2', Line) > 0) or (Pos('aes-128', Line) > 0)) and (Method <> 'AES-256') then
-        Method := 'AES-128'
-      else if (Pos('rc4', Line) > 0) and (Method = '') then
-        Method := 'RC4';
-    end;
-    if Method = 'AES-256' then Result := '256-Bit AES'
-    else if Method = 'AES-128' then Result := '128-Bit AES'
-    else if (Method = 'RC4') and (Bits = 128) then Result := '128-Bit RC4'
-    else if (Method = 'RC4') and (Bits = 40) then Result := '40-Bit RC4'
-    else if Bits in [40, 128] then Result := IntToStr(Bits) + ' Bit (Verfahren unbekannt)'
-    else if Bits = 256 then Result := '256 Bit (Verfahren unbekannt)';
-  finally
-    Lines.Free;
-    DeleteFile(TempPath);
-  end;
-end;
-
 procedure TFreePDF64PDFiumView.InfoDialogClose(Sender: TObject;
   var Action: TCloseAction);
 begin
@@ -9299,17 +9217,15 @@ begin
     else
     begin
       AddField('Verschlüsselt:', 'Ja');
-      EncryptionText := DetectPDFEncryptionQPDF(FilePath);
-      if EncryptionText = 'Nicht verfügbar' then
-      begin
-        // PDFium kennt die Sicherheitsrevision. Sie bestimmt die
-        // Schluessellaenge, aber nicht immer den konkreten Algorithmus.
-        case FCore.SecurityRevision of
-          2: EncryptionText := Tr('40 Bit (PDF-Sicherheitsrevision 2)');
-          3: EncryptionText := Tr('128 Bit (PDF-Sicherheitsrevision 3)');
-          4: EncryptionText := Tr('128 Bit (PDF-Sicherheitsrevision 4)');
-          5, 6: EncryptionText := Tr('256-Bit AES');
-        end;
+      // PDFium liefert die Sicherheitsrevision, aber nicht in jedem Fall
+      // den genauen Verschluesselungsalgorithmus (z. B. RC4/AES).
+      case FCore.SecurityRevision of
+        2: EncryptionText := Tr('40 Bit (PDF-Sicherheitsrevision 2)');
+        3: EncryptionText := Tr('128 Bit (PDF-Sicherheitsrevision 3)');
+        4: EncryptionText := Tr('128 Bit (PDF-Sicherheitsrevision 4)');
+        5, 6: EncryptionText := Tr('256-Bit AES');
+      else
+        EncryptionText := Tr('Nicht verfügbar');
       end;
       AddField('Verschlüsselung:', EncryptionText);
 
@@ -13253,6 +13169,541 @@ begin
   if FSavePopup = nil then Exit;
   P := FQuickSave.ClientToScreen(Point(0, FQuickSave.Height));
   FSavePopup.Popup(P.X, P.Y);
+end;
+
+type
+  TPDFEmbeddedImagesDialog = class(TForm)
+  public
+    ImageCore: TFreePDF64PDFiumCore;
+    ImageList: TListView;
+    ImagePreview: TImage;
+    ImageInfos: TList<TPDFEmbeddedImageInfo>;
+    ExportFormat: TComboBox;
+    FooterPanel: TPanel;
+    CountLabel: TLabel;
+    EffectiveDPI: Integer;
+    SelectAllButton, ClearButton, ExportButton, CloseButton: TPDFDesignButton;
+    procedure LayoutControls(Sender: TObject);
+    procedure ExportSelectedClick(Sender: TObject);
+    procedure SelectionChanged(Sender: TObject; AItem: TListItem; Selected: Boolean);
+    procedure SelectAllClick(Sender: TObject);
+    procedure ClearSelectionClick(Sender: TObject);
+    procedure DialogKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  end;
+
+procedure TPDFEmbeddedImagesDialog.LayoutControls(Sender: TObject);
+var
+  M, Gap, ButtonH, ButtonY, LeftW, ColTotal, FooterH: Integer;
+  AllW, ClearW, ExportW, CloseW, RightX, FormatH, StatusH: Integer;
+  FormatY, StatusY, AvailableW, UiScale: Integer;
+  function TextButtonWidth(const ACaption: string; AMinimum: Integer): Integer;
+  begin
+    Canvas.Font.Assign(SelectAllButton.Font);
+    Result := Max(AMinimum, Canvas.TextWidth(ACaption) + MulDiv(18, UiScale, 100));
+  end;
+begin
+  if (FooterPanel = nil) or (ImageList = nil) or (ExportFormat = nil) or
+     (SelectAllButton = nil) or (ClearButton = nil) or
+     (ExportButton = nil) or (CloseButton = nil) then Exit;
+
+  // Nur bei hoher DPI etwas mehr Platz: WQHD (125 %) bleibt unverändert.
+  // Kein Faktor 2,5: die Font-Pixelhöhe enthält bereits die DPI-Skalierung.
+  // Dieselbe DPI-Basis wie im bewährten Dialog "PDF-Seiten als Bilder exportieren".
+  UiScale := Max(100, MulDiv(100, EffectiveDPI, 96));
+  M := MulDiv(8, UiScale, 100);
+  Gap := MulDiv(6, UiScale, 100);
+  StatusH := Max(MulDiv(25, UiScale, 100), Abs(CountLabel.Font.Height) + MulDiv(9, UiScale, 100));
+  FormatH := Max(MulDiv(28, UiScale, 100), Abs(ExportFormat.Font.Height) + MulDiv(11, UiScale, 100));
+  // Referenzdialog: Buttons 95 x 32 bei 96 DPI.
+  ButtonH := Max(MulDiv(32, UiScale, 100), Abs(SelectAllButton.Font.Height) + MulDiv(8, UiScale, 100));
+  StatusY := M;
+  FormatY := StatusY + StatusH + Gap;
+  ButtonY := FormatY + FormatH + Gap;
+  FooterH := ButtonY + ButtonH + M;
+
+  AllW := TextButtonWidth(SelectAllButton.Caption, MulDiv(95, UiScale, 100));
+  ClearW := TextButtonWidth(ClearButton.Caption, MulDiv(115, UiScale, 100));
+  ExportW := TextButtonWidth(ExportButton.Caption, MulDiv(100, UiScale, 100));
+  CloseW := TextButtonWidth(CloseButton.Caption, MulDiv(85, UiScale, 100));
+  AvailableW := FooterPanel.ClientWidth;
+  RightX := AvailableW - M - ExportW - Gap - CloseW;
+  // Bei schmalem Fenster die Aktionsbuttons auf eine eigene Zeile setzen.
+  if RightX < M + AllW + Gap + ClearW + Gap then
+    FooterH := FooterH + ButtonH + Gap;
+  if FooterPanel.Height <> FooterH then FooterPanel.Height := FooterH;
+
+  LeftW := Max(350, ClientWidth * 55 div 100);
+  LeftW := Min(LeftW, Max(350, ClientWidth - 250));
+  if ImageList.Width <> LeftW then ImageList.Width := LeftW;
+  ColTotal := Max(1, LeftW - 28);
+  ImageList.Columns[0].Width := ColTotal * 16 div 100;
+  ImageList.Columns[1].Width := ColTotal * 20 div 100;
+  ImageList.Columns[2].Width := ColTotal * 39 div 100;
+  ImageList.Columns[3].Width := ColTotal -
+    ImageList.Columns[0].Width - ImageList.Columns[1].Width -
+    ImageList.Columns[2].Width;
+
+  CountLabel.SetBounds(M, StatusY, Max(1, AvailableW - 2 * M), StatusH);
+  // Format-Dropdown exakt so breit wie die beiden linken Buttons zusammen.
+  ExportFormat.SetBounds(M, FormatY,
+    Min(AllW + Gap + ClearW, Max(1, AvailableW - 2 * M)), FormatH);
+
+  if RightX < M + AllW + Gap + ClearW + Gap then
+  begin
+    SelectAllButton.SetBounds(M, ButtonY, AllW, ButtonH);
+    ClearButton.SetBounds(M + AllW + Gap, ButtonY, ClearW, ButtonH);
+    ButtonY := ButtonY + ButtonH + Gap;
+  end
+  else
+  begin
+    SelectAllButton.SetBounds(M, ButtonY, AllW, ButtonH);
+    ClearButton.SetBounds(M + AllW + Gap, ButtonY, ClearW, ButtonH);
+  end;
+  RightX := AvailableW - M - ExportW - Gap - CloseW;
+  ExportButton.SetBounds(RightX, ButtonY, ExportW, ButtonH);
+  CloseButton.SetBounds(AvailableW - M - CloseW, ButtonY, CloseW, ButtonH);
+end;
+
+procedure TPDFEmbeddedImagesDialog.SelectionChanged(Sender: TObject;
+  AItem: TListItem; Selected: Boolean);
+var
+  Info: TPDFEmbeddedImageInfo;
+  B: TBitmap;
+  PageW, PageH: Single;
+  PreviewW, PreviewH: Integer;
+begin
+  if not Selected then Exit;
+  ImagePreview.Picture.Assign(nil);
+  if (AItem = nil) or (AItem.Index < 0) or
+     (AItem.Index >= ImageInfos.Count) then Exit;
+  Info := ImageInfos[AItem.Index];
+  B := TBitmap.Create;
+  try
+    // Extrem flache Bildobjekte sind oft nur einzelne Scanstreifen.
+    // In diesem Fall die zusammengesetzte PDF-Seite als Orientierung zeigen.
+    // Der eigentliche Export bleibt unverändert auf das Bildobjekt bezogen.
+    if (Info.PixelHeight > 0) and
+       (Info.PixelWidth >= Info.PixelHeight * 6) and
+       ImageCore.PageSize(Info.PageIndex, PageW, PageH) and
+       (PageW > 0) and (PageH > 0) then
+    begin
+      PreviewW := 1100;
+      PreviewH := Max(1, Round(PreviewW * PageH / PageW));
+      if PreviewH > 1600 then
+      begin
+        PreviewH := 1600;
+        PreviewW := Max(1, Round(PreviewH * PageW / PageH));
+      end;
+      ImageCore.RenderPage(Info.PageIndex, B, PreviewW, PreviewH);
+      ImagePreview.Picture.Assign(B);
+    end
+    else if ImageCore.GetEmbeddedImagePreview(Info.PageIndex,
+      Info.ObjectIndex, B) then
+      ImagePreview.Picture.Assign(B);
+  finally
+    B.Free;
+  end;
+end;
+
+procedure TPDFEmbeddedImagesDialog.ExportSelectedClick(Sender: TObject);
+var
+  Folder, TargetName, Ext, BaseName: string;
+  K, SelectedCount, ExportedCount, FailedCount, FormatIndex: Integer;
+  Info: TPDFEmbeddedImageInfo;
+  Bitmap: TBitmap;
+  Png: TPngImage;
+  Jpg: TJPEGImage;
+  GdiBitmap: TGPBitmap;
+  TiffEncoder: TGUID;
+  Saved: Boolean;
+  PageIndex, PreviewW, PreviewH: Integer;
+  PageW, PageH: Single;
+  ExportedPages: TStringList;
+begin
+  SelectedCount := 0;
+  for K := 0 to ImageList.Items.Count - 1 do
+    if ImageList.Items[K].Selected then Inc(SelectedCount);
+  if SelectedCount = 0 then
+  begin
+    PDFModernMessageDlg(ToolbarHint('Bitte zuerst mindestens ein Bild auswählen.',
+      'Please select at least one image first.'), mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  Folder := ExtractFilePath(ImageCore.FileName);
+  if not SelectDirectory(ToolbarHint('Zielordner für die Bilder wählen',
+    'Choose destination folder for images'), '', Folder) then Exit;
+  FormatIndex := ExportFormat.ItemIndex;
+  ExportedCount := 0;
+  FailedCount := 0;
+  ExportedPages := TStringList.Create;
+  try
+  Screen.Cursor := crHourGlass;
+  try
+    for K := 0 to ImageList.Items.Count - 1 do
+    begin
+      if not ImageList.Items[K].Selected then Continue;
+      Info := ImageInfos[K];
+      // Optionale Ganzseiten-Ausgabe: zusammengesetzte Scanstreifen werden
+      // durch PDFium als sichtbare Seite gerendert (inkl. sonstiger Seitenobjekte).
+      // Pro Seite nur eine Datei erzeugen, auch wenn mehrere Streifen markiert sind.
+      if FormatIndex >= 4 then
+      begin
+        PageIndex := Info.PageIndex;
+        if ExportedPages.IndexOf(IntToStr(PageIndex)) >= 0 then Continue;
+        ExportedPages.Add(IntToStr(PageIndex));
+        case FormatIndex of
+          5: Ext := '.jpg';
+          6: Ext := '.tif';
+        else Ext := '.png';
+        end;
+        TargetName := IncludeTrailingPathDelimiter(Folder) +
+          Format('Seite_%.4d_Gesamtbild', [PageIndex + 1]) + Ext;
+        if FileExists(TargetName) then
+        begin
+          Inc(FailedCount);
+          Continue;
+        end;
+        Saved := False;
+        Bitmap := TBitmap.Create;
+        try
+          if ImageCore.PageSize(PageIndex, PageW, PageH) and
+             (PageW > 0) and (PageH > 0) then
+          begin
+            // 200 DPI; begrenzen, damit große Seiten nicht den Speicher erschöpfen.
+            PreviewW := Min(12000, Max(1, Round(PageW * 200 / 72)));
+            PreviewH := Min(12000, Max(1, Round(PageH * 200 / 72)));
+            if (Int64(PreviewW) * PreviewH <= 40000000) then
+            begin
+              ImageCore.RenderPage(PageIndex, Bitmap, PreviewW, PreviewH);
+              try
+                case FormatIndex of
+                  5:
+                    begin
+                      Jpg := TJPEGImage.Create;
+                      try
+                        Jpg.Assign(Bitmap);
+                        Jpg.CompressionQuality := 95;
+                        Jpg.SaveToFile(TargetName);
+                        Saved := True;
+                      finally Jpg.Free; end;
+                    end;
+                  6:
+                    begin
+                      TiffEncoder := StringToGUID('{557CF405-1A04-11D3-9A73-0000F81EF32E}');
+                      GdiBitmap := TGPBitmap.Create(Bitmap.Handle, Bitmap.Palette);
+                      try
+                        Saved := (GdiBitmap.GetLastStatus = Ok) and
+                          (GdiBitmap.Save(TargetName, TiffEncoder) = Ok);
+                      finally GdiBitmap.Free; end;
+                    end;
+                else
+                  begin
+                    Png := TPngImage.Create;
+                    try
+                      Png.Assign(Bitmap);
+                      Png.SaveToFile(TargetName);
+                      Saved := True;
+                    finally Png.Free; end;
+                  end;
+                end;
+              except
+                Saved := False;
+              end;
+            end;
+          end;
+        finally Bitmap.Free; end;
+        if Saved then Inc(ExportedCount)
+        else
+        begin
+          Inc(FailedCount);
+          if FileExists(TargetName) then Winapi.Windows.DeleteFile(PChar(TargetName));
+        end;
+        Continue;
+      end;
+      // Der Dateiname verwendet die sichtbare Bildnummer der jeweiligen Seite.
+      BaseName := Format('Seite_%.4d_Bild_%s', [Info.PageIndex + 1,
+        ImageList.Items[K].SubItems[0]]);
+      if (FormatIndex = 0) and Info.OriginalJPEG then Ext := '.jpg'
+      else case FormatIndex of
+        2: Ext := '.jpg';
+        3: Ext := '.tif';
+      else Ext := '.png';
+      end;
+      TargetName := IncludeTrailingPathDelimiter(Folder) + BaseName + Ext;
+      // Keine vorhandenen Dateien stillschweigend überschreiben.
+      if FileExists(TargetName) then
+      begin
+        Inc(FailedCount);
+        Continue;
+      end;
+      Saved := False;
+      try
+        if (FormatIndex = 0) and Info.OriginalJPEG then
+          Saved := ImageCore.ExportEmbeddedJPEG(Info.PageIndex,
+            Info.ObjectIndex, TargetName)
+        else
+        begin
+          Bitmap := TBitmap.Create;
+          try
+            if ImageCore.GetEmbeddedImagePreview(Info.PageIndex,
+              Info.ObjectIndex, Bitmap) then
+            begin
+              case FormatIndex of
+                2:
+                  begin
+                    Jpg := TJPEGImage.Create;
+                    try
+                      Jpg.Assign(Bitmap);
+                      Jpg.CompressionQuality := 95;
+                      Jpg.SaveToFile(TargetName);
+                      Saved := True;
+                    finally Jpg.Free; end;
+                  end;
+                3:
+                  begin
+                    TiffEncoder := StringToGUID('{557CF405-1A04-11D3-9A73-0000F81EF32E}');
+                    GdiBitmap := TGPBitmap.Create(Bitmap.Handle, Bitmap.Palette);
+                    try
+                      if (GdiBitmap.GetLastStatus = Ok) and
+                         (GdiBitmap.Save(TargetName, TiffEncoder) = Ok) then
+                        Saved := True;
+                    finally GdiBitmap.Free; end;
+                  end;
+              else
+                begin
+                  Png := TPngImage.Create;
+                  try
+                    Png.Assign(Bitmap);
+                    Png.SaveToFile(TargetName);
+                    Saved := True;
+                  finally Png.Free; end;
+                end;
+              end;
+            end;
+          finally Bitmap.Free; end;
+        end;
+      except
+        Saved := False;
+      end;
+      if Saved then Inc(ExportedCount)
+      else
+      begin
+        Inc(FailedCount);
+        // Unvollständige Ausgabedateien entfernen.
+        if FileExists(TargetName) then Winapi.Windows.DeleteFile(PChar(TargetName));
+      end;
+    end;
+  finally
+    Screen.Cursor := crDefault;
+  end;
+  finally
+    ExportedPages.Free;
+  end;
+  PDFModernMessageDlg(Format(ToolbarHint(
+    '%d Bild(er) exportiert, %d übersprungen/fehlgeschlagen.',
+    '%d image(s) exported, %d skipped/failed.'),
+    [ExportedCount, FailedCount]), mtInformation, [mbOK], 0);
+end;
+
+procedure TPDFEmbeddedImagesDialog.SelectAllClick(Sender: TObject);
+var K: Integer;
+begin
+  for K := 0 to ImageList.Items.Count - 1 do
+    ImageList.Items[K].Selected := True;
+end;
+
+procedure TPDFEmbeddedImagesDialog.ClearSelectionClick(Sender: TObject);
+var K: Integer;
+begin
+  for K := 0 to ImageList.Items.Count - 1 do
+    ImageList.Items[K].Selected := False;
+  ImagePreview.Picture.Assign(nil);
+end;
+
+procedure TPDFEmbeddedImagesDialog.DialogKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    Key := 0;
+    ModalResult := mrCancel;
+  end;
+end;
+
+type
+  TGetDpiForWindow = function(hWnd: HWND): UINT; stdcall;
+procedure TFreePDF64PDFiumView.ShowEmbeddedImages(Sender: TObject);
+const MaxListedImages = 2000;
+var
+  D: TPDFEmbeddedImagesDialog;
+  L: TListView;
+  Preview: TImage;
+  InfoLabel: TLabel;
+  BottomPanel: TPanel;
+  BtnAll, BtnNone, BtnExport, BtnClose: TPDFDesignButton;
+  FormatBox: TComboBox;
+  PageImages: TArray<TPDFEmbeddedImageInfo>;
+  Info: TPDFEmbeddedImageInfo;
+  PageIndex, I, P, SavedW, SavedH: Integer;
+  SizeIni: TIniFile;
+  Item: TListItem;
+begin
+  if (FCore = nil) or (FCore.PageCount <= 0) then Exit;
+  D := TPDFEmbeddedImagesDialog.CreateNew(Self);
+  try
+    P := 96; // Fenster-/Steuerelementmaße in physischen Pixeln; keine doppelte Skalierung.
+    D.ImageCore := FCore;
+    D.ImageInfos := TList<TPDFEmbeddedImageInfo>.Create;
+    D.Caption := ToolbarHint('PDF-Bilder extrahieren', 'Extract Embedded Images');
+    D.KeyPreview := True;
+    D.OnKeyDown := D.DialogKeyDown;
+    D.Position := poScreenCenter;
+    D.BorderStyle := bsSizeable;
+    D.Scaled := False; // Bestehende Fenstergeometrie beibehalten.
+    D.Font.Name := 'Segoe UI';
+    // DPI des tatsächlichen Fensters statt CurrentPPI von CreateNew verwenden.
+    // Unter Win10/11 liefert GetDpiForWindow die DPI des zugehörigen Monitors.
+    // Gleiche DPI-Quelle und Schriftgröße wie ExportPagesAsImages.
+    D.EffectiveDPI := Max(96, CurrentPPI);
+    D.Font.Size := 10;
+    SavedW := MulDiv(1040, P, 96);
+    SavedH := MulDiv(660, P, 96);
+    SizeIni := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      SavedW := SizeIni.ReadInteger('PDFEmbeddedImages', 'ClientWidth', SavedW);
+      SavedH := SizeIni.ReadInteger('PDFEmbeddedImages', 'ClientHeight', SavedH);
+    finally
+      SizeIni.Free;
+    end;
+    D.ClientWidth := Min(Max(SavedW, MulDiv(820, P, 96)), Screen.WorkAreaWidth);
+    D.ClientHeight := Min(Max(SavedH, MulDiv(520, P, 96)), Screen.WorkAreaHeight);
+    D.Constraints.MinWidth := MulDiv(820, P, 96);
+    D.Constraints.MinHeight := MulDiv(520, P, 96);
+    BottomPanel := TPanel.Create(D);
+    BottomPanel.Parent := D;
+    BottomPanel.Align := alBottom;
+    BottomPanel.Height := MulDiv(124, D.EffectiveDPI, 96);
+    D.FooterPanel := BottomPanel;
+    BottomPanel.BevelOuter := bvNone;
+    L := TListView.Create(D);
+    L.Parent := D;
+    L.Align := alLeft;
+    L.Width := MulDiv(490, P, 96);
+    L.ViewStyle := vsReport;
+    L.ReadOnly := True;
+    L.RowSelect := True;
+    L.MultiSelect := True;
+    L.HideSelection := False;
+    L.Columns.Add.Caption := ToolbarHint('Seite', 'Page');
+    L.Columns[0].Width := 80;
+    L.Columns.Add.Caption := ToolbarHint('Bild-Nr.', 'Image No.');
+    L.Columns[1].Width := 90;
+    L.Columns.Add.Caption := ToolbarHint('Abmessungen', 'Dimensions');
+    L.Columns[2].Width := 150;
+    L.Columns.Add.Caption := ToolbarHint('Original', 'Original');
+    L.Columns[3].Width := 110;
+    Preview := TImage.Create(D);
+    Preview.Parent := D;
+    Preview.Align := alClient;
+    Preview.Center := True;
+    Preview.Proportional := True;
+    Preview.Stretch := True;
+    D.ImageList := L;
+    D.ImagePreview := Preview;
+    L.OnSelectItem := D.SelectionChanged;
+    InfoLabel := TLabel.Create(D);
+    InfoLabel.Parent := BottomPanel;
+    D.CountLabel := InfoLabel;
+    FormatBox := TComboBox.Create(D);
+    FormatBox.Parent := BottomPanel;
+    FormatBox.Style := csDropDownList;
+
+    FormatBox.Items.Add(ToolbarHint('Original (JPEG, sonst PNG)',
+      'Original (JPEG, otherwise PNG)'));
+    FormatBox.Items.Add('PNG');
+    FormatBox.Items.Add('JPEG');
+    FormatBox.Items.Add('TIFF');
+    // Für PDFs, deren Bild aus vielen Scanstreifen besteht.
+    FormatBox.Items.Add(ToolbarHint('Ganze Seite (PNG)', 'Whole page (PNG)'));
+    FormatBox.Items.Add(ToolbarHint('Ganze Seite (JPEG)', 'Whole page (JPEG)'));
+    FormatBox.Items.Add(ToolbarHint('Ganze Seite (TIFF)', 'Whole page (TIFF)'));
+    FormatBox.ItemIndex := 0;
+    D.ExportFormat := FormatBox;
+    FormatBox.Font.Assign(D.Font);
+    L.Font.Assign(D.Font);
+    InfoLabel.Font.Assign(D.Font);
+    BtnAll := TPDFDesignButton.Create(D);
+    BtnAll.Parent := BottomPanel;
+    D.SelectAllButton := BtnAll;
+    BtnAll.Caption := ToolbarHint('Alle auswählen', 'Select all');
+    BtnAll.OnClick := D.SelectAllClick;
+    BtnNone := TPDFDesignButton.Create(D);
+    BtnNone.Parent := BottomPanel;
+    D.ClearButton := BtnNone;
+    BtnNone.Caption := ToolbarHint('Auswahl aufheben', 'Clear selection');
+    BtnNone.OnClick := D.ClearSelectionClick;
+    BtnExport := TPDFDesignButton.Create(D);
+    BtnExport.Parent := BottomPanel;
+    D.ExportButton := BtnExport;
+    BtnExport.Caption := ToolbarHint('Exportieren ...', 'Export ...');
+    BtnExport.OnClick := D.ExportSelectedClick;
+    BtnClose := TPDFDesignButton.Create(D);
+    BtnClose.Parent := BottomPanel;
+    D.CloseButton := BtnClose;
+    BtnClose.Caption := ToolbarHint('Schließen', 'Close');
+    BtnClose.ModalResult := mrCancel;
+    BtnAll.Font.Assign(D.Font);
+    BtnNone.Font.Assign(D.Font);
+    BtnExport.Font.Assign(D.Font);
+    BtnClose.Font.Assign(D.Font);
+    D.LayoutControls(D);
+    D.OnResize := D.LayoutControls;
+    L.Items.BeginUpdate;
+    try
+      for PageIndex := 0 to FCore.PageCount - 1 do
+      begin
+        PageImages := FCore.GetEmbeddedImages(PageIndex);
+        for I := 0 to High(PageImages) do
+        begin
+          if D.ImageInfos.Count >= MaxListedImages then Break;
+          Info := PageImages[I];
+          D.ImageInfos.Add(Info);
+          Item := L.Items.Add;
+          Item.Caption := IntToStr(Info.PageIndex + 1);
+          Item.SubItems.Add(IntToStr(I + 1));
+          Item.SubItems.Add(Format('%d x %d', [Info.PixelWidth, Info.PixelHeight]));
+          if Info.OriginalJPEG then Item.SubItems.Add('JPEG')
+          else Item.SubItems.Add('-');
+        end;
+        if D.ImageInfos.Count >= MaxListedImages then Break;
+      end;
+    finally
+      L.Items.EndUpdate;
+    end;
+    InfoLabel.Caption := Format(ToolbarHint('%d Bildobjekte erkannt',
+      '%d image objects found'), [D.ImageInfos.Count]);
+    if D.ImageInfos.Count >= MaxListedImages then
+      InfoLabel.Caption := InfoLabel.Caption + ToolbarHint(' (Anzeigelimit erreicht)',
+        ' (display limit reached)');
+    ApplyManagedDialogPalette(D, L, FEditToggle.FDesign);
+    D.LayoutControls(D);
+    if L.Items.Count > 0 then
+    begin
+      L.Items[0].Selected := True;
+      D.SelectionChanged(L, L.Items[0], True);
+    end;
+    D.ShowModal;
+    SizeIni := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      SizeIni.WriteInteger('PDFEmbeddedImages', 'ClientWidth', D.ClientWidth);
+      SizeIni.WriteInteger('PDFEmbeddedImages', 'ClientHeight', D.ClientHeight);
+    finally
+      SizeIni.Free;
+    end;
+  finally
+    D.ImageInfos.Free;
+    D.Free;
+  end;
 end;
 
 procedure TFreePDF64PDFiumView.ExportPagesAsText(Sender: TObject);

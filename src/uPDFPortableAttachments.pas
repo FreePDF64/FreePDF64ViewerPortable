@@ -84,13 +84,141 @@ begin
 end;
 
 
-function PDFTabsQpdfExe: string; forward;
 function FPDF_LoadDocument(FileName, Password: PAnsiChar): Pointer; stdcall; external 'pdfium.dll';
 procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';
 function FPDFDoc_GetAttachmentCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFDoc_GetAttachment(Doc: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
 function FPDFAttachment_GetFile(Attachment, Buffer: Pointer; BufferLen: Cardinal;
   var OutBufLen: Cardinal): LongBool; stdcall; external 'pdfium.dll';
+
+function FPDFAttachment_GetName(Attachment, Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
+function FPDFDoc_AddAttachment(Doc: Pointer; Name: PWideChar): Pointer; stdcall; external 'pdfium.dll';
+function FPDFDoc_DeleteAttachment(Doc: Pointer; Index: Integer): LongBool; stdcall; external 'pdfium.dll';
+function FPDFAttachment_SetFile(Attachment, Doc, Buffer: Pointer; Len: Cardinal): LongBool; stdcall; external 'pdfium.dll';
+
+type
+  PAttachmentWriter = ^TAttachmentWriter;
+  TAttachmentWriteBlock = function(Writer: PAttachmentWriter; Data: Pointer; Size: Cardinal): Integer; cdecl;
+  TAttachmentWriter = record
+    Version: Integer;
+    WriteBlock: TAttachmentWriteBlock;
+    Stream: TStream;
+  end;
+
+function FPDF_SaveAsCopy(Doc: Pointer; Writer: PAttachmentWriter; Flags: Integer): Integer; stdcall; external 'pdfium.dll';
+
+function AttachmentWriteBlock(Writer: PAttachmentWriter; Data: Pointer; Size: Cardinal): Integer; cdecl;
+begin
+  Result := 0;
+  try
+    if (Writer <> nil) and (Writer^.Stream <> nil) and
+       (Writer^.Stream.Write(Data^, Size) = Integer(Size)) then Result := 1;
+  except
+    Result := 0;
+  end;
+end;
+
+function PDFiumAttachmentNames(const SourcePDF: string; Names: TStrings): Boolean;
+var
+  Doc, Attachment: Pointer;
+  PathUTF8: UTF8String;
+  I: Integer;
+  Needed: Cardinal;
+  NameBuffer: TBytes;
+  Name: string;
+begin
+  Result := False;
+  Names.Clear;
+  PathUTF8 := UTF8Encode(SourcePDF);
+  Doc := FPDF_LoadDocument(PAnsiChar(PathUTF8), nil);
+  if Doc = nil then Exit;
+  try
+    for I := 0 to FPDFDoc_GetAttachmentCount(Doc) - 1 do
+    begin
+      Attachment := FPDFDoc_GetAttachment(Doc, I);
+      if Attachment = nil then Exit;
+      Needed := FPDFAttachment_GetName(Attachment, nil, 0);
+      if (Needed < 2) or (Needed > 65536) or (Needed mod 2 <> 0) then Exit;
+      SetLength(NameBuffer, Needed);
+      if FPDFAttachment_GetName(Attachment, @NameBuffer[0], Needed) <> Needed then Exit;
+      Name := PWideChar(@NameBuffer[0]);
+      Names.Add(Name);
+    end;
+    Result := True;
+  finally
+    FPDF_CloseDocument(Doc);
+  end;
+end;
+
+function PDFiumChangeAttachments(const SourcePDF, TargetPDF: string;
+  FilesToAdd: TStrings; IndicesToDelete: TList): Boolean;
+var
+  Doc, Attachment, CheckDoc: Pointer;
+  PathUTF8, CheckUTF8: UTF8String;
+  I, Index, Expected: Integer;
+  Data: TBytes;
+  FS: TFileStream;
+  W: TAttachmentWriter;
+  Saved: Boolean;
+begin
+  Result := False;
+  PathUTF8 := UTF8Encode(SourcePDF);
+  Doc := FPDF_LoadDocument(PAnsiChar(PathUTF8), nil);
+  if Doc = nil then Exit;
+  try
+    Expected := FPDFDoc_GetAttachmentCount(Doc);
+    if IndicesToDelete <> nil then
+      for I := IndicesToDelete.Count - 1 downto 0 do
+      begin
+        Index := NativeInt(IndicesToDelete[I]);
+        if (Index < 0) or (Index >= FPDFDoc_GetAttachmentCount(Doc)) or
+           not FPDFDoc_DeleteAttachment(Doc, Index) then Exit;
+        Dec(Expected);
+      end;
+    if FilesToAdd <> nil then
+      for I := 0 to FilesToAdd.Count - 1 do
+      begin
+        FS := TFileStream.Create(FilesToAdd[I], fmOpenRead or fmShareDenyWrite);
+        try
+          if FS.Size > High(Integer) then Exit;
+          SetLength(Data, Integer(FS.Size));
+          if Length(Data) > 0 then FS.ReadBuffer(Data[0], Length(Data));
+        finally
+          FS.Free;
+        end;
+        Attachment := FPDFDoc_AddAttachment(Doc, PWideChar(ExtractFileName(FilesToAdd[I])));
+        if Attachment = nil then Exit;
+        if Length(Data) > 0 then
+          Saved := FPDFAttachment_SetFile(Attachment, Doc, @Data[0], Cardinal(Length(Data)))
+        else
+          Saved := FPDFAttachment_SetFile(Attachment, Doc, nil, 0);
+        if not Saved then Exit;
+        Inc(Expected);
+      end;
+    FillChar(W, SizeOf(W), 0);
+    W.Version := 1;
+    W.WriteBlock := AttachmentWriteBlock;
+    W.Stream := TFileStream.Create(TargetPDF, fmCreate);
+    try
+      Saved := FPDF_SaveAsCopy(Doc, @W, 0) <> 0;
+    finally
+      W.Stream.Free;
+    end;
+    if not Saved then Exit;
+  finally
+    FPDF_CloseDocument(Doc);
+  end;
+  CheckUTF8 := UTF8Encode(TargetPDF);
+  CheckDoc := FPDF_LoadDocument(PAnsiChar(CheckUTF8), nil);
+  if CheckDoc = nil then Exit;
+  try
+    Result := FPDFDoc_GetAttachmentCount(CheckDoc) = Expected;
+  finally
+    FPDF_CloseDocument(CheckDoc);
+  end;
+  if not Result then Winapi.Windows.DeleteFile(PChar(TargetPDF));
+end;
+
 
 function PDFiumExtractAttachment(const SourcePDF: string; Index: Integer;
   const TargetFile: string): Boolean;
@@ -573,23 +701,13 @@ procedure TPDFAttachmentNoticeForm.AddButtonClick(Sender: TObject);
 var
   OpenDialog: TOpenDialog;
   SaveDialog: TSaveDialog;
-  QpdfExe, CmdLine, NewPDF, AttachmentFile: string;
-  ProcID: Cardinal;
-  ExitCode: Longword;
+  NewPDF: string;
   I: Integer;
   SelectedFiles: TStringList;
 begin
   if (FSourcePDF = '') or not FileExists(FSourcePDF) then
   begin
     PDFModernMessageDlg(Tr('Die zugehörige PDF-Datei wurde nicht gefunden.'),
-      mtError, [mbOK], 0);
-    Exit;
-  end;
-
-  QpdfExe := PDFTabsQpdfExe;
-  if (QpdfExe = '') or not FileExists(QpdfExe) then
-  begin
-    PDFModernMessageDlg(Tr('QPDF wurde nicht gefunden. Bitte prüfen Sie den QPDF-Pfad in den Einstellungen.'),
       mtError, [mbOK], 0);
     Exit;
   end;
@@ -634,24 +752,12 @@ begin
       Exit;
     end;
 
-    // Alle Anlagen in einem QPDF-Aufruf einbetten und die PDF nur einmal speichern.
-    CmdLine := '"' + QpdfExe + '"';
-    for I := 0 to SelectedFiles.Count - 1 do
+    if not PDFiumChangeAttachments(FSourcePDF, NewPDF, SelectedFiles, nil) then
     begin
-      AttachmentFile := SelectedFiles[I];
-      CmdLine := CmdLine + ' --add-attachment "' + AttachmentFile + '" --';
-    end;
-    CmdLine := CmdLine + ' -- "' + FSourcePDF + '" "' + NewPDF + '"';
-
-    ProcID := 0;
-    ExitCode := RunProcess(CmdLine, SW_HIDE, True, @ProcID);
-    if ExitCode <> 0 then
-    begin
-      PDFModernMessageDlg(Tr('Die Anlagen konnten nicht hinzugefügt werden. QPDF meldete Fehlercode ') +
-        IntToStr(ExitCode) + '.', mtError, [mbOK], 0);
+      PDFModernMessageDlg(Tr('Die Anlagen konnten nicht hinzugefügt werden.'),
+        mtError, [mbOK], 0);
       Exit;
     end;
-
 
     FSourcePDF := NewPDF;
     for I := 0 to SelectedFiles.Count - 1 do
@@ -687,10 +793,9 @@ end;
 
 procedure TPDFAttachmentNoticeForm.RemoveButtonClick(Sender: TObject);
 var
-  QpdfExe, CmdLine, NewPDF, AttachmentKey: string;
+  NewPDF: string;
+  DeleteIndices: TList;
   SaveDialog: TSaveDialog;
-  ProcID: Cardinal;
-  ExitCode: Longword;
   I, CountSelected: Integer;
 begin
   CountSelected := 0;
@@ -704,13 +809,6 @@ begin
   if (FSourcePDF = '') or not FileExists(FSourcePDF) then
   begin
     PDFModernMessageDlg(Tr('Die zugehörige PDF-Datei wurde nicht gefunden.'), mtError, [mbOK], 0);
-    Exit;
-  end;
-  QpdfExe := PDFTabsQpdfExe;
-  if (QpdfExe = '') or not FileExists(QpdfExe) then
-  begin
-    PDFModernMessageDlg(Tr('QPDF wurde nicht gefunden. Bitte prüfen Sie den QPDF-Pfad in den Einstellungen.'),
-      mtError, [mbOK], 0);
     Exit;
   end;
   if PDFModernMessageDlg(IntToStr(CountSelected) + Tr(' markierte Anlage(n) aus der PDF entfernen?'),
@@ -738,22 +836,18 @@ begin
     Exit;
   end;
 
-  CmdLine := '"' + QpdfExe + '"';
-  for I := 0 to FAttachmentList.Items.Count - 1 do
-    if FAttachmentList.Selected[I] then
+  DeleteIndices := TList.Create;
+  try
+    for I := 0 to FAttachmentList.Items.Count - 1 do
+      if FAttachmentList.Selected[I] then DeleteIndices.Add(Pointer(NativeInt(I)));
+    if not PDFiumChangeAttachments(FSourcePDF, NewPDF, nil, DeleteIndices) then
     begin
-      AttachmentKey := FAttachmentList.Items[I];
-      CmdLine := CmdLine + ' --remove-attachment="' +
-        StringReplace(AttachmentKey, '"', '\"', [rfReplaceAll]) + '"';
+      PDFModernMessageDlg(Tr('Anlagen konnten nicht entfernt werden.'),
+        mtError, [mbOK], 0);
+      Exit;
     end;
-  CmdLine := CmdLine + ' -- "' + FSourcePDF + '" "' + NewPDF + '"';
-  ProcID := 0;
-  ExitCode := RunProcess(CmdLine, SW_HIDE, True, @ProcID);
-  if ExitCode <> 0 then
-  begin
-    PDFModernMessageDlg(Tr('Anlagen konnten nicht entfernt werden. QPDF-Fehlercode ') +
-      IntToStr(ExitCode) + '.', mtError, [mbOK], 0);
-    Exit;
+  finally
+    DeleteIndices.Free;
   end;
 
   FSourcePDF := NewPDF;
@@ -762,14 +856,6 @@ begin
   DisplaySavedPDF(NewPDF);
   PDFModernMessageDlg(Tr('PDF mit entfernten Anlagen gespeichert:') +
     sLineBreak + sLineBreak + ExtractFilePath(NewPDF) + ExtractFileName(NewPDF), mtInformation, [mbOK], 0);
-end;
-
-function PDFTabsQpdfExe: string;
-begin
-  Result := '';
-  if (Result = '') or not FileExists(Result) then
-    Result := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) +
-      'qpdf\bin\qpdf.exe';
 end;
 
 procedure ShowPDFEmbeddedAttachmentsPrepared(const PDFFileName: string;
@@ -786,70 +872,21 @@ begin
 
   BrowserHandle := APDF.Handle;
   FileNameCopy := AFileName;
-  // Ausschliesslich QPDF und JSON-Auswertung im Worker; keine VCL-Zugriffe.
+  // PDFium-Anlagenliste im Worker ermitteln, ohne VCL-Zugriffe.
   TThread.CreateAnonymousThread(
     procedure
     var
       Names: TStringList;
-      QpdfExe, TempFile, CmdLine, Name: string;
-      TempPath: array[0..MAX_PATH] of Char;
-      TempName: array[0..MAX_PATH] of Char;
-      JsonText: TStringList;
-      Root, Value, Item, Preferred: TJSONValue;
-      Pair: TJSONPair;
-      PID: Cardinal;
     begin
       Names := TStringList.Create;
-      JsonText := TStringList.Create;
-      TempFile := '';
-      Root := nil;
       try
-        try
-          QpdfExe := PDFTabsQpdfExe;
-          if FileExists(QpdfExe) and
-             (GetTempPath(MAX_PATH, TempPath) <> 0) and
-             (GetTempFileName(TempPath, 'PFA', 0, TempName) <> 0) then
-          begin
-            TempFile := string(PChar(@TempName[0]));
-            CmdLine := 'cmd.exe /C ""' + QpdfExe +
-              '" --json "' + FileNameCopy + '" > "' + TempFile + '" 2>nul"';
-            PID := 0;
-            RunProcess(CmdLine, SW_HIDE, True, @PID);
-            if FileExists(TempFile) then
-            begin
-              JsonText.LoadFromFile(TempFile, TEncoding.UTF8);
-              Root := TJSONObject.ParseJSONValue(JsonText.Text);
-              if Root is TJSONObject then
-              begin
-                Value := TJSONObject(Root).GetValue('attachments');
-                if Value is TJSONObject then
-                  for Pair in TJSONObject(Value) do
-                  begin
-                    Name := Pair.JsonString.Value;
-                    Item := Pair.JsonValue;
-                    if Item is TJSONObject then
-                    begin
-                      Preferred := TJSONObject(Item).GetValue('preferredname');
-                      if (Preferred is TJSONString) and
-                         (Trim(Preferred.Value) <> '') then
-                        Name := Preferred.Value;
-                    end;
-                    if Trim(Name) <> '' then Names.Add(Name);
-                  end;
-              end;
-            end;
-          end;
-        except
-          Names.Clear;
-        end;
-      finally
-        Root.Free;
-        JsonText.Free;
-        if (TempFile <> '') and FileExists(TempFile) then DeleteFile(TempFile);
+        PDFiumAttachmentNames(FileNameCopy, Names);
+      except
+        Names.Clear;
       end;
       // Kein APDF-Objekt im Callback festhalten: Fenster kann inzwischen
       // geschlossen sein. Handle und Dateiname werden erneut geprueft.
-      TThread.Queue(nil,
+      TThread.Queue(nil, TThreadProcedure(
         procedure
         var
           Ctrl: TWinControl;
@@ -867,11 +904,11 @@ begin
           finally
             Names.Free;
           end;
-        end);
+        end));
     end).Start;
 end;
 
-// Prüft eine PDF-Datei mit QPDF auf eingebettete Anlagen und zeigt
+// Prüft eine PDF-Datei mit PDFium auf eingebettete Anlagen und zeigt
 // deren Namen in einem separaten, nicht-modalen Fenster an.
 // Die PDF-Datei kann parallel im PDFForm betrachtet werden.
 procedure ShowPDFEmbeddedAttachments(
@@ -889,108 +926,25 @@ procedure ShowPDFEmbeddedAttachmentsPrepared(
   AttachmentsButton: TBitBtn;
   PreparedNames: TStrings);
 var
-  OldExStyle: Longint;
-  QpdfExe, TempFile, CmdLine, AttachmentName: string;
-  TempPath: array[0..MAX_PATH] of Char;
-  TempName: array[0..MAX_PATH] of Char;
-  ProcID: Cardinal;
-  ExitCode: Longword;
-  JsonText, AttachmentNames: TStringList;
-  JsonValue, AttachmentsValue, ItemValue,
-    PreferredNameValue: TJSONValue;
-  AttachmentsObject: TJSONObject;
-  Pair: TJSONPair;
+  AttachmentNames: TStringList;
   NoticeForm: TPDFAttachmentNoticeForm;
   SavedLeft, SavedTop: Integer;
+  OldExStyle: Longint;
 begin
   // Nur bei einer existierenden PDF fortfahren.
   if (ExtractFileExt(PDFFileName).ToLower <> '.pdf') or
      not FileExists(PDFFileName) then
     Exit;
 
-  JsonText := TStringList.Create;
   AttachmentNames := TStringList.Create;
-  JsonValue := nil;
-  TempFile := '';
-  ExitCode := 0;
   NoticeForm := nil;
-
   try
-    // Anlageninformationen nach Möglichkeit mit QPDF auslesen.
-    // Fehler beim Auslesen verhindern nicht die Anzeige des Formulars.
     if PreparedNames <> nil then
-      AttachmentNames.Assign(PreparedNames);
-    QpdfExe := PDFTabsQpdfExe;
+      AttachmentNames.Assign(PreparedNames)
+    else
+      PDFiumAttachmentNames(PDFFileName, AttachmentNames);
 
-    if (PreparedNames = nil) and (QpdfExe <> '') and FileExists(QpdfExe) then
-    begin
-      if GetTempPath(MAX_PATH, TempPath) <> 0 then
-      begin
-        if GetTempFileName(TempPath, 'PFA', 0, TempName) <> 0 then
-        begin
-          TempFile := string(PChar(@TempName[0]));
-
-          try
-            CmdLine := 'cmd.exe /C ""' + QpdfExe +
-              '" --json "' + PDFFileName +
-              '" > "' + TempFile + '" 2>nul"';
-
-            ProcID := 0;
-            ExitCode := RunProcess(
-              CmdLine, SW_HIDE, True, @ProcID);
-
-            // QPDF kann bei Warnungen einen ExitCode ungleich 0 liefern,
-            // obwohl die JSON-Ausgabe gültig ist. Daher die Datei auswerten,
-            // sobald sie nicht leer ist.
-            if FileExists(TempFile) then
-            begin
-              JsonText.LoadFromFile(TempFile, TEncoding.UTF8);
-              JsonValue := TJSONObject.ParseJSONValue(JsonText.Text);
-
-              if JsonValue is TJSONObject then
-              begin
-                AttachmentsValue :=
-                  TJSONObject(JsonValue).GetValue('attachments');
-
-                if AttachmentsValue is TJSONObject then
-                begin
-                  AttachmentsObject := TJSONObject(AttachmentsValue);
-                  for Pair in AttachmentsObject do
-                  begin
-                    AttachmentName := Pair.JsonString.Value;
-                    ItemValue := Pair.JsonValue;
-
-                    if ItemValue is TJSONObject then
-                    begin
-                      PreferredNameValue :=
-                        TJSONObject(ItemValue).GetValue('preferredname');
-                      if (PreferredNameValue is TJSONString) and
-                         (Trim(PreferredNameValue.Value) <> '') then
-                        AttachmentName := PreferredNameValue.Value;
-                    end;
-
-                    if Trim(AttachmentName) <> '' then
-                      AttachmentNames.Add(AttachmentName);
-                  end;
-                end;
-              end;
-            end;
-          except
-            // Fehler beim Lesen oder Parsen der Metadaten ignorieren.
-            // Das Formular wird anschließend mit einer leeren Liste
-            // erstellt, sodass Anlagen hinzugefügt werden können.
-            AttachmentNames.Clear;
-          end;
-        end;
-      end;
-    end;
-
-    // Eine PDF ohne eingebettete Anlagen ist kein Fehler.
-    // qpdf kann auch bei einer gueltigen PDF eine leere Anlagenliste liefern.
-    // Deshalb hier keine Warnung anzeigen; das Anlagenfenster bleibt
-    // zum Hinzufuegen neuer Anlagen verfuegbar.
-
-    // QPDF-Ergebnis nach Abschluss der asynchronen Anlagenerkennung
+    // PDFium-Ergebnis nach Abschluss der asynchronen Anlagenerkennung
     // an den PDF-Tab melden. Nur hier steht die tatsaechliche Liste fest.
     if PDFForm is TPDFBrowserForm then
       TPDFBrowserForm(PDFForm).SetAttachmentIndicator(AttachmentNames.Count > 0);
@@ -1099,12 +1053,7 @@ begin
     end;
 
   finally
-    JsonValue.Free;
     AttachmentNames.Free;
-    JsonText.Free;
-
-    if (TempFile <> '') and FileExists(TempFile) then
-      DeleteFile(TempFile);
   end;
 end;
 

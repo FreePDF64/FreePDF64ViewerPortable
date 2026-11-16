@@ -3200,7 +3200,6 @@ begin
           'are provided in the accompanying PDFium subfolder (LICENSE file and licenses folder).' + sLineBreak +
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
-          'Additional tool: QPDF (subject to its own license).' + sLineBreak +
           'FreePDF64-Viewer Portable is not an official PDFium, V8 or Google product.');
         AddSection('Settings file',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
@@ -3225,7 +3224,6 @@ begin
           'Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner PDFium (Datei LICENSE und Ordner licenses).' + sLineBreak +
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
-          'Weiteres Werkzeug: QPDF (unter eigener Lizenz).' + sLineBreak +
           'FreePDF64-Viewer Portable ist kein offizielles Produkt von PDFium, V8 oder Google.');
         AddSection('Einstellungsdatei',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
@@ -3514,6 +3512,13 @@ begin
       AddSection('Document information and tools', '');
       AddSection('Attachments and document properties',
         'PDF attachments are files embedded in a PDF, such as invoices, spreadsheets or supplementary documents. This lets related files be shared and archived together. A small asterisk (*) on the paperclip indicates that the currently displayed PDF contains embedded attachments. Without an asterisk, no embedded attachments have been detected. The tooltip always reads “Show PDF attachments” regardless of whether attachments are available. Click the paperclip to show or hide the attachment list and view or extract embedded files. Document properties provide information about the PDF and its security settings.');
+      AddSection('Extract embedded PDF images',
+        'Choose “Extract PDF images...” to list image objects embedded in the PDF, including their page number, image number, pixel dimensions and original JPEG information when available. '
+        + 'Select an image to see its preview; use Ctrl for multiple selection or the Select all and Clear selection buttons. '
+        + 'Export selected image objects as original data where supported (JPEG, otherwise PNG), or convert them to PNG, JPEG or TIFF. '
+        + 'The Entire page (PNG/JPEG/TIFF) options render complete PDF pages, including all visible content, rather than extracting only individual embedded image objects. '
+        + 'Some PDFs store one visible picture as multiple horizontal image strips. The preview may display the complete assembled page, while individual-image export still saves the separate strips. '
+        + 'Choose Entire page to save the complete appearance. The dialog remembers its window size in FreePDFViewer.ini and closes with Esc.');
       AddSection('Display and Logging', '');
       AddSection('4K and high-DPI dialogs',
         'Global PDF search and saved workspace management use DPI-aware spacing, line heights and buttons. '
@@ -3872,6 +3877,13 @@ begin
         'Ein kleines Sternchen (*) an der Büroklammer zeigt an, dass die aktuell angezeigte PDF eingebettete Anlagen enthält. Ohne Sternchen wurden keine eingebetteten Anlagen erkannt. ' +
         'Der Hinweistext lautet unabhängig vom Vorhandensein von Anlagen immer „PDF-Anlagen anzeigen“. Mit einem Klick auf die Büroklammer können Sie die Anlagenliste ein- oder ausblenden, eingebettete Dateien anzeigen und bei Bedarf extrahieren. ' +
         'Die Dokumenteigenschaften informieren unter anderem über das PDF und seine Sicherheitseinstellungen.');
+      AddSection('Eingebettete PDF-Bilder extrahieren',
+        'Über „PDF-Bilder extrahieren ...“ werden eingebettete Bildobjekte mit Seitenzahl, Bildnummer, Pixelabmessungen und gegebenenfalls erkanntem JPEG-Originalformat aufgelistet. '
+        + 'Ein Klick zeigt die Bildvorschau. Mit Strg können mehrere Bilder markiert werden; außerdem stehen „Alle auswählen“ und „Auswahl aufheben“ zur Verfügung. '
+        + 'Ausgewählte Bildobjekte lassen sich möglichst im Originalformat (JPEG, andernfalls PNG) oder als PNG, JPEG und TIFF exportieren. '
+        + 'Die Optionen „Ganze Seite (PNG/JPEG/TIFF)“ exportieren die vollständig gerenderte PDF-Seite einschließlich aller sichtbaren Inhalte, nicht nur die einzelnen eingebetteten Bilder. '
+        + 'Manche PDFs speichern ein sichtbares Bild als mehrere waagerechte Bildstreifen. Die Vorschau kann dann das vollständige Seitenmotiv zeigen, während der Export einzelner Bilder weiterhin die getrennten Streifen speichert. '
+        + 'Wählen Sie „Ganze Seite“, um die vollständige Darstellung zu speichern. Die Fenstergröße wird in FreePDFViewer.ini gespeichert; mit Esc schließen Sie das Fenster.');
       AddSection('Darstellung und Protokollierung', '');
       AddSection('4K- und High-DPI-Dialoge',
         'Die globale PDF-Suche und die Verwaltung gespeicherter Arbeitsbereiche verwenden ' +

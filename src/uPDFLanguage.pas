@@ -399,11 +399,9 @@ begin
   AddPair('Die zugehörige PDF-Datei wurde nicht gefunden.', 'The associated PDF file was not found.');
   AddPair('Zielordner für markierte PDF-Anlagen wählen', 'Select destination folder for selected PDF attachments');
   AddPair('Überschreiben?', 'Overwrite?');
-  AddPair('QPDF wurde nicht gefunden. Bitte prüfen Sie den QPDF-Pfad in den Einstellungen.', 'QPDF was not found. Check the QPDF path in settings.');
   AddPair('Dateien als PDF-Anlagen auswählen', 'Select files to attach to PDF');
   AddPair('PDF mit zusätzlichen Anlagen speichern', 'Save PDF with additional attachments');
   AddPair('Bitte einen anderen Dateinamen als die Ausgangs-PDF wählen.', 'Please choose a different filename from the source PDF.');
-  AddPair('Die Anlagen konnten nicht hinzugefügt werden. QPDF meldete Fehlercode ', 'Attachments could not be added. QPDF error code ');
   AddPair('Die Quelldatei darf nicht überschrieben werden.', 'The source file must not be overwritten.');
   AddPair('Alle geöffneten PDFs nach dem eingegebenen Text durchsuchen', 'Search all open PDFs for the entered text');
   AddPair('Originalgröße (100 %)', 'Actual size (100%)');
@@ -573,7 +571,6 @@ begin
   AddPair('Datei existiert bereits:', 'File already exists:');
   AddPair('Fehler beim Extrahieren von ', 'Error extracting ');
   AddPair(' markierte Anlage(n) aus der PDF entfernen?', ' selected attachment(s) from the PDF?');
-  AddPair('Anlagen konnten nicht entfernt werden. QPDF-Fehlercode ', 'Could not remove attachments. QPDF error code ');
   AddPair('PDF mit entfernten Anlagen gespeichert:', 'PDF saved with attachments removed:');
   AddPair('Die Registrierung des PDF-Viewers ist fehlgeschlagen:', 'Failed to register the PDF viewer:');
   AddPair('Der Windows-Autostart konnte nicht geändert werden:', 'Could not change Windows startup settings:');

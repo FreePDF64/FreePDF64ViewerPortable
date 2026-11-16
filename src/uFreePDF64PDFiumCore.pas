@@ -69,6 +69,14 @@ type
   TPDFQuadPoints = packed record
     X1, Y1, X2, Y2, X3, Y3, X4, Y4: Single;
   end;
+  // Metadaten eines eingebetteten PDF-Bildobjekts (0-basierte Indizes).
+  TPDFEmbeddedImageInfo = record
+    PageIndex: Integer;
+    ObjectIndex: Integer;
+    PixelWidth: Cardinal;
+    PixelHeight: Cardinal;
+    OriginalJPEG: Boolean;
+  end;
   TPDFMeasureAnnotation = record
     PageIndex: Integer;
     X1, Y1, X2, Y2: Double;
@@ -280,6 +288,12 @@ type
     function GetMeasurementComments(APageIndex: Integer): TArray<string>;
     procedure SaveAsWithMeasurements(const AFileName: string;
       const AMeasurements: TArray<TPDFMeasureAnnotation>);
+    // Phase 3.2.4-01: Nur lesender Zugriff, keine PDF-Aenderungen.
+    function GetEmbeddedImages(APageIndex: Integer): TArray<TPDFEmbeddedImageInfo>;
+    function GetEmbeddedImagePreview(APageIndex, AObjectIndex: Integer;
+      ABitmap: TBitmap): Boolean;
+    function ExportEmbeddedJPEG(APageIndex, AObjectIndex: Integer;
+      const ATargetFile: string): Boolean;
     procedure ExportPages(const AVisiblePages: TArray<Integer>; const ATargetFile: string);
     procedure DeletePages(const APageIndices: TArray<Integer>);
     procedure ImportPDFPages(const AFileName: string; AVisibleIndex: Integer);
@@ -488,6 +502,11 @@ function FPDFPage_CountObjects(Page: Pointer): Integer; stdcall; external 'pdfiu
 function FPDFPage_GetObject(Page: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
 function FPDFPageObj_GetBounds(PageObject: Pointer; var Left, Bottom, Right, Top: Single): Integer; stdcall; external 'pdfium.dll';
 function FPDFPageObj_GetType(PageObject: Pointer): Integer; stdcall; external 'pdfium.dll';
+// PDFium public API: ImageObject = 3. Die Daten sind nicht immer JPEG!
+function FPDFImageObj_GetImagePixelSize(ImageObject: Pointer;
+  var Width, Height: Cardinal): Integer; stdcall; external 'pdfium.dll';
+function FPDFImageObj_GetImageDataRaw(ImageObject: Pointer;
+  Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
 function FPDFPage_GenerateContent(Page: Pointer): Integer; stdcall; external 'pdfium.dll';
 procedure FPDFPageObj_Destroy(PageObject: Pointer); stdcall; external 'pdfium.dll';
 procedure FPDF_InitLibrary; stdcall; external 'pdfium.dll';
@@ -499,6 +518,14 @@ function FPDF_GetDocPermissions(Doc: Pointer): NativeUInt; stdcall; external 'pd
 procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';
 function FPDF_GetPageCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
 function FPDFDoc_GetAttachmentCount(Doc: Pointer): Integer; stdcall; external 'pdfium.dll';
+
+function FPDFDoc_GetAttachment(Doc: Pointer; Index: Integer): Pointer; stdcall; external 'pdfium.dll';
+function FPDFAttachment_GetName(Attachment, Buffer: Pointer; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
+function FPDFAttachment_GetFile(Attachment, Buffer: Pointer; BufferLen: Cardinal;
+  var OutBufLen: Cardinal): LongBool; stdcall; external 'pdfium.dll';
+function FPDFDoc_AddAttachment(Doc: Pointer; Name: PWideChar): Pointer; stdcall; external 'pdfium.dll';
+function FPDFAttachment_SetFile(Attachment, Doc, Buffer: Pointer; Len: Cardinal): LongBool; stdcall; external 'pdfium.dll';
+
 function FPDF_ImportPages(DestDoc, SrcDoc: Pointer; PageRange: PAnsiChar; Index: Integer): Integer; stdcall; external 'pdfium.dll';
 function FPDF_CreateNewDocument: Pointer; stdcall; external 'pdfium.dll';
 function FPDFPage_New(Document: Pointer; PageIndex: Integer; Width, Height: Double): Pointer; stdcall; external 'pdfium.dll';
@@ -2079,42 +2106,160 @@ begin
     if FPageOrder[I] = APhysical then Exit(I);
 end;
 
+// Überträgt eingebettete Dateien einschließlich ihrer Namen und Nutzdaten.
+// Dokumentweite Strukturen wie Formulare/JavaScript bleiben separat gesperrt.
+procedure CopyOrderedPDFAttachments(SourceDoc, DestDoc: Pointer);
+var
+  I: Integer;
+  SourceAttachment, DestAttachment: Pointer;
+  NameSize, DataSize, ActualSize: Cardinal;
+  NameData, FileData: TBytes;
+  AttachmentName: string;
+begin
+  for I := 0 to FPDFDoc_GetAttachmentCount(SourceDoc) - 1 do
+  begin
+    SourceAttachment := FPDFDoc_GetAttachment(SourceDoc, I);
+    if SourceAttachment = nil then
+      raise EPDFiumViewer.CreateFmt('PDF-Anlage %d konnte nicht gelesen werden.', [I + 1]);
+    NameSize := FPDFAttachment_GetName(SourceAttachment, nil, 0);
+    if (NameSize < 2) or (NameSize > 65536) or ((NameSize mod 2) <> 0) then
+      raise EPDFiumViewer.Create('Ungültiger Dateiname einer PDF-Anlage.');
+    SetLength(NameData, NameSize);
+    if FPDFAttachment_GetName(SourceAttachment, @NameData[0], NameSize) <> NameSize then
+      raise EPDFiumViewer.Create('Name einer PDF-Anlage konnte nicht gelesen werden.');
+    AttachmentName := PWideChar(@NameData[0]);
+    DataSize := 0;
+    if not FPDFAttachment_GetFile(SourceAttachment, nil, 0, DataSize) then
+      raise EPDFiumViewer.CreateFmt('PDF-Anlage %s konnte nicht gelesen werden.', [AttachmentName]);
+    // Bewusst begrenzen, um bei sehr großen Anhängen Speicherüberlauf zu vermeiden.
+    if DataSize > 512 * 1024 * 1024 then
+      raise EPDFiumViewer.CreateFmt('PDF-Anlage %s ist zu groß.', [AttachmentName]);
+    SetLength(FileData, Integer(DataSize));
+    if DataSize > 0 then
+    begin
+      ActualSize := 0;
+      if not FPDFAttachment_GetFile(SourceAttachment, @FileData[0], DataSize, ActualSize) or
+         (ActualSize <> DataSize) then
+        raise EPDFiumViewer.CreateFmt('PDF-Anlage %s konnte nicht vollständig gelesen werden.', [AttachmentName]);
+    end;
+    DestAttachment := FPDFDoc_AddAttachment(DestDoc, PWideChar(AttachmentName));
+    if DestAttachment = nil then
+      raise EPDFiumViewer.CreateFmt('PDF-Anlage %s konnte nicht übernommen werden.', [AttachmentName]);
+    if DataSize = 0 then
+    begin
+      if not FPDFAttachment_SetFile(DestAttachment, DestDoc, nil, 0) then
+        raise EPDFiumViewer.CreateFmt('Leere PDF-Anlage %s konnte nicht übernommen werden.', [AttachmentName]);
+    end
+    else if not FPDFAttachment_SetFile(DestAttachment, DestDoc, @FileData[0], DataSize) then
+      raise EPDFiumViewer.CreateFmt('PDF-Anlage %s konnte nicht übernommen werden.', [AttachmentName]);
+  end;
+end;
+
+procedure VerifyOrderedPDFAttachments(SourceDoc, CheckDoc: Pointer);
+var
+  I: Integer;
+  A, B: Pointer;
+  NA, NB, DA, DB, Actual: Cardinal;
+  NameA, NameB, DataA, DataB: TBytes;
+begin
+  for I := 0 to FPDFDoc_GetAttachmentCount(SourceDoc) - 1 do
+  begin
+    A := FPDFDoc_GetAttachment(SourceDoc, I);
+    B := FPDFDoc_GetAttachment(CheckDoc, I);
+    if (A = nil) or (B = nil) then
+      raise EPDFiumViewer.Create('PDF-Anlage fehlt nach dem Speichern.');
+    NA := FPDFAttachment_GetName(A, nil, 0);
+    NB := FPDFAttachment_GetName(B, nil, 0);
+    if (NA <> NB) or (NA < 2) or (NA > 65536) then
+      raise EPDFiumViewer.Create('PDF-Anlagenname stimmt nicht überein.');
+    SetLength(NameA, NA); SetLength(NameB, NB);
+    if (FPDFAttachment_GetName(A, @NameA[0], NA) <> NA) or
+       (FPDFAttachment_GetName(B, @NameB[0], NB) <> NB) or
+       not CompareMem(@NameA[0], @NameB[0], NA) then
+      raise EPDFiumViewer.Create('PDF-Anlagenname wurde verändert.');
+    DA := 0; DB := 0;
+    if not FPDFAttachment_GetFile(A, nil, 0, DA) or
+       not FPDFAttachment_GetFile(B, nil, 0, DB) or (DA <> DB) then
+      raise EPDFiumViewer.Create('PDF-Anlagengröße stimmt nicht überein.');
+    if DA > 512 * 1024 * 1024 then
+      raise EPDFiumViewer.Create('PDF-Anlage ist zu groß für die Integritätsprüfung.');
+    if DA > 0 then
+    begin
+      SetLength(DataA, Integer(DA)); SetLength(DataB, Integer(DB));
+      Actual := 0;
+      if not FPDFAttachment_GetFile(A, @DataA[0], DA, Actual) or (Actual <> DA) then
+        raise EPDFiumViewer.Create('Quellanlage konnte nicht geprüft werden.');
+      Actual := 0;
+      if not FPDFAttachment_GetFile(B, @DataB[0], DB, Actual) or (Actual <> DB) or
+         not CompareMem(@DataA[0], @DataB[0], DA) then
+        raise EPDFiumViewer.Create('PDF-Anlageninhalt wurde beim Speichern verändert.');
+    end;
+  end;
+end;
+
 procedure TFreePDF64PDFiumCore.WriteOrderedPDF(const AInput, AOutput: string);
 var
-  QPDF, CmdLine, PageList: string;
-  SI: TStartupInfo;
-  PI: TProcessInformation;
-  ExitCode: DWORD;
-  I: Integer;
+  SourceDoc, OrderedDoc, VerifyDoc: Pointer;
+  SourceName, OutputName, PageRange: UTF8String;
+  W: TOutputWriter;
+  I, SourceCount: Integer;
 begin
-  QPDF := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    'qpdf\bin\qpdf.exe';
-  if not FileExists(QPDF) then
-    raise EPDFiumViewer.Create('QPDF wurde nicht gefunden: ' + QPDF);
-  PageList := '';
-  for I := 0 to High(FPageOrder) do
-  begin
-    if PageList <> '' then PageList := PageList + ',';
-    PageList := PageList + IntToStr(FPageOrder[I] + 1);
-  end;
-  CmdLine := '"' + QPDF + '" "' + AInput + '" --pages . ' +
-    PageList + ' -- "' + AOutput + '"';
-  FillChar(SI, SizeOf(SI), 0);
-  FillChar(PI, SizeOf(PI), 0);
-  SI.cb := SizeOf(SI);
-  if not CreateProcess(PChar(QPDF), PChar(CmdLine), nil, nil, False,
-    CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(QPDF)), SI, PI) then
-    RaiseLastOSError;
+  if SameText(ExpandFileName(AInput), ExpandFileName(AOutput)) then
+    raise EPDFiumViewer.Create('Quelle und Ziel müssen verschieden sein.');
+  SourceDoc := nil;
+  OrderedDoc := nil;
+  VerifyDoc := nil;
+  SourceName := UTF8String(AInput);
+  OutputName := UTF8String(AOutput);
   try
-    if WaitForSingleObject(PI.hProcess, INFINITE) <> WAIT_OBJECT_0 then
-      raise EPDFiumViewer.Create('QPDF wurde unerwartet beendet.');
-    ExitCode := 1;
-    if not GetExitCodeProcess(PI.hProcess, ExitCode) or (ExitCode > 3) or
-       not FileExists(AOutput) then
-      raise EPDFiumViewer.CreateFmt('QPDF: Fehler %d beim Speichern.', [ExitCode]);
+    SourceDoc := FPDF_LoadDocument(PAnsiChar(SourceName), nil);
+    if SourceDoc = nil then
+      raise EPDFiumViewer.Create('PDFium konnte die gespeicherte PDF nicht erneut öffnen.');
+    SourceCount := FPDF_GetPageCount(SourceDoc);
+    if SourceCount <> Length(FPageOrder) then
+      raise EPDFiumViewer.Create('Die Seitenanzahl hat sich vor dem Umsortieren geändert.');
+
+    // Ein Seitenimport übernimmt nicht zwangsläufig dokumentweite Strukturen.
+    // Diese Dokumente dürfen daher nicht stillschweigend umgeschrieben werden.
+    if FPDFDoc_GetJavaScriptActionCount(SourceDoc) > 0 then
+      raise EPDFiumViewer.Create('Die PDF enthält Dokument-JavaScript. Eine verlustfreie Seitenumsortierung ist noch nicht freigegeben.');
+    if FPDF_GetFormType(SourceDoc) <> 0 then
+      raise EPDFiumViewer.Create('Die PDF enthält Formularstrukturen. Eine verlustfreie Seitenumsortierung ist noch nicht freigegeben.');
+
+    OrderedDoc := FPDF_CreateNewDocument;
+    if OrderedDoc = nil then
+      raise EPDFiumViewer.Create('PDFium konnte kein neues PDF-Dokument erstellen.');
+    for I := 0 to High(FPageOrder) do
+    begin
+      if (FPageOrder[I] < 0) or (FPageOrder[I] >= SourceCount) then
+        raise EPDFiumViewer.CreateFmt('Ungültige Seitenposition %d.', [I + 1]);
+      PageRange := UTF8String(IntToStr(FPageOrder[I] + 1));
+      if FPDF_ImportPages(OrderedDoc, SourceDoc, PAnsiChar(PageRange), I) = 0 then
+        raise EPDFiumViewer.CreateFmt('Seite %d konnte nicht übernommen werden.', [I + 1]);
+    end;
+    // Anhänge werden nicht durch FPDF_ImportPages übertragen.
+    CopyOrderedPDFAttachments(SourceDoc, OrderedDoc);
+    FillChar(W, SizeOf(W), 0);
+    W.Base.Version := 1;
+    W.Base.WriteBlock := PDFWriteBlock;
+    W.Stream := TFileStream.Create(AOutput, fmCreate);
+    try
+      if FPDF_SaveAsCopy(OrderedDoc, @W.Base, 0) = 0 then
+        raise EPDFiumViewer.Create('PDFium konnte die umsortierte PDF nicht speichern.');
+    finally
+      W.Stream.Free;
+    end;
+    VerifyDoc := FPDF_LoadDocument(PAnsiChar(OutputName), nil);
+    if (VerifyDoc = nil) or (FPDF_GetPageCount(VerifyDoc) <> SourceCount) then
+      raise EPDFiumViewer.Create('Die umsortierte PDF konnte nicht erfolgreich geprüft werden.');
+    // Nicht nur die Anzahl, sondern auch Name und Inhalt jeder Anlage prüfen.
+    if FPDFDoc_GetAttachmentCount(VerifyDoc) <> FPDFDoc_GetAttachmentCount(SourceDoc) then
+      raise EPDFiumViewer.Create('Die Anzahl der PDF-Anlagen stimmt nach dem Speichern nicht überein.');
+    VerifyOrderedPDFAttachments(SourceDoc, VerifyDoc);
   finally
-    CloseHandle(PI.hThread);
-    CloseHandle(PI.hProcess);
+    if VerifyDoc <> nil then FPDF_CloseDocument(VerifyDoc);
+    if OrderedDoc <> nil then FPDF_CloseDocument(OrderedDoc);
+    if SourceDoc <> nil then FPDF_CloseDocument(SourceDoc);
   end;
 end;
 
@@ -3790,58 +3935,53 @@ end;
 procedure TFreePDF64PDFiumCore.ExportPages(
   const AVisiblePages: TArray<Integer>; const ATargetFile: string);
 var
+  DestDoc, CheckDoc: Pointer;
   W: TOutputWriter;
-  TempFile, QPDF, CmdLine, Pages: string;
-  SI: TStartupInfo;
-  PI: TProcessInformation;
-  ExitCode: DWORD;
-  I: Integer;
+  PageRange, CheckPath: UTF8String;
+  I, PageIndex: Integer;
 begin
   if Length(AVisiblePages) = 0 then Exit;
-  QPDF := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    'qpdf\bin\qpdf.exe';
-  if not FileExists(QPDF) then
-    raise EPDFiumViewer.Create('QPDF wurde nicht gefunden.');
-  TempFile := IncludeTrailingPathDelimiter(GetEnvironmentVariable('TEMP')) +
-    'fp64_extract_' + IntToStr(GetCurrentProcessId) + '.pdf';
-  Pages := '';
+  if FDocument = nil then
+    raise EPDFiumViewer.Create('Kein PDF-Dokument geöffnet.');
   for I := 0 to High(AVisiblePages) do
-  begin
-    if Pages <> '' then Pages := Pages + ',';
-    Pages := Pages + IntToStr(PhysicalPage(AVisiblePages[I]) + 1);
-  end;
-  FillChar(W, SizeOf(W), 0);
-  W.Base.Version := 1;
-  W.Base.WriteBlock := PDFWriteBlock;
-  W.Stream := TFileStream.Create(TempFile, fmCreate);
+    if (AVisiblePages[I] < 0) or (AVisiblePages[I] >= FPageCount) then
+      raise EPDFiumViewer.Create('Ungültige Seitenauswahl.');
+
+  DestDoc := FPDF_CreateNewDocument;
+  if DestDoc = nil then
+    raise EPDFiumViewer.Create('PDFium konnte kein Zieldokument erstellen.');
   try
-    if FPDF_SaveAsCopy(FDocument, @W.Base, 0) = 0 then
-      raise EPDFiumViewer.Create('PDFium konnte die Seiten nicht vorbereiten.');
-  finally
-    W.Stream.Free;
-  end;
-  try
-    CmdLine := '"' + QPDF + '" --empty --pages "' + TempFile +
-      '" ' + Pages + ' -- "' + ATargetFile + '"';
-    FillChar(SI, SizeOf(SI), 0);
-    FillChar(PI, SizeOf(PI), 0);
-    SI.cb := SizeOf(SI);
-    if not CreateProcess(PChar(QPDF), PChar(CmdLine), nil, nil, False,
-      CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(QPDF)), SI, PI) then
-      RaiseLastOSError;
+    for I := 0 to High(AVisiblePages) do
+    begin
+      PageIndex := PhysicalPage(AVisiblePages[I]);
+      PageRange := UTF8String(IntToStr(PageIndex + 1));
+      if FPDF_ImportPages(DestDoc, FDocument, PAnsiChar(PageRange), I) = 0 then
+        raise EPDFiumViewer.CreateFmt('PDF-Seite %d konnte nicht exportiert werden.',
+          [AVisiblePages[I] + 1]);
+    end;
+    FillChar(W, SizeOf(W), 0);
+    W.Base.Version := 1;
+    W.Base.WriteBlock := PDFWriteBlock;
+    W.Stream := TFileStream.Create(ATargetFile, fmCreate);
     try
-      if WaitForSingleObject(PI.hProcess, INFINITE) <> WAIT_OBJECT_0 then
-        raise EPDFiumViewer.Create('QPDF wurde unerwartet beendet.');
-      ExitCode := 1;
-      if not GetExitCodeProcess(PI.hProcess, ExitCode) or (ExitCode > 3) or
-         not FileExists(ATargetFile) then
-        raise EPDFiumViewer.CreateFmt('QPDF-Extraktion fehlgeschlagen: %d.', [ExitCode]);
+      if FPDF_SaveAsCopy(DestDoc, @W.Base, 0) = 0 then
+        raise EPDFiumViewer.Create('PDFium konnte die ausgewählten Seiten nicht speichern.');
     finally
-      CloseHandle(PI.hThread);
-      CloseHandle(PI.hProcess);
+      W.Stream.Free;
     end;
   finally
-    if FileExists(TempFile) then DeleteFile(TempFile);
+    FPDF_CloseDocument(DestDoc);
+  end;
+
+  CheckPath := UTF8String(ATargetFile);
+  CheckDoc := FPDF_LoadDocument(PAnsiChar(CheckPath), nil);
+  if CheckDoc = nil then
+    raise EPDFiumViewer.Create('Die exportierte PDF konnte nicht überprüft werden.');
+  try
+    if FPDF_GetPageCount(CheckDoc) <> Length(AVisiblePages) then
+      raise EPDFiumViewer.Create('Die exportierte PDF enthält nicht die erwartete Seitenanzahl.');
+  finally
+    FPDF_CloseDocument(CheckDoc);
   end;
 end;
 
@@ -5498,6 +5638,178 @@ begin
   FModified := False;
   FStrokes.Clear;
   FStrokePages.Clear;
+end;
+
+function FPDFImageObj_GetImageFilterCount(ImageObject: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFImageObj_GetImageFilter(ImageObject: Pointer; Index: Integer; Buffer: PAnsiChar; BufLen: Cardinal): Cardinal; stdcall; external 'pdfium.dll';
+
+function TFreePDF64PDFiumCore.GetEmbeddedImages(
+  APageIndex: Integer): TArray<TPDFEmbeddedImageInfo>;
+var
+  Page, Obj: Pointer;
+  I, N, Count: Integer;
+  Info: TPDFEmbeddedImageInfo;
+begin
+  SetLength(Result, 0);
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    N := FPDFPage_CountObjects(Page);
+    Count := 0;
+    for I := 0 to N - 1 do
+    begin
+      Obj := FPDFPage_GetObject(Page, I);
+      if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 3) then Continue;
+      Info := Default(TPDFEmbeddedImageInfo);
+      Info.PageIndex := APageIndex;
+      Info.ObjectIndex := I;
+      FPDFImageObj_GetImagePixelSize(Obj, Info.PixelWidth, Info.PixelHeight);
+      // Original-JPEG nur bei explizitem DCTDecode-Filter anbieten.
+      // Die rohe Bilddaten-API liefert nicht fuer jede PDF-Kodierung
+      // einen direkt speicherbaren JPEG-Datenstrom.
+      Info.OriginalJPEG := False;
+      if FPDFImageObj_GetImageFilterCount(Obj) = 1 then
+      begin
+        var FilterName: array[0..31] of AnsiChar;
+        FillChar(FilterName, SizeOf(FilterName), 0);
+        if FPDFImageObj_GetImageFilter(Obj, 0, @FilterName[0],
+          SizeOf(FilterName)) > 0 then
+          Info.OriginalJPEG := AnsiString(PAnsiChar(@FilterName[0])) = 'DCTDecode';
+      end;
+      SetLength(Result, Count + 1);
+      Result[Count] := Info;
+      Inc(Count);
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+function FPDFImageObj_GetBitmap(PageObject: Pointer): Pointer; stdcall; external 'pdfium.dll';
+function FPDFBitmap_GetWidth(Bitmap: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFBitmap_GetHeight(Bitmap: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFBitmap_GetFormat(Bitmap: Pointer): Integer; stdcall; external 'pdfium.dll';
+function FPDFImageObj_GetRenderedBitmap(Document, Page, ImageObject: Pointer): Pointer; stdcall; external 'pdfium.dll';
+
+function TFreePDF64PDFiumCore.GetEmbeddedImagePreview(
+  APageIndex, AObjectIndex: Integer; ABitmap: TBitmap): Boolean;
+var
+  Page, Obj, PdfBmp: Pointer;
+  W, H, Y, X, Stride, BmpFormat, BytesPerPixel: Integer;
+  Src, SrcRow, DstRow: PByte;
+  Pixel: PByte;
+begin
+  Result := False;
+  if (ABitmap = nil) or (FDocument = nil) or (APageIndex < 0) or
+     (APageIndex >= FPageCount) then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    if (AObjectIndex < 0) or (AObjectIndex >= FPDFPage_CountObjects(Page)) then Exit;
+    Obj := FPDFPage_GetObject(Page, AObjectIndex);
+    if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 3) then Exit;
+    // RenderedBitmap berücksichtigt Farbkonvertierung und Masken.
+    PdfBmp := FPDFImageObj_GetRenderedBitmap(FDocument, Page, Obj);
+    if PdfBmp = nil then PdfBmp := FPDFImageObj_GetBitmap(Obj);
+    if PdfBmp = nil then Exit;
+    try
+      W := FPDFBitmap_GetWidth(PdfBmp);
+      H := FPDFBitmap_GetHeight(PdfBmp);
+      if (W <= 0) or (H <= 0) or (Int64(W) * H > 16000000) then Exit;
+      BmpFormat := FPDFBitmap_GetFormat(PdfBmp);
+      // PDFium: 1=Gray, 2=BGR, 3=BGRx, 4=BGRA.
+      case BmpFormat of
+        1: BytesPerPixel := 1;
+        2: BytesPerPixel := 3;
+        3, 4: BytesPerPixel := 4;
+      else
+        Exit;
+      end;
+      Stride := FPDFBitmap_GetStride(PdfBmp);
+      Src := FPDFBitmap_GetBuffer(PdfBmp);
+      if (Src = nil) or (Stride < Int64(W) * BytesPerPixel) then Exit;
+      ABitmap.PixelFormat := pf32bit;
+      ABitmap.SetSize(W, H);
+      for Y := 0 to H - 1 do
+      begin
+        SrcRow := PByte(NativeUInt(Src) + NativeUInt(Y) * NativeUInt(Stride));
+        // PDFium liefert die Bildzeilen in der Reihenfolge des Bitmap-Puffers.
+        // VCL-ScanLine ordnet die Zeilen bereits der Bitmap-Darstellung zu.
+        DstRow := ABitmap.ScanLine[Y];
+        for X := 0 to W - 1 do
+        begin
+          Pixel := PByte(NativeUInt(DstRow) + NativeUInt(X) * 4);
+          case BmpFormat of
+            1:
+              begin
+                Pixel[0] := SrcRow[X];
+                Pixel[1] := SrcRow[X];
+                Pixel[2] := SrcRow[X];
+              end;
+            2:
+              begin
+                Pixel[0] := SrcRow[X * 3];
+                Pixel[1] := SrcRow[X * 3 + 1];
+                Pixel[2] := SrcRow[X * 3 + 2];
+              end;
+            3, 4:
+              begin
+                Pixel[0] := SrcRow[X * 4];
+                Pixel[1] := SrcRow[X * 4 + 1];
+                Pixel[2] := SrcRow[X * 4 + 2];
+              end;
+          end;
+          Pixel[3] := $FF;
+        end;
+      end;
+      Result := True;
+    finally
+      FPDFBitmap_Destroy(PdfBmp);
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.ExportEmbeddedJPEG(
+  APageIndex, AObjectIndex: Integer; const ATargetFile: string): Boolean;
+const
+  MaxJPEGSize = 512 * 1024 * 1024; // Schutz vor unkontrollierter Allokation
+var
+  Page, Obj: Pointer;
+  Size, ReadSize: Cardinal;
+  Data: TBytes;
+  Stream: TFileStream;
+begin
+  Result := False;
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) or
+     (ATargetFile = '') then Exit;
+  Page := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if Page = nil then Exit;
+  try
+    if (AObjectIndex < 0) or (AObjectIndex >= FPDFPage_CountObjects(Page)) then Exit;
+    Obj := FPDFPage_GetObject(Page, AObjectIndex);
+    if (Obj = nil) or (FPDFPageObj_GetType(Obj) <> 3) then Exit;
+    Size := FPDFImageObj_GetImageDataRaw(Obj, nil, 0);
+    if (Size < 4) or (Size > MaxJPEGSize) then Exit;
+    SetLength(Data, Integer(Size));
+    ReadSize := FPDFImageObj_GetImageDataRaw(Obj, @Data[0], Size);
+    if (ReadSize <> Size) or (Data[0] <> $FF) or (Data[1] <> $D8) or
+       (Data[2] <> $FF) or (Data[Size - 2] <> $FF) or
+       (Data[Size - 1] <> $D9) then Exit;
+    // Niemals eine existierende Datei stillschweigend ueberschreiben.
+    if FileExists(ATargetFile) then Exit;
+    Stream := TFileStream.Create(ATargetFile, fmCreate);
+    try
+      Stream.WriteBuffer(Data[0], Integer(Size));
+      Result := True;
+    finally
+      Stream.Free;
+    end;
+  finally
+    FPDF_ClosePage(Page);
+  end;
 end;
 
 function TFreePDF64PDFiumCore.PageSize(APageIndex: Integer; out AWidth, AHeight: Single): Boolean;
