@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.2.2
+# FreePDF64-Viewer Portable 3.2.3
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -18,7 +18,14 @@
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
 
-## New in version 3.2.2
+## New in version 3.2.3
+
+- **Extract embedded PDF images:** Browse detected image objects with previews, select one or multiple images, and export original JPEG data where supported or save images as PNG, JPEG, or TIFF.
+- **Export complete PDF pages:** Save whole pages as PNG, JPEG, or TIFF, including pages assembled from multiple image strips. Individual-image export still exports the separate embedded objects.
+- **PDFium instead of QPDF:** Page management, embedded attachments, and PDF security information now use PDFium; the `qpdf` folder is no longer required by the viewer.
+- **Refined image-export dialog:** German/English interface, 4K/WQHD layouts, ESC to close, and saved window size in `FreePDFViewer.ini`.
+
+### Also introduced in version 3.2.2
 
 - **Improved PDF hyperlinks:** Automatically add HTTPS to web addresses, show link destinations as tooltips, and reposition hyperlinks with Ctrl+drag.
 - **Custom measurement colors:** Select a measurement color and see it in a compact toolbar color preview. Measurement borders retain consistent thickness when saved and reopened.
@@ -45,7 +52,7 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
 - **PDF editing:** Add text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
 - **PDF forms:** Edit AcroForm and supported static XFA forms; run supported V8 JavaScript actions and calculations.
-- **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files.
+- **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files; preview and extract embedded PDF images.
 - **More:** Manage PDF attachments, export PDF pages as images or text, use bookmarks, switch between German and English, and choose interface themes.
 
 ## Workspaces – pick up where you left off
@@ -78,7 +85,7 @@ See the **Workspaces** screenshot below for the management interface.
 2. Run **`FreePDF64ViewerPortable.exe`**.
 3. Open PDFs using **Ctrl+O**, drag and drop, or Windows File Explorer. Supported image files can also be opened.
 
-**Upgrade note:** The `Xpdf` folder from older viewer versions is no longer needed and can be deleted.
+**Upgrade note:** The `Xpdf` and `qpdf` folders from older viewer versions are no longer needed by FreePDF64-Viewer Portable and can be deleted from the viewer installation.
 
 **Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported.
 
@@ -91,7 +98,6 @@ Settings are stored in **`FreePDFViewer.ini`** in the application folder.
 **Third-party libraries and tools:**
 - **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF rendering and processing, © The PDFium Authors.
 - **[V8](https://v8.dev/):** JavaScript engine, © The V8 Project Authors.
-- **QPDF:** Auxiliary tools governed by their own licenses.
 
 License texts and copyright notices for PDFium, V8, and bundled third-party libraries are included in the **`PDFium`** subfolder (**`LICENSE`** file and **`licenses`** directory). Their respective license terms must be observed when redistributing the software. FreePDF64-Viewer Portable is **not an official product of PDFium, V8, or Google**.
 
@@ -103,7 +109,14 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
 
-## Neu in Version 3.2.2
+## Neu in Version 3.2.3
+
+- **Eingebettete PDF-Bilder extrahieren:** Erkannte Bildobjekte mit Vorschau anzeigen, einzelne oder mehrere Bilder auswählen und geeignete JPEG-Originaldaten direkt oder Bilder als PNG, JPEG und TIFF exportieren.
+- **Vollständige PDF-Seiten exportieren:** Ganze Seiten als PNG, JPEG oder TIFF speichern, auch wenn das Motiv aus mehreren Bildstreifen besteht. Beim Export einzelner Bilder bleiben die eingebetteten Bildobjekte getrennt.
+- **PDFium statt QPDF:** Seitenverwaltung, eingebettete PDF-Anlagen und Sicherheitsinformationen werden über PDFium verarbeitet. Das Verzeichnis `qpdf` wird vom Viewer nicht mehr benötigt.
+- **Überarbeiteter Bildexport-Dialog:** Deutsche und englische Oberfläche, 4K-/WQHD-Darstellung, Schließen mit ESC und Speichern der Fenstergröße in der `FreePDFViewer.ini`.
+
+### Bereits in Version 3.2.2 eingeführt
 
 - **Verbesserte PDF-Hyperlinks:** Webadressen automatisch um HTTPS ergänzen, Zieladressen als Hinweis anzeigen und Hyperlinks mit Strg+Ziehen verschieben.
 - **Individuelle Messfarben:** Messfarbe frei wählen und in einer kompakten Farbvorschau der Symbolleiste erkennen. Messrahmen behalten beim Speichern und erneuten Öffnen ihre einheitliche Linienstärke.
@@ -130,7 +143,7 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **Seitenverwaltung:** Vergrößerbare Miniaturen; Seiten per Drag & Drop verschieben, drehen, löschen oder extrahieren.
 - **PDF-Bearbeitung:** Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
 - **PDF-Formulare:** AcroForm und unterstützte statische XFA-Formulare bearbeiten; unterstützte JavaScript-V8-Aktionen und Berechnungen ausführen.
-- **Bilder:** JPG/JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien öffnen, zoomen, drehen und speichern.
+- **Bilder:** JPG/JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien öffnen, zoomen, drehen und speichern; eingebettete PDF-Bilder anzeigen und extrahieren.
 - **Weitere Funktionen:** PDF-Anlagen verwalten, PDF-Seiten als Bilder oder Text exportieren, Inhaltsverzeichnis, DE/EN-Oberfläche und verschiedene Designs.
 
 ## Arbeitsbereiche – dort weitermachen, wo du aufgehört hast
@@ -163,7 +176,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 2. **`FreePDF64ViewerPortable.exe`** starten.
 3. PDFs über **Strg+O**, Drag & Drop oder den Windows-Explorer öffnen. Unterstützte Bilddateien können ebenfalls geöffnet werden.
 
-**Hinweis zum Update:** Das Verzeichnis `Xpdf` aus älteren Viewer-Versionen wird nicht mehr benötigt und kann gelöscht werden.
+**Hinweis zum Update:** Die Verzeichnisse `Xpdf` und `qpdf` aus älteren Viewer-Versionen werden von FreePDF64-Viewer Portable nicht mehr benötigt und können aus der Viewer-Installation gelöscht werden.
 
 **Hinweise:** Messwerte hängen vom Maßstab und der PDF-Vorlage ab. Die **optische Schwärzung** verdeckt Inhalte nur und entfernt sie nicht sicher. PDF-JavaScript und XFA werden nicht in allen Varianten unterstützt.
 
@@ -176,7 +189,6 @@ Die Einstellungen werden in **`FreePDFViewer.ini`** im Programmordner gespeicher
 **Zusatzprogramme und Bibliotheken:**
 - **[PDFium](https://pdfium.googlesource.com/pdfium/):** PDF-Darstellung und -Verarbeitung, © The PDFium Authors.
 - **[V8](https://v8.dev/):** JavaScript-Engine, © The V8 Project Authors.
-- **QPDF:** Zusatzwerkzeuge mit jeweils eigenen Lizenzbedingungen.
 
 Die Lizenztexte und Copyright-Hinweise zu PDFium, V8 und eingebundenen Drittanbieter-Bibliotheken befinden sich im mitgelieferten Unterordner **`PDFium`** (Datei **`LICENSE`** und Ordner **`licenses`**). Bei der Weitergabe sind die jeweiligen Lizenzbedingungen zu beachten. FreePDF64-Viewer Portable ist **kein offizielles Produkt von PDFium, V8 oder Google**.
 
