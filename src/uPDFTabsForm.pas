@@ -115,7 +115,7 @@ type
     FUpdateStartupTimer: TTimer;
     FUpdateCheckBusy: Boolean;
     FDesignMenu: TMenuItem;
-    FDesignItems: array[0..5] of TMenuItem;
+    FDesignItems: array[0..6] of TMenuItem;
     FDesignIndex: Integer;
     FAppliedDesignIndex: Integer;
     FDesignHasBeenApplied: Boolean;
@@ -3368,6 +3368,12 @@ begin
         + 'The original file cannot be selected as the output. Affected pages are rasterized at 300 DPI with the black regions applied; '
         + 'the generated PDF is checked again. Review the output visually and verify that confidential content is no longer searchable or extractable before sharing. '
         + 'The security check does not provide a complete forensic guarantee. An additional independent review is recommended for highly confidential documents.');
+      AddSection('Insert images into PDF pages',
+        'Choose "Insert image ..." from the Insert tools menu, the PDF page context menu or the PDF thumbnail context menu. '
+        + 'Select a PNG, JPEG, BMP or TIFF image (.tif/.tiff). For multi-page TIFF files, select the page to insert. A preview appears on the PDF page; click with the left mouse button to place it. '
+        + 'Hold Ctrl and drag with the left mouse button to move the placed image. Drag a corner handle to resize it visually. '
+        + 'Press Enter to confirm or Esc to cancel. Use Undo and Redo to remove and restore an inserted image. '
+        + 'Save the PDF and reopen it to check the result. The image is embedded in the PDF page content.');
       AddSection('Insert text into PDF pages',
         'In Edit mode, enable Insert text and click the desired position on a PDF page. '
         + 'Type in the input field displayed over the page. Hold Ctrl and drag with the left mouse button to move the input field; '
@@ -3713,6 +3719,14 @@ begin
         + 'Die Originaldatei kann nicht als Ausgabedatei gewählt werden. Betroffene Seiten werden mit 300 DPI gerastert und die schwarzen Bereiche fest eingearbeitet; '
         + 'die neue PDF wird anschließend erneut geprüft. Kontrollieren Sie die Ausgabedatei vor der Weitergabe auch visuell und prüfen Sie, dass vertrauliche Inhalte nicht mehr suchbar oder extrahierbar sind. '
         + 'Die Sicherheitsprüfung bietet keine vollständige forensische Garantie. Bei besonders vertraulichen Dokumenten wird eine zusätzliche unabhängige Prüfung empfohlen.');
+      AddSection('Bilder in PDF-Seiten einfügen',
+        'Wählen Sie „Bild einfügen ...“ im Werkzeugmenü „Einfügen ...“, im Kontextmenü der PDF-Seite oder im Kontextmenü der PDF-Miniaturansichten. '
+        + 'Wählen Sie ein PNG-, JPEG-, BMP- oder TIFF-Bild (.tif/.tiff). Bei mehrseitigen TIFF-Dateien wählen Sie die gewünschte Seite. Die Vorschau erscheint auf der PDF-Seite; mit einem Linksklick platzieren Sie das Bild. '
+        + 'Mit gedrückter Strg-Taste und linker Maustaste können Sie das platzierte Bild verschieben. '
+        + 'Über die Eckpunkte lässt sich die Größe direkt mit der Maus verändern. '
+        + 'Mit Enter übernehmen Sie das Bild, mit Esc brechen Sie ab. '
+        + 'Mit „Rückgängig“ und „Wiederholen“ können Sie ein eingefügtes Bild entfernen und wiederherstellen. '
+        + 'Speichern Sie die PDF und öffnen Sie sie zur Kontrolle erneut. Das Bild wird als PDF-Seiteninhalt eingefügt.');
       AddSection('Text in PDF-Seiten einfügen',
         'Im Bearbeitungsmodus „Text einfügen“ aktivieren und auf die gewünschte Stelle der PDF-Seite klicken. '
         + 'Den Text in das eingeblendete Eingabefeld schreiben. Mit gedrückter Strg-Taste und linker Maustaste '
@@ -4465,12 +4479,17 @@ begin
 end;
 
 procedure TPDFTabsForm.DesignClick(Sender: TObject);
+var DesignN: Integer;
 begin
   if not (Sender is TMenuItem) then Exit;
   if FDesignIndex = TMenuItem(Sender).Tag then Exit;
+  if (TMenuItem(Sender).Tag < 0) or (TMenuItem(Sender).Tag > 6) or
+     (TMenuItem(Sender).Tag = 2) or (TMenuItem(Sender).Tag = 4) then Exit;
   FDesignIndex := TMenuItem(Sender).Tag;
-  if (FDesignIndex < 0) or (FDesignIndex > 5) or (FDesignIndex = 2) or (FDesignIndex = 4) then Exit;
-  FDesignItems[FDesignIndex].Checked := True;
+  // Die RadioItem-Gruppe ist gemeinsam auf derselben Menueebene.
+  // Vorherige Markierung explizit entfernen und nur aktive setzen.
+  for DesignN := 0 to 6 do
+    FDesignItems[DesignN].Checked := (DesignN = FDesignIndex);
   with TIniFile.Create(TabsIniFileName) do
   try
     WriteInteger('Viewer', 'Design', FDesignIndex);
@@ -4526,7 +4545,7 @@ begin
     case FDesignIndex of
       1: begin BaseColor := RGB(229, 236, 246); HeaderColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); end;
       2: begin BaseColor := RGB(42, 45, 51); HeaderColor := RGB(54, 58, 65); TextColor := clWhite; end;
-      3: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
+      3, 6: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
       4: begin BaseColor := RGB(21, 22, 25); HeaderColor := RGB(34, 36, 40); TextColor := clWhite; end;
     else
       begin BaseColor := RGB(220, 233, 247); HeaderColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); end;
@@ -4547,10 +4566,10 @@ begin
     if FRecentScroll <> nil then FRecentScroll.Font.Color := TextColor;
     // Windows Klassik: Startseite wie die Zusatzfenster in hellem Grau.
     if FWelcomePanel <> nil then
-      if FDesignIndex = 3 then FWelcomePanel.Color := RGB(232, 232, 232)
+      if FDesignIndex in [3, 6] then FWelcomePanel.Color := RGB(232, 232, 232)
       else FWelcomePanel.Color := BaseColor;
     if FRecentScroll <> nil then
-      if FDesignIndex = 3 then FRecentScroll.Color := RGB(232, 232, 232)
+      if FDesignIndex in [3, 6] then FRecentScroll.Color := RGB(232, 232, 232)
       else FRecentScroll.Color := BaseColor;
     if FLeftPDFOverlay <> nil then FLeftPDFOverlay.Color := BaseColor;
     if FRightPDFOverlay <> nil then FRightPDFOverlay.Color := BaseColor;
@@ -4733,18 +4752,20 @@ begin
       FDesignItems[0].Caption := 'Default';
       FDesignItems[1].Caption := 'Modern Light';
       FDesignItems[2].Caption := 'Modern Dark';
-      FDesignItems[3].Caption := 'Windows Classic';
+      FDesignItems[3].Caption := 'Windows Classic – Classic Buttons';
       FDesignItems[4].Caption := 'Black';
       FDesignItems[5].Caption := 'Classic Blue';
+      FDesignItems[6].Caption := 'Windows Classic – Flat Buttons';
     end
     else
     begin
       FDesignItems[0].Caption := 'Standard';
       FDesignItems[1].Caption := 'Modern Hell';
       FDesignItems[2].Caption := 'Modern Dunkel';
-      FDesignItems[3].Caption := 'Windows Klassik';
+      FDesignItems[3].Caption := 'Windows Klassik – Klassische Buttons';
       FDesignItems[4].Caption := 'Schwarz';
       FDesignItems[5].Caption := 'Klassisch Blau';
+      FDesignItems[6].Caption := 'Windows Klassik – Flache Buttons';
     end;
   end;
   if FUpdateManualMenuItem <> nil then
@@ -5096,7 +5117,7 @@ begin
   // Umschaltbare Viewer-Farbdesigns; 0 bewahrt den bisherigen Zustand.
   FDesignMenu := TMenuItem.Create(FHelpMainMenu);
   FDesignMenu.Caption := 'Design';
-  for DesignI := 0 to 5 do
+  for DesignI := 0 to 6 do
   begin
     FDesignItems[DesignI] := TMenuItem.Create(FHelpMainMenu);
     FDesignItems[DesignI].Tag := DesignI;
@@ -5104,18 +5125,30 @@ begin
     FDesignItems[DesignI].GroupIndex := 23;
     FDesignItems[DesignI].OnClick := DesignClick;
     // Designs 2 (Modern Dunkel) und 4 (Schwarz) bleiben intern reserviert.
-    if (DesignI <> 2) and (DesignI <> 4) then
+    if (DesignI <> 2) and (DesignI <> 4) and (DesignI <> 6) then
       FDesignMenu.Add(FDesignItems[DesignI]);
   end;
+  // Windows Klassik bleibt als Design erhalten; die beiden
+  // Schaltflaechenvarianten sind darunter separat auswaehlbar.
+  // Zwei direkte Menueeintraege statt eines aufklappenden Untermenues:
+  // Der Benutzer kann den gewuenschten Modus ohne automatische Navigation waehlen.
+  // Design 3 bleibt der unveraenderte klassische Windows-Stil.
+  FDesignItems[3].RadioItem := True;
+  FDesignItems[3].AutoCheck := False;
+  FDesignItems[6].RadioItem := True;
+  FDesignItems[6].AutoCheck := False;
+  FDesignItems[6].GroupIndex := 23;
+  FDesignMenu.Insert(FDesignMenu.IndexOf(FDesignItems[3]) + 1, FDesignItems[6]);
   with TIniFile.Create(TabsIniFileName) do
   try
     FDesignIndex := ReadInteger('Viewer', 'Design', 0);
   finally
     Free;
   end;
-  if (FDesignIndex < 0) or (FDesignIndex > 5) or (FDesignIndex = 2) or (FDesignIndex = 4) then
+  if (FDesignIndex < 0) or (FDesignIndex > 6) or (FDesignIndex = 2) or (FDesignIndex = 4) then
     FDesignIndex := 0;
-  FDesignItems[FDesignIndex].Checked := True;
+  for DesignI := 0 to 6 do
+    FDesignItems[DesignI].Checked := (DesignI = FDesignIndex);
   // Sprache: Windows-UI-Sprache beim ersten Start, danach INI-Auswahl.
   FLanguageMenu := TMenuItem.Create(FHelpMainMenu);
   FLanguageMenu.Caption := Tr('Sprache / Language');
@@ -5629,7 +5662,7 @@ var
 begin
   if (FTabCountBadge = nil) or (FTabs = nil) then Exit;
   C := FTabCountBadge.Canvas;
-  if FDesignIndex = 3 then
+  if FDesignIndex in [3, 6] then
     C.Brush.Color := RGB(192, 192, 192)
   else
     C.Brush.Color := FTabCountBadge.Parent.Brush.Color;
@@ -5638,7 +5671,7 @@ begin
   Pad := MulDiv(6, CurrentPPI, 96);
   R := Rect(Pad, MulDiv(7, CurrentPPI, 96),
     FTabCountBadge.Width - Pad, FTabCountBadge.Height - MulDiv(7, CurrentPPI, 96));
-  if FDesignIndex = 3 then
+  if FDesignIndex in [3, 6] then
   begin
     // Windows Klassik: keine zusaetzliche Plakette und kein zweiter
     // 3D-Rahmen. Die Zahl steht direkt auf dem Hintergrund der Tab-Leiste.
@@ -5655,7 +5688,7 @@ begin
   C.Font.Name := 'Segoe UI';
   C.Font.Size := 9;
   C.Font.Style := [fsBold];
-  if FDesignIndex = 3 then
+  if FDesignIndex in [3, 6] then
     C.Font.Color := clBlack
   else
     C.Font.Color := RGB(35, 85, 145);
@@ -7640,7 +7673,7 @@ begin
   FSplitRight.OnClick := SplitPaneClick;
   // Nur die neu angelegten Split-Container initialisieren; keine globale
   // Neuanwendung der Palette beim Wechsel in die Zweifensteransicht.
-  if FDesignIndex = 3 then
+  if FDesignIndex in [3, 6] then
   begin
     FSplitLeft.Color := RGB(192, 192, 192);
     FSplitRight.Color := RGB(192, 192, 192);
@@ -8824,7 +8857,7 @@ begin
   end;
   if VisualActive then
   begin
-    if FDesignIndex = 3 then
+    if FDesignIndex in [3, 6] then
     begin
       FTabs.Canvas.Brush.Color := RGB(192, 192, 192);
       FTabs.Canvas.Font.Color := clBlack;
@@ -8858,7 +8891,7 @@ begin
   end
   else
   begin
-    if FDesignIndex = 3 then
+    if FDesignIndex in [3, 6] then
     begin
       FTabs.Canvas.Brush.Color := RGB(212, 208, 200);
       FTabs.Canvas.Font.Color := clBlack;
@@ -8898,7 +8931,7 @@ begin
   begin
     if FDesignIndex in [2, 4] then
       BorderColor := RGB(133, 153, 179)
-    else if FDesignIndex = 3 then
+    else if FDesignIndex in [3, 6] then
       BorderColor := RGB(115, 115, 115)
     else
       BorderColor := RGB(107, 142, 174);
@@ -8909,7 +8942,7 @@ begin
     FTabs.Canvas.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
     FTabs.Canvas.Brush.Style := bsSolid;
   end
-  else if FDesignIndex = 3 then
+  else if FDesignIndex in [3, 6] then
     DrawEdge(FTabs.Canvas.Handle, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
   S := FTabs.Pages[TabIndex].Caption;
   CloseR := TabCloseRect(TabIndex);
@@ -8930,12 +8963,12 @@ begin
   Hovered := TabIndex = FHoverCloseTabIndex;
   if Hovered then
   begin
-    if FDesignIndex = 3 then
+    if FDesignIndex in [3, 6] then
       FTabs.Canvas.Brush.Color := RGB(192, 192, 192)
     else
       FTabs.Canvas.Brush.Color := RGB(204, 210, 218);
     FTabs.Canvas.Pen.Style := psClear;
-    if FDesignIndex = 3 then
+    if FDesignIndex in [3, 6] then
     begin
       FTabs.Canvas.FillRect(CloseR);
       DrawEdge(FTabs.Canvas.Handle, CloseR, EDGE_RAISED, BF_RECT);

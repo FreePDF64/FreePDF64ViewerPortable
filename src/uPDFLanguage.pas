@@ -691,6 +691,13 @@ begin
   AddPair('Suchbegriff:', 'Search term:');
   AddPair('Exit', 'Exit');
 
+  // Dokumenteigenschaften: separate, zweisprachige Schriftartenseite.
+  AddPair('Dokumentinformationen', 'Document information');
+  AddPair('Schriftartenübersicht', 'Font overview');
+  AddPair('Schriftarten:', 'Fonts:');
+  AddPair('Anzahl Schriftarten:', 'Number of fonts:');
+  AddPair('Keine Textschriftarten gefunden', 'No text fonts found');
+  AddPair('Einbettungsstatus:', 'Embedding status:');
   AddPair('Beschreibung', 'Description');
   AddPair('Erweitert', 'Advanced');
   AddPair('Sicherheit', 'Security');

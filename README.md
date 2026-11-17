@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.2.3
+# FreePDF64-Viewer Portable 3.2.4
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -18,7 +18,16 @@
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
 
-## New in version 3.2.3
+## New in version 3.2.4
+
+- **Insert images into PDF pages:** Add PNG, JPEG, BMP, and TIFF images from the Insert menu, the PDF page context menu, or the thumbnail context menu. Place and resize images visually on the PDF page, reposition them with Ctrl+drag, and confirm with Enter or cancel with Esc.
+- **Multipage TIFF support:** Select a page from a visual gallery of TIFF thumbnails before inserting it into the PDF.
+- **Undo/Redo and saving:** Undo or redo inserted images and save them permanently in the PDF document.
+- **Font overview:** Switch between document information and a separate font overview in Document Properties (Ctrl+D), with detected font names and a German/English interface.
+- **Windows Classic – Flat Buttons:** New selectable theme variant combining the flat button appearance of Classic Blue with the original Windows Classic gray colors.
+- **4K/WQHD and bilingual help:** DPI-aware document-property controls and TIFF selection, plus updated English and German feature documentation.
+
+### Also introduced in version 3.2.3
 
 - **Extract embedded PDF images:** Browse detected image objects with previews, select one or multiple images, and export original JPEG data where supported or save images as PNG, JPEG, or TIFF.
 - **Export complete PDF pages:** Save whole pages as PNG, JPEG, or TIFF, including pages assembled from multiple image strips. Individual-image export still exports the separate embedded objects.
@@ -50,10 +59,10 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
 - **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
 - **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
-- **PDF editing:** Add text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
+- **PDF editing:** Insert images, text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
 - **PDF forms:** Edit AcroForm and supported static XFA forms; run supported V8 JavaScript actions and calculations.
 - **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files; preview and extract embedded PDF images.
-- **More:** Manage PDF attachments, export PDF pages as images or text, use bookmarks, switch between German and English, and choose interface themes.
+- **More:** View PDF font information, manage attachments, export PDF pages as images or text, use bookmarks, switch between German and English, and choose interface themes.
 
 ## Workspaces – pick up where you left off
 
@@ -109,7 +118,16 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
 
-## Neu in Version 3.2.3
+## Neu in Version 3.2.4
+
+- **Bilder in PDF-Seiten einfügen:** PNG-, JPEG-, BMP- und TIFF-Bilder über das Menü „Einfügen …“, das PDF-Seiten-Kontextmenü oder das Miniatur-Kontextmenü einfügen. Bilder direkt auf der PDF-Seite visuell platzieren und skalieren, mit Strg+Ziehen verschieben und mit Enter übernehmen oder mit Esc abbrechen.
+- **Mehrseitige TIFF-Dateien:** Die gewünschte TIFF-Seite vor dem Einfügen komfortabel über eine visuelle Miniaturübersicht auswählen.
+- **Rückgängig/Wiederholen und Speichern:** Eingefügte Bilder rückgängig machen, wiederherstellen und dauerhaft in der PDF speichern.
+- **Schriftartenübersicht:** In den Dokumenteigenschaften (Strg+D) zwischen Dokumentinformationen und einer eigenen Schriftartenübersicht mit erkannten Schriftartnamen wechseln; Oberfläche auf Deutsch und Englisch.
+- **Windows Klassik – Flache Buttons:** Neue auswählbare Designvariante mit der flachen Buttondarstellung von „Klassisch Blau“ und den originalen grauen Farben von „Windows Klassik“.
+- **4K/WQHD und zweisprachige Hilfe:** DPI-angepasste Dokumenteigenschaften und TIFF-Seitenauswahl sowie aktualisierte Funktionsübersicht auf Deutsch und Englisch.
+
+### Bereits in Version 3.2.3 eingeführt
 
 - **Eingebettete PDF-Bilder extrahieren:** Erkannte Bildobjekte mit Vorschau anzeigen, einzelne oder mehrere Bilder auswählen und geeignete JPEG-Originaldaten direkt oder Bilder als PNG, JPEG und TIFF exportieren.
 - **Vollständige PDF-Seiten exportieren:** Ganze Seiten als PNG, JPEG oder TIFF speichern, auch wenn das Motiv aus mehreren Bildstreifen besteht. Beim Export einzelner Bilder bleiben die eingebetteten Bildobjekte getrennt.
@@ -141,10 +159,10 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **PDF-Vergleich:** Zwei PDFs nebeneinander anzeigen; **S** synchronisiert das Scrollen, **Z** den Zoom (jeweils links → rechts).
 - **Suche:** Einzelne PDFs durchsuchen oder alle geöffneten PDFs gemeinsam mit **Strg+Umschalt+F**.
 - **Seitenverwaltung:** Vergrößerbare Miniaturen; Seiten per Drag & Drop verschieben, drehen, löschen oder extrahieren.
-- **PDF-Bearbeitung:** Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
+- **PDF-Bearbeitung:** Bilder, Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
 - **PDF-Formulare:** AcroForm und unterstützte statische XFA-Formulare bearbeiten; unterstützte JavaScript-V8-Aktionen und Berechnungen ausführen.
 - **Bilder:** JPG/JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien öffnen, zoomen, drehen und speichern; eingebettete PDF-Bilder anzeigen und extrahieren.
-- **Weitere Funktionen:** PDF-Anlagen verwalten, PDF-Seiten als Bilder oder Text exportieren, Inhaltsverzeichnis, DE/EN-Oberfläche und verschiedene Designs.
+- **Weitere Funktionen:** PDF-Schriftarten anzeigen, PDF-Anlagen verwalten, PDF-Seiten als Bilder oder Text exportieren, Inhaltsverzeichnis, DE/EN-Oberfläche und verschiedene Designs.
 
 ## Arbeitsbereiche – dort weitermachen, wo du aufgehört hast
 

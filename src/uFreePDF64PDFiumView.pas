@@ -252,6 +252,8 @@ type
     FInfo: TButton;
     FInfoDialog: TForm;
     FInfoContentScroll: TScrollBox;
+    FInfoDetailsScroll: TScrollBox;
+    FInfoFontsScroll: TScrollBox;
     FPageEdit: TEdit;
     FGoPage: TButton;
     FFind: TButton;
@@ -284,6 +286,7 @@ type
     FSignatureFile: string;
     FSignatureTemporary: Boolean;
     FSignatureMode: Boolean;
+    FInsertImageMode: Boolean;
     FSignatureKeyEvents: TApplicationEvents;
     FSignatureWidthMM: Double;
     FSignaturePreviewPage: Integer;
@@ -344,6 +347,8 @@ type
     FInsertPopup: TPopupMenu;
     FInsertTextItem, FInsertNoteItem, FInsertLinkItem, FInsertSignatureItem: TMenuItem;
     FInsertImageWatermarkItem, FInsertTextWatermarkItem: TMenuItem;
+    FInsertImageItem: TMenuItem;
+    FThumbInsertImageItem: TMenuItem;
     FInsertManageLinksItem, FInsertManageCommentsItem: TMenuItem;
     FTextUndoButton, FTextRedoButton: TBitBtn;
     FRedactionFinalizeButton: TPDFDesignButton;
@@ -447,6 +452,8 @@ type
     procedure ManageLinksClick(Sender: TObject);
     procedure TextWatermarkClick(Sender: TObject);
     procedure ImageWatermarkClick(Sender: TObject);
+    procedure InsertImageClick(Sender: TObject);
+    procedure ThumbInsertImageClick(Sender: TObject);
     procedure SignatureClick(Sender: TObject);
     procedure CancelSignature;
     procedure SignatureApplicationMessage(var Msg: TMsg; var Handled: Boolean);
@@ -480,6 +487,7 @@ type
     procedure InfoClick(Sender: TObject);
     procedure InfoDialogClose(Sender: TObject; var Action: TCloseAction);
     procedure InfoDialogDestroy(Sender: TObject);
+    procedure InfoPageChange(Sender: TObject);
     procedure InfoDialogMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure InfoCloseButtonClick(Sender: TObject);
@@ -1169,7 +1177,7 @@ procedure PDFToolbarHoverColors(const ADesign: Integer;
   var ABack, AEdge: TColor);
 begin
   case ADesign of
-    3: begin ABack := RGB(225, 225, 225); AEdge := RGB(96, 96, 96); end;
+    3, 6: begin ABack := RGB(225, 225, 225); AEdge := RGB(96, 96, 96); end;
     5: begin ABack := RGB(230, 244, 255); AEdge := RGB(55, 110, 166); end;
   end;
 end;
@@ -1194,7 +1202,7 @@ begin
   State := Message.DrawItemStruct^.itemState;
   case FDesign of
     1: begin Back := RGB(248, 250, 253); Edge := RGB(209, 219, 232); Fore := RGB(35, 48, 65); end;
-    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
     begin
@@ -1207,12 +1215,12 @@ begin
   if FHover and Enabled then
     case FDesign of
       1: Back := RGB(229, 239, 251);
-      3, 5: PDFToolbarHoverColors(FDesign, Back, Edge);
+      3, 5, 6: PDFToolbarHoverColors(FDesign, Back, Edge);
     end;
   if (State and ODS_SELECTED) <> 0 then
     case FDesign of
       1: Back := RGB(209, 225, 245);
-      3: Back := RGB(176, 176, 176);
+      3, 6: Back := RGB(176, 176, 176);
       5: Back := RGB(155, 190, 225);
     end;
   if FSelectedVisual and Enabled then
@@ -1384,7 +1392,7 @@ begin
   case FDesign of
     1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); Fore := RGB(35, 48, 65); end;
     2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); Fore := clWhite; end;
-    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
     4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); Fore := clWhite; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
@@ -1409,7 +1417,7 @@ begin
       1: Back := RGB(229, 239, 251);
       2: Back := RGB(86, 94, 107);
       4: Back := RGB(68, 73, 81);
-      3, 5: PDFToolbarHoverColors(FDesign, Back, Edge);
+      3, 5, 6: PDFToolbarHoverColors(FDesign, Back, Edge);
     else
       Back := RGB(213, 226, 242);
     end;
@@ -1420,6 +1428,7 @@ begin
     case FDesign of
       1: Back := RGB(209, 225, 245);
       2, 4: Back := RGB(91, 106, 128);
+      3, 6: Back := RGB(176, 176, 176);
     else
       Back := RGB(177, 202, 230);
     end;
@@ -2203,7 +2212,7 @@ begin
     case FDesign of
       1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); end;
       2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); end;
-      3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
+      3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
       4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); end;
       5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); end;
     else
@@ -2440,7 +2449,7 @@ begin
   begin
     case FDesign of
       1: Brush := CreateSolidBrush(RGB(249, 251, 254));
-      3: Brush := CreateSolidBrush(RGB(192, 192, 192));
+      3, 6: Brush := CreateSolidBrush(RGB(192, 192, 192));
       5: Brush := CreateSolidBrush(RGB(190, 214, 237));
     else
       Brush := CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
@@ -2997,6 +3006,12 @@ begin
   FInsertSignatureItem.OnDrawItem := PopupDrawItem;
   FInsertSignatureItem.OnMeasureItem := PopupMeasureItem;
   FInsertPopup.Items.Add(FInsertSignatureItem);
+  FInsertImageItem := TMenuItem.Create(FInsertPopup);
+  FInsertImageItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
+  FInsertImageItem.OnClick := InsertImageClick;
+  FInsertImageItem.OnDrawItem := PopupDrawItem;
+  FInsertImageItem.OnMeasureItem := PopupMeasureItem;
+  FInsertPopup.Items.Add(FInsertImageItem);
   FInsertImageWatermarkItem := TMenuItem.Create(FInsertPopup);
   FInsertImageWatermarkItem.Caption := ToolbarHint('Bildwasserzeichen hinzufügen ...', 'Add image watermark ...');
   FInsertImageWatermarkItem.OnClick := ImageWatermarkClick;
@@ -3296,6 +3311,10 @@ begin
   FSignatureMenuItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
   FSignatureMenuItem.OnClick := SignatureClick;
   FThumbMenu.Items.Add(FSignatureMenuItem);
+  FThumbInsertImageItem := TMenuItem.Create(FThumbMenu);
+  FThumbInsertImageItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
+  FThumbInsertImageItem.OnClick := ThumbInsertImageClick;
+  FThumbMenu.Items.Add(FThumbInsertImageItem);
   FImageWatermarkMenuItem := TMenuItem.Create(FThumbMenu);
   FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   FImageWatermarkMenuItem.OnClick := ImageWatermarkClick;
@@ -3815,7 +3834,7 @@ begin
   begin
     case FEditToggle.FDesign of
       1: BackColor := RGB(222, 234, 248); // Modern Hell: bisheriger Farbton
-      3: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
+      3, 6: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
       5: begin BackColor := RGB(34, 94, 157); TextColor := clWhite; end;
     else
       if C.Color = RGB(249, 251, 254) then
@@ -3877,7 +3896,7 @@ begin
   case ADesign of
     1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := RGB(249, 251, 254); end;
     2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
-    3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
+    3, 6: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
     4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
     5: begin BackColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); FieldColor := RGB(205, 225, 245); end;
   else
@@ -5136,6 +5155,8 @@ begin
       ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+  if FThumbInsertImageItem <> nil then
+    FThumbInsertImageItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
   if FImageWatermarkMenuItem <> nil then
     FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   if FSignatureMenuItem <> nil then
@@ -5148,6 +5169,8 @@ begin
     FInsertLinkItem.Caption := ToolbarHint('Hyperlink hinzufügen ...', 'Add hyperlink ...');
   if FInsertSignatureItem <> nil then
     FInsertSignatureItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
+  if FInsertImageItem <> nil then
+    FInsertImageItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
   if FInsertImageWatermarkItem <> nil then
     FInsertImageWatermarkItem.Caption := ToolbarHint('Bildwasserzeichen hinzufügen ...', 'Add image watermark ...');
   if FInsertTextWatermarkItem <> nil then
@@ -5966,6 +5989,8 @@ begin
       ToolbarHint('Kommentare verwalten ...', 'Manage comments ...');
   if FWatermarkMenuItem <> nil then
     FWatermarkMenuItem.Caption := Tr('Textwasserzeichen hinzufügen ...');
+  if FThumbInsertImageItem <> nil then
+    FThumbInsertImageItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
   if FImageWatermarkMenuItem <> nil then
     FImageWatermarkMenuItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');
   if FSignatureMenuItem <> nil then
@@ -6645,6 +6670,11 @@ begin
   SigH := Abs(Y2-Y1);
   if (SigW <= 0) or (SigH <= 0) then Exit;
   try
+    if FInsertImageMode then
+      FCore.InsertImageAtRect(FSignatureFile, Pg,
+        EnsureRange(Min(X1,X2),0.0,Double(PageW)-SigW),
+        EnsureRange(Min(Y1,Y2),0.0,Double(PageH)-SigH), SigW, SigH)
+    else
     FCore.InsertSignatureImage(FSignatureFile, Pg,
       EnsureRange(Min(X1,X2),0.0,Double(PageW)-SigW),
       EnsureRange(Min(Y1,Y2),0.0,Double(PageH)-SigH), SigW, SigH);
@@ -6668,6 +6698,7 @@ begin
   FSignatureResizing := False;
   FreeAndNil(FSignaturePreview);
   FSignatureMode := False;
+  FInsertImageMode := False;
   Screen.Cursor := crDefault;
   if FImage <> nil then FImage.Cursor := crDefault;
   if FSignatureTemporary and (FSignatureFile <> '') then
@@ -6861,6 +6892,392 @@ begin
   if (FScroll <> nil) and FScroll.CanFocus then FScroll.SetFocus;
 end;
 
+procedure TFreePDF64PDFiumView.ThumbInsertImageClick(Sender: TObject);
+begin
+  // Einfuegen auf der ueber das Miniatur-Kontextmenue ausgewaehlten Seite.
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  if (FThumbSelected <> nil) and (FThumbSelected.Count > 0) then
+    FPage := EnsureRange(FThumbSelected[0], 0, FCore.PageCount - 1);
+  InsertImageClick(Sender);
+end;
+
+// Visuelle Auswahl fuer mehrseitige TIFFs. Der Dialog wird nur bei Bedarf
+// erzeugt; die Miniaturen sind echte GDI+-Renderings der einzelnen Frames.
+type
+  TTIFFPagePicker = class(TComponent)
+  private
+    FSelected: Integer;
+    FCards: TList<TPanel>;
+    FStatus: TLabel;
+    FAccept: TButton;
+    FEnglish: Boolean;
+    FCount: Integer;
+    procedure SelectCard(Sender: TObject);
+    procedure DoubleClickCard(Sender: TObject);
+    procedure UpdateSelection;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    function Execute(AImage: TGPBitmap; const ADimension: TGUID;
+      ACount: Integer; AEnglish: Boolean; out ASelected: Integer): Boolean;
+  end;
+
+constructor TTIFFPagePicker.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FCards := TList<TPanel>.Create;
+  FSelected := 0;
+end;
+
+destructor TTIFFPagePicker.Destroy;
+begin
+  FCards.Free;
+  inherited Destroy;
+end;
+
+procedure TTIFFPagePicker.UpdateSelection;
+var
+  I: Integer;
+begin
+  for I := 0 to FCards.Count - 1 do
+  begin
+    FCards[I].BevelOuter := bvNone;
+    FCards[I].Color := clBtnFace;
+    if I = FSelected then
+    begin
+      FCards[I].BevelOuter := bvLowered;
+      FCards[I].Color := clHighlight;
+    end;
+  end;
+  if FStatus <> nil then
+  begin
+    if FEnglish then
+      FStatus.Caption := Format('Selected: page %d of %d', [FSelected + 1, FCount])
+    else
+      FStatus.Caption := Format('Ausgewählt: Seite %d von %d', [FSelected + 1, FCount]);
+  end;
+  if FAccept <> nil then FAccept.Enabled := FSelected >= 0;
+end;
+
+procedure TTIFFPagePicker.SelectCard(Sender: TObject);
+var
+  Card: TPanel;
+begin
+  Card := nil;
+  if Sender is TPanel then Card := TPanel(Sender)
+  else if (Sender is TControl) and (TControl(Sender).Parent is TPanel) then
+    Card := TPanel(TControl(Sender).Parent);
+  if Card = nil then Exit;
+  FSelected := Card.Tag;
+  UpdateSelection;
+end;
+
+procedure TTIFFPagePicker.DoubleClickCard(Sender: TObject);
+begin
+  SelectCard(Sender);
+  if Sender is TControl then
+    if GetParentForm(TControl(Sender)) <> nil then
+      GetParentForm(TControl(Sender)).ModalResult := mrOk;
+end;
+
+function TTIFFPagePicker.Execute(AImage: TGPBitmap; const ADimension: TGUID;
+  ACount: Integer; AEnglish: Boolean; out ASelected: Integer): Boolean;
+var
+  Dialog: TForm;
+  Scroll: TScrollBox;
+  Footer: TPanel;
+  Card: TPanel;
+  Preview: TImage;
+  CaptionLabel: TLabel;
+  CancelButton: TButton;
+  Thumb: TBitmap;
+  G: TGPGraphics;
+  PageW, PageH, TargetW, TargetH: Integer;
+  DestRect: TGPRect;
+  I, Col, Row, DPI, CardW, CardH, Gap, Columns: Integer;
+begin
+  Result := False;
+  ASelected := 1;
+  FEnglish := AEnglish;
+  FCount := ACount;
+  FSelected := 0;
+  Dialog := TForm.CreateNew(nil);
+  try
+    Dialog.Position := poScreenCenter;
+    Dialog.BorderStyle := bsSizeable;
+    Dialog.Caption := 'TIFF-Seite auswählen';
+    if FEnglish then Dialog.Caption := 'Select TIFF page';
+    Dialog.Constraints.MinWidth := 430;
+    Dialog.Constraints.MinHeight := 330;
+    Dialog.ClientWidth := 690;
+    Dialog.ClientHeight := 520;
+    Dialog.KeyPreview := True;
+    Dialog.Font.Name := 'Segoe UI';
+    Dialog.Font.Size := 9;
+    ApplyPDFDialogDesign(Dialog);
+    DPI := Max(96, Dialog.CurrentPPI);
+    CardW := MulDiv(190, DPI, 96);
+    CardH := MulDiv(175, DPI, 96);
+    Gap := MulDiv(12, DPI, 96);
+    Columns := 3;
+    Dialog.ClientWidth := Columns * CardW + (Columns + 1) * Gap + MulDiv(22, DPI, 96);
+    Dialog.ClientHeight := MulDiv(520, DPI, 96);
+
+    Footer := TPanel.Create(Dialog);
+    Footer.Parent := Dialog;
+    Footer.Align := alBottom;
+    Footer.Height := MulDiv(58, DPI, 96);
+    Footer.BevelOuter := bvNone;
+    Footer.ParentBackground := False;
+    Footer.Color := Dialog.Color;
+
+    FStatus := TLabel.Create(Dialog);
+    FStatus.Parent := Footer;
+    FStatus.Left := Gap;
+    FStatus.Top := MulDiv(20, DPI, 96);
+    FStatus.Font.Assign(Dialog.Font);
+
+    FAccept := TButton.Create(Dialog);
+    FAccept.Parent := Footer;
+    FAccept.Caption := 'Einfügen';
+    if FEnglish then FAccept.Caption := 'Insert';
+    FAccept.ModalResult := mrOk;
+    FAccept.Width := MulDiv(105, DPI, 96);
+    FAccept.Height := MulDiv(32, DPI, 96);
+    FAccept.Left := Dialog.ClientWidth - Gap - FAccept.Width;
+    FAccept.Top := MulDiv(12, DPI, 96);
+    FAccept.Anchors := [akRight, akTop];
+    Dialog.ActiveControl := FAccept;
+
+    CancelButton := TButton.Create(Dialog);
+    CancelButton.Parent := Footer;
+    CancelButton.Caption := 'Abbrechen';
+    if FEnglish then CancelButton.Caption := 'Cancel';
+    CancelButton.ModalResult := mrCancel;
+    CancelButton.Cancel := True;
+    CancelButton.Width := MulDiv(105, DPI, 96);
+    CancelButton.Height := FAccept.Height;
+    CancelButton.Left := FAccept.Left - Gap - CancelButton.Width;
+    CancelButton.Top := FAccept.Top;
+    CancelButton.Anchors := [akRight, akTop];
+
+    Scroll := TScrollBox.Create(Dialog);
+    Scroll.Parent := Dialog;
+    Scroll.Align := alClient;
+    Scroll.BorderStyle := bsNone;
+    Scroll.VertScrollBar.Tracking := True;
+    Scroll.Color := Dialog.Color;
+
+    for I := 0 to ACount - 1 do
+    begin
+      if AImage.SelectActiveFrame(ADimension, Cardinal(I)) <> Ok then Continue;
+      Col := I mod Columns;
+      Row := I div Columns;
+      Card := TPanel.Create(Dialog);
+      Card.Parent := Scroll;
+      Card.SetBounds(Gap + Col * (CardW + Gap), Gap + Row * (CardH + Gap), CardW, CardH);
+      Card.Tag := I;
+      Card.ParentBackground := False;
+      Card.OnClick := SelectCard;
+      Card.OnDblClick := DoubleClickCard;
+      FCards.Add(Card);
+
+      Preview := TImage.Create(Dialog);
+      Preview.Parent := Card;
+      Preview.SetBounds(MulDiv(8, DPI, 96), MulDiv(8, DPI, 96),
+        CardW - MulDiv(16, DPI, 96), CardH - MulDiv(40, DPI, 96));
+      Preview.Center := True;
+      Preview.Proportional := True;
+      Preview.Stretch := True;
+      Preview.Tag := I;
+      Preview.OnClick := SelectCard;
+      Preview.OnDblClick := DoubleClickCard;
+      Thumb := TBitmap.Create;
+      try
+        Thumb.PixelFormat := pf32bit;
+        Thumb.SetSize(Preview.Width, Preview.Height);
+        Thumb.Canvas.Brush.Color := clWhite;
+        Thumb.Canvas.FillRect(Rect(0, 0, Thumb.Width, Thumb.Height));
+        PageW := Integer(AImage.GetWidth);
+        PageH := Integer(AImage.GetHeight);
+        if (PageW > 0) and (PageH > 0) then
+        begin
+          TargetW := Thumb.Width;
+          TargetH := MulDiv(PageH, TargetW, PageW);
+          if TargetH > Thumb.Height then
+          begin
+            TargetH := Thumb.Height;
+            TargetW := MulDiv(PageW, TargetH, PageH);
+          end;
+          DestRect.X := (Thumb.Width - TargetW) div 2;
+          DestRect.Y := (Thumb.Height - TargetH) div 2;
+          DestRect.Width := TargetW;
+          DestRect.Height := TargetH;
+          G := TGPGraphics.Create(Thumb.Canvas.Handle);
+          try
+            G.DrawImage(AImage, DestRect);
+          finally
+            G.Free;
+          end;
+        end;
+        Preview.Picture.Bitmap.Assign(Thumb);
+      finally
+        Thumb.Free;
+      end;
+      CaptionLabel := TLabel.Create(Dialog);
+      CaptionLabel.Parent := Card;
+      CaptionLabel.AutoSize := False;
+      CaptionLabel.Alignment := taCenter;
+      CaptionLabel.SetBounds(0, CardH - MulDiv(27, DPI, 96), CardW, MulDiv(22, DPI, 96));
+      CaptionLabel.Caption := Format('Seite %d', [I + 1]);
+      if FEnglish then CaptionLabel.Caption := Format('Page %d', [I + 1]);
+      CaptionLabel.Tag := I;
+      CaptionLabel.OnClick := SelectCard;
+      CaptionLabel.OnDblClick := DoubleClickCard;
+    end;
+    UpdateSelection;
+    Result := Dialog.ShowModal = mrOk;
+    if Result then ASelected := FSelected + 1;
+  finally
+    FStatus := nil;
+    FAccept := nil;
+    FCards.Clear;
+    Dialog.Free;
+  end;
+end;
+
+// TIFF-Seite ueber GDI+ in eine temporaere PNG-Datei umwandeln.
+// Die vorhandene interaktive Bildplatzierung und PDFium-Einbettung bleiben unveraendert.
+function PrepareTIFFPageForInsertion(const SourceFile: string;
+  const English: Boolean): string;
+var
+  Image: TGPBitmap;
+  PageDimension: TGUID;
+  Count, Selected: Integer;
+  Picker: TTIFFPagePicker;
+  TempDir: array[0..MAX_PATH] of Char;
+  TempName: array[0..MAX_PATH] of Char;
+  TempPNG: string;
+  PNGEncoder: TGUID;
+begin
+  Result := '';
+  Image := TGPBitmap.Create(SourceFile);
+  try
+    if (Image = nil) or (Image.GetLastStatus <> Ok) then
+      raise Exception.Create('TIFF-Datei konnte nicht geöffnet werden / Could not open TIFF file.');
+    PageDimension := StringToGUID('{7462DC86-6180-4C7E-8E3F-EE7333A7A483}');
+    Count := Integer(Image.GetFrameCount(PageDimension));
+    if Count < 1 then
+      raise Exception.Create('Keine TIFF-Seite gefunden / No TIFF page found.');
+    Selected := 1;
+    if Count > 1 then
+    begin
+      Picker := TTIFFPagePicker.Create(nil);
+      try
+        if not Picker.Execute(Image, PageDimension, Count, English, Selected) then Exit;
+      finally
+        Picker.Free;
+      end;
+    end;
+    if Image.SelectActiveFrame(PageDimension, Cardinal(Selected - 1)) <> Ok then
+      raise Exception.Create('TIFF-Seite konnte nicht geladen werden / Could not load TIFF page.');
+    if (GetTempPath(MAX_PATH, TempDir) = 0) or
+       (GetTempFileName(TempDir, 'FPV', 0, TempName) = 0) then
+      RaiseLastOSError;
+    TempPNG := ChangeFileExt(string(TempName), '.png');
+    System.SysUtils.DeleteFile(string(TempName));
+    PNGEncoder := StringToGUID('{557CF406-1A04-11D3-9A73-0000F81EF32E}');
+    if Image.Save(TempPNG, PNGEncoder) <> Ok then
+    begin
+      System.SysUtils.DeleteFile(TempPNG);
+      raise Exception.Create('TIFF-Konvertierung fehlgeschlagen / TIFF conversion failed.');
+    end;
+    Result := TempPNG;
+  finally
+    Image.Free;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.InsertImageClick(Sender: TObject);
+var
+  FileDlg: TOpenDialog;
+  Pic: TPicture;
+  PageW, PageH: Single;
+  WidthPoints: Double;
+  SelectedFile, PreparedFile: string;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  FileDlg := TOpenDialog.Create(Self);
+  try
+    FileDlg.Title := ToolbarHint('Bild zum Einfügen auswählen', 'Select image to insert');
+    FileDlg.Filter := 'Bilder (*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff';
+    if not FileDlg.Execute then Exit;
+    SelectedFile := FileDlg.FileName;
+  finally
+    FileDlg.Free;
+  end;
+  PreparedFile := '';
+  if SameText(ExtractFileExt(SelectedFile), '.tif') or
+     SameText(ExtractFileExt(SelectedFile), '.tiff') then
+  begin
+    try
+      PreparedFile := PrepareTIFFPageForInsertion(SelectedFile,
+        (ToolbarHint('DE', 'EN') = 'EN'));
+      if PreparedFile = '' then Exit; // Seitenauswahl abgebrochen
+    except
+      on E: Exception do
+      begin
+        MessageDlg(E.Message, mtError, [mbOK], 0);
+        Exit;
+      end;
+    end;
+  end;
+  CancelSignature;
+  if PreparedFile <> '' then
+  begin
+    FSignatureFile := PreparedFile;
+    FSignatureTemporary := True;
+  end
+  else
+  begin
+    FSignatureFile := SelectedFile;
+    FSignatureTemporary := False;
+  end;
+  Pic := TPicture.Create;
+  try
+    Pic.LoadFromFile(FSignatureFile);
+    if (Pic.Width < 1) or (Pic.Height < 1) then Exit;
+    if not FCore.PageSize(FPage, PageW, PageH) then Exit;
+    // Startbreite: 40 % der Seite; die vier Griffe skalieren visuell.
+    WidthPoints := Min(PageW * 0.4, PageH * 0.75 * Pic.Width / Pic.Height);
+    FSignatureWidthMM := WidthPoints * 25.4 / 72.0;
+    FSignaturePreview := TPicture.Create;
+    FSignaturePreview.Assign(Pic);
+  finally
+    Pic.Free;
+  end;
+  FSignatureTemporary := False;
+  FSignaturePreviewVisible := False;
+  FSignaturePlaced := False;
+  FSignatureDragging := False;
+  FSignatureResizing := False;
+  FSignatureResizeCorner := 0;
+  FSignaturePreviewPage := FPage;
+  FSignatureMode := True;
+  FInsertImageMode := True;
+  FMeasureMode := False;
+  CancelMeasurement;
+  if FMeasureButton <> nil then SetActiveModeButton(FMeasureButton, False);
+  FLinkMode := False;
+  FTextInsertMode := False;
+  FHighlightMode := False;
+  FNoteMode := False;
+  FMarkMode := False;
+  Screen.Cursor := crCross;
+  if FImage <> nil then FImage.Cursor := crCross;
+  if (FScroll <> nil) and FScroll.CanFocus then FScroll.SetFocus;
+end;
+
 procedure TFreePDF64PDFiumView.ImageWatermarkClick(Sender: TObject);
 var
   FileDlg: TOpenDialog;
@@ -6980,6 +7397,8 @@ begin
   if FThumbMenu <> nil then RefreshThumbMenuCaptions;
   if FExtractItem <> nil then
     FExtractItem.Enabled := FThumbSelected.Count > 0;
+  if FThumbInsertImageItem <> nil then
+    FThumbInsertImageItem.Enabled := (FCore <> nil) and (FCore.PageCount > 0);
   if FInsertBeforeItem <> nil then
     FInsertBeforeItem.Enabled := (FCore <> nil) and (FCore.PageCount > 0);
   if FInsertAfterItem <> nil then
@@ -8982,8 +9401,28 @@ end;
 procedure TFreePDF64PDFiumView.InfoDialogDestroy(Sender: TObject);
 begin
   FInfoContentScroll := nil;
+  FInfoDetailsScroll := nil;
+  FInfoFontsScroll := nil;
   FInfoDialog := nil;
   if Assigned(FInfo) then FInfo.Font.Style := [];
+end;
+
+procedure TFreePDF64PDFiumView.InfoPageChange(Sender: TObject);
+var
+  ShowFonts: Boolean;
+begin
+  if not (Sender is TComboBox) then Exit;
+  ShowFonts := TComboBox(Sender).ItemIndex = 1;
+  if Assigned(FInfoDetailsScroll) then
+    FInfoDetailsScroll.Visible := not ShowFonts;
+  if Assigned(FInfoFontsScroll) then
+    FInfoFontsScroll.Visible := ShowFonts;
+  if ShowFonts then
+    FInfoContentScroll := FInfoFontsScroll
+  else
+    FInfoContentScroll := FInfoDetailsScroll;
+  if Assigned(FInfoContentScroll) then
+    FInfoContentScroll.VertScrollBar.Position := 0;
 end;
 
 procedure TFreePDF64PDFiumView.InfoDialogMouseWheel(Sender: TObject;
@@ -9021,8 +9460,12 @@ var
   Dlg: TForm;
   Header, SectionTitle, Lab, Val: TLabel;
   CloseBtn: TButton;
-  ContentScroll: TScrollBox;
+  ContentScroll, FontsScroll: TScrollBox;
+  PageSelect: TComboBox;
+  DetailsContentH: Integer;
   Stream: TFileStream;
+  Fonts: TStringList;
+  FontIndex: Integer;
   Bytes: Int64;
   RowY, RowStep, FieldHeight, DialogW, DialogH, ContentH: Integer;
   PW, PH: Single;
@@ -9171,15 +9614,31 @@ begin
     Header.Caption := Tr('Dokumenteigenschaften');
     Header.Font.Size := 16;
     Header.SetBounds(P(26), P(22), P(430), P(36));
+    // Seitenwahl: Dokumentinformationen und Schriftarten getrennt anzeigen.
+    PageSelect := TComboBox.Create(Dlg);
+    PageSelect.Parent := Dlg;
+    PageSelect.Style := csDropDownList;
+    PageSelect.Font.Assign(Dlg.Font);
+    // VCL skaliert die Schrift bereits; die Mindesthöhe bleibt DPI-gerecht.
+    PageSelect.ItemHeight := Max(PageSelect.Canvas.TextHeight('Ag') + P(8), P(20));
+    PageSelect.SetBounds(P(26), P(69), DialogW - P(52),
+      Max(P(30), PageSelect.ItemHeight + P(8)));
+    PageSelect.DropDownCount := 2;
+    PageSelect.Items.Add(Tr('Dokumentinformationen'));
+    PageSelect.Items.Add(Tr('Schriftartenübersicht'));
+    PageSelect.ItemIndex := 0;
+    PageSelect.OnChange := InfoPageChange;
+
     ContentScroll := TScrollBox.Create(Dlg);
     ContentScroll.Parent := Dlg;
+    FInfoDetailsScroll := ContentScroll;
     FInfoContentScroll := ContentScroll;
     ContentScroll.OnMouseWheel := InfoDialogMouseWheel;
     ContentScroll.BorderStyle := bsNone;
     ContentScroll.HorzScrollBar.Visible := False;
     ContentScroll.VertScrollBar.Tracking := True;
-    ContentScroll.SetBounds(P(8), P(70), DialogW - P(16),
-      DialogH - P(70) - P(65));
+    ContentScroll.SetBounds(P(8), P(107), DialogW - P(16),
+      DialogH - P(107) - P(65));
     RowY := P(15);
     AddSection('Beschreibung');
     AddField('Dateiname:', ExtractFileName(FilePath));
@@ -9248,9 +9707,43 @@ begin
     CloseBtn.Cancel := True;
     // Der Schliessen-Button bleibt ausserhalb des scrollbaren Bereichs.
     CloseBtn.SetBounds(DialogW - P(225), DialogH - P(51), P(195), P(35));
-    ContentH := RowY + P(15);
-    ContentScroll.VertScrollBar.Range := ContentH;
+    DetailsContentH := RowY + P(15);
+    ContentScroll.VertScrollBar.Range := DetailsContentH;
     ContentScroll.VertScrollBar.Position := 0;
+
+    // Separate Schriftartenseite; die PDFium-Auswertung erfolgt beim Öffnen
+    // der Dokumenteigenschaften und beeinflusst nicht den PDF-Renderer.
+    FontsScroll := TScrollBox.Create(Dlg);
+    FontsScroll.Parent := Dlg;
+    FInfoFontsScroll := FontsScroll;
+    FontsScroll.OnMouseWheel := InfoDialogMouseWheel;
+    FontsScroll.BorderStyle := bsNone;
+    FontsScroll.HorzScrollBar.Visible := False;
+    FontsScroll.VertScrollBar.Tracking := True;
+    FontsScroll.SetBounds(P(8), P(107), DialogW - P(16),
+      DialogH - P(107) - P(65));
+    FontsScroll.Visible := False;
+    ContentScroll := FontsScroll;
+    RowY := P(15);
+    AddSection('Schriftartenübersicht');
+    Fonts := FCore.DocumentFontSummary;
+    try
+      if Fonts.Count = 0 then
+        AddField('Schriftarten:', 'Keine Textschriftarten gefunden')
+      else
+      begin
+        AddField('Anzahl Schriftarten:', IntToStr(Fonts.Count));
+        for FontIndex := 0 to Fonts.Count - 1 do
+          AddField(IntToStr(FontIndex + 1) + '.', Fonts[FontIndex]);
+      end;
+      AddField('Einbettungsstatus:', 'Nicht verfügbar');
+    finally
+      Fonts.Free;
+    end;
+    ContentH := RowY + P(15);
+    FontsScroll.VertScrollBar.Range := ContentH;
+    FontsScroll.VertScrollBar.Position := 0;
+    FInfoContentScroll := FInfoDetailsScroll;
     // Nach der endgueltigen Groessenberechnung erneut am PDF-Fenster ausrichten.
     Dlg.Left := PDFWindow.Left + (PDFWindow.Width - Dlg.Width) div 2;
     Dlg.Top := PDFWindow.Top + (PDFWindow.Height - Dlg.Height) div 2;
@@ -9261,6 +9754,8 @@ begin
     if Assigned(FInfo) then FInfo.Font.Style := [fsBold];
   except
     FInfoContentScroll := nil;
+    FInfoDetailsScroll := nil;
+    FInfoFontsScroll := nil;
     FInfoDialog := nil;
     Dlg.Free;
     raise;
@@ -10867,7 +11362,7 @@ begin
   case FEditToggle.FDesign of
     1: begin BackColor := RGB(249,251,254); TextColor := RGB(35,48,65); AccentColor := clHighlight; end;
     2: begin BackColor := RGB(65,70,79); TextColor := clWhite; AccentColor := RGB(83,105,135); end;
-    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := clHighlight; end;
+    3, 6: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := clHighlight; end;
     4: begin BackColor := RGB(45,48,54); TextColor := clWhite; AccentColor := RGB(69,91,124); end;
     5: begin BackColor := RGB(205,225,245); TextColor := RGB(24,55,88); AccentColor := clHighlight; end;
   else
@@ -10878,7 +11373,7 @@ begin
   else ACanvas.Brush.Color := BackColor;
   ACanvas.FillRect(ARect);
   // Modern Hell, Windows Klassik und Klassisch Blau: einheitliche Windows-Auswahlfarben.
-  if Selected and (FEditToggle.FDesign in [1, 3, 5]) then
+  if Selected and (FEditToggle.FDesign in [1, 3, 5, 6]) then
     ACanvas.Font.Color := clHighlightText
   else
     ACanvas.Font.Color := TextColor;
@@ -11594,7 +12089,8 @@ begin
           FSignatureDragOrigin := Point(X,Y);
           FSignatureRectOrigin := FSignatureRect;
           FSignatureResizing := FSignatureResizeCorner <> 0;
-          FSignatureDragging := not FSignatureResizing;
+          FSignatureDragging := not FSignatureResizing and
+            (not FInsertImageMode or (ssCtrl in Shift));
           if FSignatureResizing then
           begin
             if FSignatureResizeCorner in [1, 4] then
@@ -11606,9 +12102,10 @@ begin
             Img.Cursor := crSizeAll;
           // Screen.Cursor hat Vorrang vor dem Cursor des Bild-Controls.
           Screen.Cursor := Img.Cursor;
-          Img.MouseCapture := True;
+          if FSignatureResizing or FSignatureDragging then
+            Img.MouseCapture := True;
         end
-        else
+        else if not FInsertImageMode then
           CommitSignature;
       end
       else if (FSignaturePreview <> nil) and (FSignaturePreview.Width > 0) then
@@ -11917,6 +12414,10 @@ begin
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := ToolbarHint('Unterschrift hinzufügen ...', 'Add signature ...');
       NoteItem.OnClick := SignatureClick;
+      FPageContextMenu.Items.Add(NoteItem);
+      NoteItem := TMenuItem.Create(FPageContextMenu);
+      NoteItem.Caption := ToolbarHint('Bild einfügen ...', 'Insert image ...');
+      NoteItem.OnClick := InsertImageClick;
       FPageContextMenu.Items.Add(NoteItem);
       NoteItem := TMenuItem.Create(FPageContextMenu);
       NoteItem.Caption := Tr('Bildwasserzeichen hinzufügen ...');

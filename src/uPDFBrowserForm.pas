@@ -3073,7 +3073,7 @@ begin
   case ADesign of
     1: begin BackColor := RGB(247, 250, 254); TextColor := RGB(35, 48, 65); FieldColor := clWhite; end;
     2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
-    3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := clWhite; end;
+    3, 6: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := clWhite; end;
     4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
     5: begin BackColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); FieldColor := RGB(205, 225, 245); end;
   else
