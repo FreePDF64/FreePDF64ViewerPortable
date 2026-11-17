@@ -715,7 +715,7 @@ begin
     Dialog.ClientHeight := MulDiv(390, OwnerForm.CurrentPPI, 96);
     case DesignIndex of
       1: Dialog.Color := RGB(249,251,254);
-      3: Dialog.Color := RGB(232,232,232);
+      3, 6: Dialog.Color := RGB(232,232,232);
       5: Dialog.Color := RGB(220,233,247);
     else Dialog.Color := clWhite;
     end;
@@ -730,7 +730,7 @@ begin
     // Auch die Dateipfadanzeige im Inhaltsdialog an das gewählte Design anpassen.
     case DesignIndex of
       1: begin Memo.Color := RGB(249,251,254); Memo.Font.Color := RGB(35,48,65); end;
-      3: begin Memo.Color := RGB(232,232,232); Memo.Font.Color := clBlack; end;
+      3, 6: begin Memo.Color := RGB(232,232,232); Memo.Font.Color := clBlack; end;
       5: begin Memo.Color := RGB(220,233,247); Memo.Font.Color := RGB(24,55,88); end;
     else begin Memo.Color := clWindow; Memo.Font.Color := clWindowText; end;
     end;
@@ -790,7 +790,7 @@ begin
     Dialog.Font.Size := 11;
     case ADesign of
       1: begin BackColor := RGB(249,251,254); ForeColor := RGB(35,48,65); end;
-      3: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
+      3, 6: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
       5: begin BackColor := RGB(220,233,247); ForeColor := RGB(24,55,88); end;
     else begin BackColor := clWhite; ForeColor := clWindowText; end;
     end;
@@ -2250,7 +2250,7 @@ begin
     Form.Font.Size := 10;
     case FDesignIndex of
       1: begin BackColor := RGB(249,251,254); HeadColor := RGB(225,232,241); ForeColor := RGB(35,48,65); end;
-      3: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
+      3, 6: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
       5: begin BackColor := RGB(220,233,247); HeadColor := RGB(190,214,237); ForeColor := RGB(24,55,88); end;
     else begin BackColor := $00FAFAFA; HeadColor := clWhite; ForeColor := clWindowText; end;
     end;
@@ -4616,7 +4616,7 @@ begin
   begin
     case FDesignIndex of
       2: FSplitDivider.Color := RGB(91, 99, 111);
-      3: FSplitDivider.Color := RGB(128, 128, 128);
+      3, 6: FSplitDivider.Color := RGB(128, 128, 128);
       4: FSplitDivider.Color := RGB(72, 76, 84);
       5: FSplitDivider.Color := RGB(114, 156, 196);
       1: FSplitDivider.Color := RGB(166, 183, 205);

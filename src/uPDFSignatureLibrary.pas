@@ -154,7 +154,7 @@ begin
       ButtonColor := RGB(225,232,241); end;
     2,4: begin BackColor := RGB(55,59,66); ForeColor := clWhite;
       ButtonColor := RGB(65,70,79); end;
-    3: begin BackColor := clBtnFace; ForeColor := clWindowText;
+    3, 6: begin BackColor := clBtnFace; ForeColor := clWindowText;
       ButtonColor := RGB(205,205,205); end;
     5: begin BackColor := RGB(232,242,253); ForeColor := RGB(24,55,88);
       ButtonColor := RGB(190,214,237); end;
@@ -383,7 +383,7 @@ begin
         ButtonColor := RGB(245,247,250); end;
       2,4: begin BackColor := RGB(54,58,65); ForeColor := clWhite;
         ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
+      3, 6: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
         ButtonColor := RGB(220,220,220); end;
       5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88);
         ButtonColor := RGB(205,225,245); end;
@@ -523,7 +523,7 @@ begin
         ButtonColor := RGB(245,247,250); end;
       2,4: begin BackColor := RGB(54,58,65); ForeColor := clWhite;
         ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
+      3, 6: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
         ButtonColor := RGB(220,220,220); end;
       5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88);
         ButtonColor := RGB(205,225,245); end;
@@ -643,7 +643,7 @@ begin
       ButtonColor := RGB(225,232,241); end;
     2,4: begin BackColor := RGB(55,59,66); ForeColor := clWhite;
       ButtonColor := RGB(65,70,79); end;
-    3: begin BackColor := clBtnFace; ForeColor := clWindowText;
+    3, 6: begin BackColor := clBtnFace; ForeColor := clWindowText;
       ButtonColor := RGB(205,205,205); end;
     5: begin BackColor := RGB(232,242,253); ForeColor := RGB(24,55,88);
       ButtonColor := RGB(190,214,237); end;

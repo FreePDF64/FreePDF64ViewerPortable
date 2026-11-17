@@ -121,7 +121,7 @@ begin
       TextColor := RGB(35, 48, 65);
       ListColor := RGB(249, 251, 254);
     end;
-    3: begin
+    3, 6: begin
       BaseColor := RGB(232, 232, 232);
       HeaderColor := RGB(222, 222, 222);
       TextColor := clBlack;

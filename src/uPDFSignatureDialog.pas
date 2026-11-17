@@ -272,7 +272,7 @@ begin
     case ADesign of
       1: begin BackColor := RGB(225,232,241); ForeColor := RGB(35,48,65); ButtonColor := RGB(245,247,250); end;
       2: begin BackColor := RGB(54,58,65); ForeColor := clWhite; ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack; ButtonColor := RGB(220,220,220); end;
+      3, 6: begin BackColor := RGB(192,192,192); ForeColor := clBlack; ButtonColor := RGB(220,220,220); end;
       4: begin BackColor := RGB(34,36,40); ForeColor := clWhite; ButtonColor := RGB(45,48,54); end;
       5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88); ButtonColor := RGB(205,225,245); end;
     else
@@ -390,7 +390,7 @@ begin
     case ADesign of
       1: begin BackColor := RGB(225,232,241); TextColor := RGB(35,48,65); ButtonColor := RGB(245,247,250); AccentColor := RGB(57,103,166); end;
       2: begin BackColor := RGB(54,58,65); TextColor := clWhite; ButtonColor := RGB(65,70,79); AccentColor := RGB(103,161,225); end;
-      3: begin BackColor := RGB(192,192,192); TextColor := clBlack; ButtonColor := RGB(220,220,220); AccentColor := RGB(55,90,145); end;
+      3, 6: begin BackColor := RGB(192,192,192); TextColor := clBlack; ButtonColor := RGB(220,220,220); AccentColor := RGB(55,90,145); end;
       4: begin BackColor := RGB(34,36,40); TextColor := clWhite; ButtonColor := RGB(45,48,54); AccentColor := RGB(105,164,228); end;
       5: begin BackColor := RGB(190,214,237); TextColor := RGB(24,55,88); ButtonColor := RGB(205,225,245); AccentColor := RGB(30,91,157); end;
     else
