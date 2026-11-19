@@ -62,6 +62,9 @@ type
     procedure TabDoubleClick(Sender: TObject);
     procedure SetCollapsed(Value: Boolean);
     procedure TabClick(Sender: TObject);
+    procedure FileTabMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure UpdateFileTabHint;
     procedure CommandClick(Sender: TObject);
     procedure TabPreviewCheckClick(Sender: TObject);
     procedure ComboChanged(Sender: TObject);
@@ -809,6 +812,12 @@ begin
   TabText.OnClick := TabClick;
   TabText.OnDblClick := TabDoubleClick;
   FTabPanels.Add(TabPanel);
+  if TabPanel.Tag = 6 then
+  begin
+    TabPanel.OnMouseUp := FileTabMouseUp;
+    TabText.OnMouseUp := FileTabMouseUp;
+    UpdateFileTabHint;
+  end;
 end;
 
 procedure TFreePDFVCLRibbon.AddGroup(TabIndex: Integer; const ACaption: string);
@@ -1475,6 +1484,34 @@ begin
   UpdateGroupViewport;
 end;
 
+procedure TFreePDFVCLRibbon.UpdateFileTabHint;
+var
+  TabPanel: TPanel;
+  HintText: string;
+begin
+  if FTabPanels.Count < 7 then Exit;
+  TabPanel := TPanel(FTabPanels[6]);
+  if RibbonText('Datei') = 'File' then
+    HintText := 'Left: File menu / Right: Home'
+  else
+    HintText := 'Links: Datei-Menü / Rechts: Home';
+  TabPanel.Hint := HintText;
+  TabPanel.ShowHint := True;
+  if (TabPanel.ControlCount > 0) and (TabPanel.Controls[0] is TLabel) then
+  begin
+    TLabel(TabPanel.Controls[0]).Hint := HintText;
+    TLabel(TabPanel.Controls[0]).ShowHint := True;
+  end;
+end;
+
+procedure TFreePDFVCLRibbon.FileTabMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if Button <> mbRight then Exit;
+  if Assigned(FOnCommand) then
+    FOnCommand(Self, 167, '');
+end;
+
 procedure TFreePDFVCLRibbon.TabClick(Sender: TObject);
 begin
   if FCollapsed then Collapsed := False;
@@ -1645,6 +1682,7 @@ begin
       TP.Width := W;
     end;
   end;
+  UpdateFileTabHint;
   // Reposition tab headers after translated captions have changed widths.
   W := 4;
   if FTabPanels.Count = 7 then
