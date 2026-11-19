@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.2.4
+# FreePDF64-Viewer Portable 3.3.0
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -18,7 +18,17 @@
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
 
-## New in version 3.2.4
+## New in version 3.3.0
+
+- **Redesigned VCL Ribbon:** Replaced the Windows Ribbon Framework with a custom VCL Ribbon. Clearly organized tabs, including **Objects**, provide direct access to viewing, editing, image, and PDF tools. Monochrome Tabler icons are embedded in the executable; no external icon folder is required.
+- **Editable PDF zoom percentage:** View the current zoom level in the **View** ribbon, enter a value such as `150 %`, and press Enter to apply it. The display follows zoom changes and switching between open PDFs.
+- **Clearer PDF saving:** **Save** (Ctrl+S) writes changes directly to the open PDF; **Save PDF As…** opens a separate dialog. An orange highlight indicates unsaved changes, with a warning when closing modified documents.
+- **Redaction controls:** Improved Ribbon access to optical redaction and permanent redaction, including an orange active-tool outline. **Optical redaction only hides content; use permanent redaction to remove it.**
+- **Image and multipage TIFF tools:** Reorganized Ribbon commands for image zoom, fit, original size, rotation, saving, and printing, with navigation between pages of multipage TIFFs.
+- **Improved editing feedback:** Newly placed PDF hyperlinks can show their target URL as a tooltip before the PDF is saved. Refined Ribbon hover states, button spacing, and tool selection.
+- **German/English and high-DPI layouts:** Updated bilingual labels, tooltips, and feature help; refined Ribbon presentation for 4K and WQHD displays.
+
+### Also introduced in version 3.2.4
 
 - **Insert images into PDF pages:** Add PNG, JPEG, BMP, and TIFF images from the Insert menu, the PDF page context menu, or the thumbnail context menu. Place and resize images visually on the PDF page, reposition them with Ctrl+drag, and confirm with Enter or cancel with Esc.
 - **Multipage TIFF support:** Select a page from a visual gallery of TIFF thumbnails before inserting it into the PDF.
@@ -54,6 +64,8 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **PDF measurements:** Measure rectangle width and height in mm/cm/in with a selectable drawing scale; copy or export measurement reports as CSV. Save measurements as PDF annotations.
 
 ## Key features
+
+- **VCL Ribbon:** Organized commands with embedded monochrome icons and an editable PDF zoom-percentage field.
 
 - **Tabs and workspaces:** Open multiple PDFs and images in tabs, save named workspaces, and restore collections of documents and their zoom settings.
 - **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
@@ -118,7 +130,17 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
 
-## Neu in Version 3.2.4
+## Neu in Version 3.3.0
+
+- **Neu gestaltetes VCL-Ribbon:** Das Windows Ribbon Framework wurde durch ein eigenes VCL-Ribbon ersetzt. Übersichtlich angeordnete Registerkarten, darunter **„Objekte“**, bieten direkten Zugriff auf Anzeige-, Bearbeitungs-, Grafik- und PDF-Werkzeuge. Einfarbige Tabler-Symbole sind direkt in die EXE eingebettet; ein externer Symbolordner ist nicht erforderlich.
+- **Editierbare PDF-Zoom-Prozentanzeige:** Den aktuellen Zoomfaktor im Ribbon unter **„Ansicht“** ablesen, einen Wert wie `150 %` eingeben und mit Enter übernehmen. Die Anzeige folgt Zoomänderungen und dem Wechsel zwischen geöffneten PDFs.
+- **Übersichtlichere PDF-Speicherung:** **„Speichern“** (Strg+S) schreibt Änderungen direkt in die geöffnete PDF; **„PDF speichern unter …“** öffnet einen eigenen Dialog. Ein orangefarbener Rahmen kennzeichnet ungespeicherte Änderungen; beim Schließen geänderter Dokumente erscheint eine Warnung.
+- **Schwärzungswerkzeuge:** Verbesserter Zugriff auf optische und endgültige Schwärzung im Ribbon, einschließlich orangefarbener Aktivmarkierung. **Die optische Schwärzung verdeckt Inhalte nur; zum Entfernen ist die endgültige Schwärzung erforderlich.**
+- **Grafik- und mehrseitige TIFF-Werkzeuge:** Neu angeordnete Ribbon-Befehle für Grafikzoom, Einpassen, Originalgröße, Drehen, Speichern und Drucken sowie Navigation durch mehrseitige TIFF-Dateien.
+- **Verbesserte Rückmeldungen bei der Bearbeitung:** Neu platzierte PDF-Hyperlinks können ihre Zieladresse bereits vor dem Speichern als Hinweis anzeigen. Überarbeitete Ribbon-Hover-Markierungen, Buttonabstände und Werkzeugauswahl.
+- **Deutsch/Englisch und hohe DPI-Auflösungen:** Aktualisierte zweisprachige Beschriftungen, Hinweise und Funktionsübersicht; optimierte Ribbon-Darstellung für 4K und WQHD.
+
+### Bereits in Version 3.2.4 eingeführt
 
 - **Bilder in PDF-Seiten einfügen:** PNG-, JPEG-, BMP- und TIFF-Bilder über das Menü „Einfügen …“, das PDF-Seiten-Kontextmenü oder das Miniatur-Kontextmenü einfügen. Bilder direkt auf der PDF-Seite visuell platzieren und skalieren, mit Strg+Ziehen verschieben und mit Enter übernehmen oder mit Esc abbrechen.
 - **Mehrseitige TIFF-Dateien:** Die gewünschte TIFF-Seite vor dem Einfügen komfortabel über eine visuelle Miniaturübersicht auswählen.
@@ -154,6 +176,8 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **PDF-Messwerkzeuge:** Rechtecke mit Breite und Höhe messen, mm/cm/Zoll und Zeichnungsmaßstab wählen; Messbericht kopieren oder als CSV exportieren. Messungen lassen sich als PDF-Anmerkungen speichern.
 
 ## Funktionen im Überblick
+
+- **VCL-Ribbon:** Übersichtlich angeordnete Befehle mit eingebetteten einfarbigen Symbolen und editierbarer PDF-Zoom-Prozentanzeige.
 
 - **Registerkarten und Arbeitsbereiche:** Mehrere PDFs und Bilder in Registerkarten öffnen, benannte Arbeitsbereiche speichern und Dokumente samt Zoom-Einstellungen wiederherstellen.
 - **PDF-Vergleich:** Zwei PDFs nebeneinander anzeigen; **S** synchronisiert das Scrollen, **Z** den Zoom (jeweils links → rechts).
