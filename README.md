@@ -12,6 +12,14 @@
 
 </div>
 
+<div align="center">
+
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.3.0 – new VCL Ribbon and main window" width="900"></a>
+
+*FreePDF64-Viewer Portable 3.3.0 – redesigned main window and VCL Ribbon. Click to enlarge.*
+
+</div>
+
 ---
 
 # English
@@ -28,45 +36,16 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **Improved editing feedback:** Newly placed PDF hyperlinks can show their target URL as a tooltip before the PDF is saved. Refined Ribbon hover states, button spacing, and tool selection.
 - **German/English and high-DPI layouts:** Updated bilingual labels, tooltips, and feature help; refined Ribbon presentation for 4K and WQHD displays.
 
-### Also introduced in version 3.2.4
+### Highlights from earlier releases (3.2.0–3.2.4)
 
-- **Insert images into PDF pages:** Add PNG, JPEG, BMP, and TIFF images from the Insert menu, the PDF page context menu, or the thumbnail context menu. Place and resize images visually on the PDF page, reposition them with Ctrl+drag, and confirm with Enter or cancel with Esc.
-- **Multipage TIFF support:** Select a page from a visual gallery of TIFF thumbnails before inserting it into the PDF.
-- **Undo/Redo and saving:** Undo or redo inserted images and save them permanently in the PDF document.
-- **Font overview:** Switch between document information and a separate font overview in Document Properties (Ctrl+D), with detected font names and a German/English interface.
-- **Windows Classic – Flat Buttons:** New selectable theme variant combining the flat button appearance of Classic Blue with the original Windows Classic gray colors.
-- **4K/WQHD and bilingual help:** DPI-aware document-property controls and TIFF selection, plus updated English and German feature documentation.
-
-### Also introduced in version 3.2.3
-
-- **Extract embedded PDF images:** Browse detected image objects with previews, select one or multiple images, and export original JPEG data where supported or save images as PNG, JPEG, or TIFF.
-- **Export complete PDF pages:** Save whole pages as PNG, JPEG, or TIFF, including pages assembled from multiple image strips. Individual-image export still exports the separate embedded objects.
-- **PDFium instead of QPDF:** Page management, embedded attachments, and PDF security information now use PDFium; the `qpdf` folder is no longer required by the viewer.
-- **Refined image-export dialog:** German/English interface, 4K/WQHD layouts, ESC to close, and saved window size in `FreePDFViewer.ini`.
-
-### Also introduced in version 3.2.2
-
-- **Improved PDF hyperlinks:** Automatically add HTTPS to web addresses, show link destinations as tooltips, and reposition hyperlinks with Ctrl+drag.
-- **Custom measurement colors:** Select a measurement color and see it in a compact toolbar color preview. Measurement borders retain consistent thickness when saved and reopened.
-- **Refined toolbar and themes:** Clear orange active-tool indicators, compact color previews, and improved display across four interface themes.
-- **PDF attachments and export:** Improved attachment handling and export of PDF pages as images or text, with refined German/English dialogs.
-- **Simplified portable installation:** The `Xpdf` folder is no longer required by FreePDF64-Viewer Portable and may be deleted from existing viewer installations.
-
-### Also introduced in version 3.2.1
-
-- **Secure PDF redaction:** Preview redaction areas, inspect affected content, and permanently apply redactions to rasterized pages. Includes a redaction report and an automatic check of the resulting PDF.
-- **Hand tool:** Dedicated toolbar button with an orange active-state highlight for moving zoomed PDF pages.
-
-### Also introduced in version 3.2.0
-
-- **Signatures:** Draw a signature or use a transparent PNG image; save, reopen, rename, delete, and place signatures on PDF pages. Adjust their position and size.
-- **Improved dialogs:** Refined theme colors, buttons, and layout for 4K and WQHD displays, including comment editing and saved-signature management.
-- **PDF measurements:** Measure rectangle width and height in mm/cm/in with a selectable drawing scale; copy or export measurement reports as CSV. Save measurements as PDF annotations.
+- Insert and edit images in PDF pages, including visual multipage TIFF selection.
+- Extract embedded PDF images, export complete pages, and view document fonts.
+- Use signatures, measurement tools, hyperlink editing, and permanent PDF redaction.
+- Benefit from improved PDFium integration, themes, and portable operation.
 
 ## Key features
 
 - **VCL Ribbon:** Organized commands with embedded monochrome icons and an editable PDF zoom-percentage field.
-
 - **Tabs and workspaces:** Open multiple PDFs and images in tabs, save named workspaces, and restore collections of documents and their zoom settings.
 - **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
 - **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
@@ -92,7 +71,7 @@ See the **Workspaces** screenshot below for the management interface.
 
 <div align="center">
 
-<a href="images/Mainwindow_english.png"><img src="images/Mainwindow_english.png" alt="Main window" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.3.0" width="260"></a>
 <a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
 <a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
 <a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
@@ -140,45 +119,16 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **Verbesserte Rückmeldungen bei der Bearbeitung:** Neu platzierte PDF-Hyperlinks können ihre Zieladresse bereits vor dem Speichern als Hinweis anzeigen. Überarbeitete Ribbon-Hover-Markierungen, Buttonabstände und Werkzeugauswahl.
 - **Deutsch/Englisch und hohe DPI-Auflösungen:** Aktualisierte zweisprachige Beschriftungen, Hinweise und Funktionsübersicht; optimierte Ribbon-Darstellung für 4K und WQHD.
 
-### Bereits in Version 3.2.4 eingeführt
+### Highlights früherer Versionen (3.2.0–3.2.4)
 
-- **Bilder in PDF-Seiten einfügen:** PNG-, JPEG-, BMP- und TIFF-Bilder über das Menü „Einfügen …“, das PDF-Seiten-Kontextmenü oder das Miniatur-Kontextmenü einfügen. Bilder direkt auf der PDF-Seite visuell platzieren und skalieren, mit Strg+Ziehen verschieben und mit Enter übernehmen oder mit Esc abbrechen.
-- **Mehrseitige TIFF-Dateien:** Die gewünschte TIFF-Seite vor dem Einfügen komfortabel über eine visuelle Miniaturübersicht auswählen.
-- **Rückgängig/Wiederholen und Speichern:** Eingefügte Bilder rückgängig machen, wiederherstellen und dauerhaft in der PDF speichern.
-- **Schriftartenübersicht:** In den Dokumenteigenschaften (Strg+D) zwischen Dokumentinformationen und einer eigenen Schriftartenübersicht mit erkannten Schriftartnamen wechseln; Oberfläche auf Deutsch und Englisch.
-- **Windows Klassik – Flache Buttons:** Neue auswählbare Designvariante mit der flachen Buttondarstellung von „Klassisch Blau“ und den originalen grauen Farben von „Windows Klassik“.
-- **4K/WQHD und zweisprachige Hilfe:** DPI-angepasste Dokumenteigenschaften und TIFF-Seitenauswahl sowie aktualisierte Funktionsübersicht auf Deutsch und Englisch.
-
-### Bereits in Version 3.2.3 eingeführt
-
-- **Eingebettete PDF-Bilder extrahieren:** Erkannte Bildobjekte mit Vorschau anzeigen, einzelne oder mehrere Bilder auswählen und geeignete JPEG-Originaldaten direkt oder Bilder als PNG, JPEG und TIFF exportieren.
-- **Vollständige PDF-Seiten exportieren:** Ganze Seiten als PNG, JPEG oder TIFF speichern, auch wenn das Motiv aus mehreren Bildstreifen besteht. Beim Export einzelner Bilder bleiben die eingebetteten Bildobjekte getrennt.
-- **PDFium statt QPDF:** Seitenverwaltung, eingebettete PDF-Anlagen und Sicherheitsinformationen werden über PDFium verarbeitet. Das Verzeichnis `qpdf` wird vom Viewer nicht mehr benötigt.
-- **Überarbeiteter Bildexport-Dialog:** Deutsche und englische Oberfläche, 4K-/WQHD-Darstellung, Schließen mit ESC und Speichern der Fenstergröße in der `FreePDFViewer.ini`.
-
-### Bereits in Version 3.2.2 eingeführt
-
-- **Verbesserte PDF-Hyperlinks:** Webadressen automatisch um HTTPS ergänzen, Zieladressen als Hinweis anzeigen und Hyperlinks mit Strg+Ziehen verschieben.
-- **Individuelle Messfarben:** Messfarbe frei wählen und in einer kompakten Farbvorschau der Symbolleiste erkennen. Messrahmen behalten beim Speichern und erneuten Öffnen ihre einheitliche Linienstärke.
-- **Optimierte Symbolleisten und Designs:** Orangefarbene Aktivmarkierung für Werkzeuge, kompakte Farbvorschauen und verbesserte Darstellung in allen vier Designs.
-- **PDF-Anlagen und Export:** Verbesserte Anlagenverwaltung und Export von PDF-Seiten als Bilder oder Text sowie überarbeitete Dialoge auf Deutsch und Englisch.
-- **Vereinfachte portable Installation:** Das Verzeichnis `Xpdf` wird von FreePDF64-Viewer Portable nicht mehr benötigt und kann aus bestehenden Viewer-Installationen gelöscht werden.
-
-### Bereits in Version 3.2.1 eingeführt
-
-- **Sichere PDF-Schwärzung:** Schwärzungsbereiche in der Vorschau markieren, betroffene Inhalte prüfen und Schwärzungen auf gerasterten Seiten dauerhaft anwenden. Mit Schwärzungsprüfbericht und automatischer Prüfung der erzeugten PDF.
-- **Hand-Werkzeug:** Eigener Symbolleisten-Button mit orangefarbener Aktivmarkierung zum Verschieben vergrößerter PDF-Seiten.
-
-### Bereits in Version 3.2.0 eingeführt
-
-- **Unterschriften:** Unterschriften zeichnen oder als transparente PNG-Grafik verwenden, speichern, erneut aufrufen, umbenennen, löschen und auf PDF-Seiten platzieren. Position und Größe lassen sich anpassen.
-- **Verbesserte Dialoge:** Überarbeitete Designfarben, Schaltflächen und Darstellung auf 4K- und WQHD-Bildschirmen, unter anderem beim Bearbeiten von Kommentaren und Verwalten gespeicherter Unterschriften.
-- **PDF-Messwerkzeuge:** Rechtecke mit Breite und Höhe messen, mm/cm/Zoll und Zeichnungsmaßstab wählen; Messbericht kopieren oder als CSV exportieren. Messungen lassen sich als PDF-Anmerkungen speichern.
+- Bilder in PDF-Seiten einfügen und bearbeiten, einschließlich visueller Auswahl mehrseitiger TIFF-Dateien.
+- Eingebettete PDF-Bilder extrahieren, ganze Seiten exportieren und PDF-Schriftarten anzeigen.
+- Unterschriften, Messwerkzeuge, Hyperlink-Bearbeitung und endgültige PDF-Schwärzung nutzen.
+- Verbesserte PDFium-Integration, Designs und portable Nutzung.
 
 ## Funktionen im Überblick
 
 - **VCL-Ribbon:** Übersichtlich angeordnete Befehle mit eingebetteten einfarbigen Symbolen und editierbarer PDF-Zoom-Prozentanzeige.
-
 - **Registerkarten und Arbeitsbereiche:** Mehrere PDFs und Bilder in Registerkarten öffnen, benannte Arbeitsbereiche speichern und Dokumente samt Zoom-Einstellungen wiederherstellen.
 - **PDF-Vergleich:** Zwei PDFs nebeneinander anzeigen; **S** synchronisiert das Scrollen, **Z** den Zoom (jeweils links → rechts).
 - **Suche:** Einzelne PDFs durchsuchen oder alle geöffneten PDFs gemeinsam mit **Strg+Umschalt+F**.
@@ -204,7 +154,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 
 <div align="center">
 
-<a href="images/Hauptansicht_deutsch.png"><img src="images/Hauptansicht_deutsch.png" alt="Hauptansicht" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.3.0" width="260"></a>
 <a href="images/Zweifensteransicht_deutsch.png"><img src="images/Zweifensteransicht_deutsch.png" alt="Zweifensteransicht" width="260"></a>
 <a href="images/Globalesuche_deutsch.png"><img src="images/Globalesuche_deutsch.png" alt="Globale PDF-Suche" width="260"></a>
 <a href="images/Messen_deutsch.png"><img src="images/Messen_deutsch.png" alt="PDF-Messwerkzeuge" width="260"></a>
