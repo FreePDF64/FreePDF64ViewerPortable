@@ -6549,6 +6549,7 @@ begin
     if (Browser <> nil) and not Browser.IsBasicImage then
     begin
       FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
       FVCLRibbon.SetCommandEnabled(210, Browser.WorkspacePage > 1);
       FVCLRibbon.SetCommandEnabled(211,
         Browser.WorkspacePage < Browser.GlobalPageCount);
@@ -6556,9 +6557,19 @@ begin
     else
     begin
       FVCLRibbon.SetPageStatus(0, 0);
+      FVCLRibbon.SetZoomPercent(0, False);
       FVCLRibbon.SetCommandEnabled(210, False);
       FVCLRibbon.SetCommandEnabled(211, False);
     end;
+    Exit;
+  end;
+  if CommandId = 221 then
+  begin
+    if (Browser <> nil) and not Browser.IsBasicImage and
+       TryStrToInt(Value, Index) then
+      Browser.SetPDFZoomPercent(Index);
+    if (Browser <> nil) and not Browser.IsBasicImage then
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
     Exit;
   end;
   if CommandId = 212 then
@@ -6568,6 +6579,7 @@ begin
       Browser.RibbonShowPage(Index);
     if (Browser <> nil) and not Browser.IsBasicImage then
       FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
     Exit;
   end;
   if CommandId in [115, 172, 174, 175] then
@@ -6722,6 +6734,8 @@ begin
   if HasPDF then
     FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount)
   else FVCLRibbon.SetPageStatus(0, 0);
+  if HasPDF then FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True)
+  else FVCLRibbon.SetZoomPercent(0, False);
   for I := 214 to 217 do
     FVCLRibbon.SetCommandEnabled(I, HasPDF);
   if HasPDF then

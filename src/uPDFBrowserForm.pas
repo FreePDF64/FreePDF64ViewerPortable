@@ -206,6 +206,8 @@ type
     function SaveUnsavedPDFChanges: Boolean;
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomPDF(AIncrease: Boolean);
+    function CurrentPDFZoomPercent: Integer;
+    procedure SetPDFZoomPercent(APercent: Integer);
     procedure RefreshPDFViewport;
     procedure RefitPDFOnTabActivation;
     procedure RefreshLanguage;
@@ -793,6 +795,21 @@ begin
     TargetY := AY;
   end;
   SetWorkspaceView(TargetZoom, TargetFit, TargetX, TargetY);
+end;
+
+function TPDFBrowserForm.CurrentPDFZoomPercent: Integer;
+begin
+  Result := 100;
+  if (FPDFiumView <> nil) and FNavigationSucceeded then
+    Result := Round(FPDFiumView.WorkspaceZoom * 7200 / FPDFiumView.CurrentPPI);
+end;
+
+procedure TPDFBrowserForm.SetPDFZoomPercent(APercent: Integer);
+begin
+  if (FPDFiumView = nil) or not FNavigationSucceeded or IsBasicImage then Exit;
+  if (APercent < 8) or (APercent > 1000) then Exit;
+  FPDFiumView.RestoreWorkspaceView(APercent * FPDFiumView.CurrentPPI / 7200.0,
+    False, FPDFiumView.WorkspaceScrollX, FPDFiumView.WorkspaceScrollY);
 end;
 
 procedure TPDFBrowserForm.ZoomPDF(AIncrease: Boolean);

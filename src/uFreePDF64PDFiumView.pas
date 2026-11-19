@@ -567,7 +567,7 @@ type
     procedure ExportPagesAsText(Sender: TObject);
     procedure ShowEmbeddedImages(Sender: TObject);
     function LinkAtImagePoint(Sender: TObject; X, Y: Integer;
-      out ATarget: TPDFLinkTarget): Boolean;
+      out ATarget: TPDFLinkTarget; AForHint: Boolean = False): Boolean;
     procedure FormOptionDoubleClick(Sender: TObject);
     procedure ImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure ImageDblClick(Sender: TObject);
@@ -4603,6 +4603,15 @@ procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 begin
   if FRedactionReportOpen then Exit;
+  // ESC also leaves the optical (non-destructive) redaction tool.
+  if (Key = VK_ESCAPE) and FEditVisible and
+     (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 5) then
+  begin
+    FShapeSelect.ItemIndex := 0;
+    ShapeSelectChange(FShapeSelect);
+    Key := 0;
+    Exit;
+  end;
   // Schwärzungsvorschau: Die letzte Vormerkung einzeln entfernen.
   // Entf ist bewusst nur im Vorschauwerkzeug aktiv, damit die normale
   // PDF-Bearbeitung und deren Rückgängig-Funktion unverändert bleiben.
@@ -5102,7 +5111,13 @@ begin
             169: FShapeSelect.ItemIndex := 1;
             170: FShapeSelect.ItemIndex := 2;
             171: FShapeSelect.ItemIndex := 3;
-            184: FShapeSelect.ItemIndex := 5;
+            184: begin
+              // Clicking the selected optical redaction tool again deactivates it.
+              if FEditVisible and (FShapeSelect.ItemIndex = 5) then
+                FShapeSelect.ItemIndex := 0
+              else
+                FShapeSelect.ItemIndex := 5;
+            end;
           end;
           ShapeSelectChange(FShapeSelect);
         end;
@@ -11121,13 +11136,15 @@ begin
 end;
 
 function TFreePDF64PDFiumView.LinkAtImagePoint(Sender: TObject;
-  X, Y: Integer; out ATarget: TPDFLinkTarget): Boolean;
+  X, Y: Integer; out ATarget: TPDFLinkTarget; AForHint: Boolean): Boolean;
 var
   Img: TPDFiumImage;
 begin
   Result := False;
-  if FMarkMode or FSelecting or (FCurrentStroke <> nil) or
-     not (Sender is TPDFiumImage) then Exit;
+  // Hover-Hints must also work while the edit toolbar remains active.
+  // Keep the original restrictions for opening/clicking hyperlinks.
+  if ((FMarkMode and not AForHint) or FSelecting or
+      (FCurrentStroke <> nil) or not (Sender is TPDFiumImage)) then Exit;
   Img := TPDFiumImage(Sender);
   Result := FCore.LinkAtPoint(Img.Tag, Img.Width, Img.Height, X, Y, ATarget);
 end;
@@ -13374,7 +13391,8 @@ begin
     TPDFiumImage(Sender).Cursor := crCross;
     Exit;
   end;
-  if (not (ssLeft in Shift)) and LinkAtImagePoint(Sender, X, Y, Target) then
+  if (not (ssLeft in Shift)) and
+     LinkAtImagePoint(Sender, X, Y, Target, True) then
   begin
     TPDFiumImage(Sender).Cursor := crHandPoint;
     if Target.URI <> '' then
@@ -14917,8 +14935,11 @@ begin
   else if FTextInsertMode then Result := 123
   else if FNoteMode then Result := 126
   else if FSignatureMode then Result := 134
-  else if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) then
-    Result := 146;
+  else if FEditVisible and (FShapeSelect <> nil) then
+  begin
+    if FShapeSelect.ItemIndex = 5 then Result := 184
+    else if FShapeSelect.ItemIndex = 6 then Result := 146;
+  end;
 end;
 
 function TFreePDF64PDFiumView.SaveUnsavedChanges: Boolean;

@@ -46,6 +46,7 @@ type
     FTabPreviewCheck: TCheckBox;
     FUpdatingTabPreviewCheck: Boolean;
     FPageEdit: TEdit;
+    FZoomEdit: TEdit;
     FPageStatusTimer: TTimer;
     FLayoutReady: Boolean;
     FFourKGeometryApplied: Boolean;
@@ -55,6 +56,7 @@ type
     procedure UpdateGroupViewport;
     procedure ApplyFourKGeometry;
     procedure PageEditKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure ZoomEditKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure PageStatusTick(Sender: TObject);
     procedure CollapseClick(Sender: TObject);
     procedure TabDoubleClick(Sender: TObject);
@@ -91,6 +93,7 @@ type
     procedure SetComboValue(CommandId: Integer; const Value: string);
     procedure SetComboItems(CommandId: Integer; const Values: array of string);
     procedure SetPageStatus(APage, ACount: Integer);
+    procedure SetZoomPercent(APercent: Integer; AEnabled: Boolean);
     procedure SelectTab(Index: Integer);
     function ActiveTabIndex: Integer;
     property OnCommand: TVCLRibbonCommandEvent read FOnCommand write FOnCommand;
@@ -1056,6 +1059,38 @@ begin
   end;
 end;
 
+// Crisp 16x16 fit-page glyph, drawn at native size instead of shrinking a
+// detailed bitmap. Rebuilt only when the ribbon palette is refreshed.
+procedure DrawFitPageIcon(ABitmap: Vcl.Graphics.TBitmap; ABackground: TColor);
+var
+  Ink: TColor;
+  Brightness: Integer;
+begin
+  Brightness := GetRValue(ColorToRGB(ABackground)) * 299 +
+    GetGValue(ColorToRGB(ABackground)) * 587 +
+    GetBValue(ColorToRGB(ABackground)) * 114;
+  if Brightness < 128000 then Ink := clWhite else Ink := clBlack;
+  ABitmap.PixelFormat := pf24bit;
+  ABitmap.SetSize(16, 16);
+  ABitmap.Canvas.Brush.Color := clFuchsia;
+  ABitmap.Canvas.FillRect(Rect(0, 0, 16, 16));
+  ABitmap.Canvas.Pen.Color := Ink;
+  ABitmap.Canvas.Pen.Width := 1;
+  // Four simple corner brackets surrounding a page; no tiny arrowheads.
+  with ABitmap.Canvas do
+  begin
+    MoveTo(2, 6); LineTo(2, 2); LineTo(6, 2);
+    MoveTo(10, 2); LineTo(14, 2); LineTo(14, 6);
+    MoveTo(2, 10); LineTo(2, 14); LineTo(6, 14);
+    MoveTo(10, 14); LineTo(14, 14); LineTo(14, 10);
+    // A centered page outline makes the action recognizable at 100% DPI.
+    Rectangle(6, 5, 11, 12);
+  end;
+  ABitmap.TransparentMode := tmFixed;
+  ABitmap.TransparentColor := clFuchsia;
+  ABitmap.Transparent := True;
+end;
+
 procedure TFreePDFVCLRibbon.RefreshCommandIcons;
 var
   I, J, K: Integer;
@@ -1079,7 +1114,9 @@ begin
           else if C is TImage then
           begin
             IconFile := ResolveIconFile(C.Tag, False, C.Enabled);
-            if IconFile <> '' then
+            if C.Tag = 115 then
+              DrawFitPageIcon(TImage(C).Picture.Bitmap, FThemeBackground)
+            else if IconFile <> '' then
             begin
               if not LoadEmbeddedRibbonBitmap(TImage(C).Picture.Bitmap, IconFile) then
                 TImage(C).Picture.Bitmap.LoadFromFile(IconFile);
@@ -1198,7 +1235,41 @@ begin
     if Group.Tag = 0 then LeftPos := 5;
     TopPos := 4;
   end;
-  if (TabIndex = 1) and (GroupName = 'Seiten') and (CommandId = 212) then
+  if (TabIndex = 1) and (GroupName = 'Anzeigen') and (CommandId = 217) then
+  begin
+    // Editable zoom percentage in the third row, directly below Zoom -.
+    FZoomEdit := TEdit.Create(Self);
+    FZoomEdit.Parent := Group;
+    FZoomEdit.Tag := 221;
+    FZoomEdit.Font.Name := 'Segoe UI';
+    FZoomEdit.Font.Size := 8;
+    FZoomEdit.SetBounds(158, 64, 132, 25);
+    FZoomEdit.Text := '100 %';
+    FZoomEdit.Enabled := False;
+    FZoomEdit.ShowHint := True;
+    if SameText(PDFLanguage, 'en') then
+      FZoomEdit.Hint := 'Enter zoom percentage and press Enter'
+    else
+      FZoomEdit.Hint := 'Zoom in % eingeben und Enter drücken';
+    FZoomEdit.OnKeyDown := ZoomEditKeyDown;
+    // Preserve the Hand Tool button, located in the fourth column.
+    Button := TRibbonSpeedButton.Create(Self);
+    Button.Parent := Group;
+    Button.Tag := CommandId;
+    Button.Hint := RibbonText(ACaption);
+    Button.ShowHint := True;
+    Button.Flat := True;
+    Button.Font.Name := 'Segoe UI';
+    Button.Font.Size := 8;
+    Button.Caption := RibbonText(ACaption);
+    Button.Layout := blGlyphLeft;
+    Button.Margin := 3;
+    Button.Spacing := 4;
+    Button.SetBounds(LeftPos, TopPos, ButtonWidth, 29);
+    Button.OnClick := CommandClick;
+    LoadGlyph(Button, CommandId);
+  end
+  else if (TabIndex = 1) and (GroupName = 'Seiten') and (CommandId = 212) then
   begin
     FPageEdit := TEdit.Create(Self);
     FPageEdit.Parent := Group;
@@ -1217,13 +1288,15 @@ begin
     // A compact combo uses the same 8 pt typography as the command buttons.
     // Its Tabler icon occupies the leftmost 18 pixels, without moving the row.
     IconFile := ResolveIconFile(CommandId, False, True);
-    if IconFile <> '' then
+    if (IconFile <> '') or (CommandId = 115) then
     begin
       IconControl := TImage.Create(Self);
       IconControl.Parent := Group;
       IconControl.Tag := CommandId;
       IconControl.SetBounds(LeftPos + 2, TopPos + 5, 16, 16);
-      if not LoadEmbeddedRibbonBitmap(IconControl.Picture.Bitmap, IconFile) then
+      if CommandId = 115 then
+        DrawFitPageIcon(IconControl.Picture.Bitmap, FThemeBackground)
+      else if not LoadEmbeddedRibbonBitmap(IconControl.Picture.Bitmap, IconFile) then
         IconControl.Picture.Bitmap.LoadFromFile(IconFile);
       IconControl.Picture.Bitmap.TransparentColor := clFuchsia;
       IconControl.Picture.Bitmap.TransparentMode := tmFixed;
@@ -1269,8 +1342,8 @@ begin
     Combo.ShowHint := True;
     if CommandId = 115 then
       // Zoom mode is independent from the fit-page action.
-      // Keep it on the top row, away from the fit-page icon and caption.
-      Combo.SetBounds(148, 62, 140, 26)
+      // Place it in the third row, directly below Seite anpassen.
+      Combo.SetBounds(6, 64, 140, 25)
     else
       Combo.SetBounds(LeftPos + 92, TopPos, Max(60, ButtonWidth - 96), 26);
     Combo.OnChange := ComboChanged;
@@ -1803,6 +1876,44 @@ begin
     FOnCommand(Self, 213, '');
 end;
 
+procedure TFreePDFVCLRibbon.SetZoomPercent(APercent: Integer; AEnabled: Boolean);
+var
+  S: string;
+begin
+  if FZoomEdit = nil then Exit;
+  FZoomEdit.Enabled := AEnabled;
+  if not AEnabled then S := '–'
+  else S := IntToStr(APercent) + ' %';
+  // Do not overwrite the user's input while the edit is focused.
+  if not FZoomEdit.Focused and (FZoomEdit.Text <> S) then
+    FZoomEdit.Text := S;
+end;
+
+procedure TFreePDFVCLRibbon.ZoomEditKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+var
+  S: string;
+  N: Integer;
+begin
+  if Key = VK_RETURN then
+  begin
+    S := Trim(FZoomEdit.Text);
+    S := StringReplace(S, '%', '', [rfReplaceAll]);
+    S := Trim(S);
+    if TryStrToInt(S, N) and (N >= 8) and (N <= 1000) and
+       Assigned(FOnCommand) then
+      FOnCommand(Self, 221, IntToStr(N));
+    // Clear focus so the next status tick reflects the actual PDF zoom.
+    if FPageEdit <> nil then FPageEdit.SetFocus;
+    Key := 0;
+  end
+  else if Key = VK_ESCAPE then
+  begin
+    if FPageEdit <> nil then FPageEdit.SetFocus;
+    Key := 0;
+  end;
+end;
+
 procedure TFreePDFVCLRibbon.PageEditKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
 var
@@ -1870,9 +1981,9 @@ begin
   AddCommand(1, 204, 'Bild rechts drehen', false);
   AddCommand(1, 203, 'Bild links drehen', false);
   AddCommand(1, 206, 'Bildbreite', false);
-  AddCommand(1, 207, 'Originalgröße', false);
   AddCommand(1, 208, 'Bild speichern', false);
   AddCommand(1, 209, 'Bild drucken', false);
+  AddCommand(1, 207, 'Originalgröße', false);
   AddCommand(1, 218, 'TIFF zurück', false);
   AddCommand(1, 219, 'TIFF weiter', false);
   AddGroup(1, 'Vergleichen');
