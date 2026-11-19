@@ -240,6 +240,7 @@ type
     FEditBar: TPanel;
     FEditToggle: TPDFToolsButton;
     FEditVisible: Boolean;
+    FRibbonOnlyMode: Boolean;
     FToolbarLayoutBusy: Boolean;
     FMergedToolbarWidth: Integer;
     FMergedTrailingControls: array of TControl;
@@ -412,6 +413,7 @@ type
     FViewSelect: TComboBox;
     FInitialRenderDeferred: Boolean;
     FSidebarInitPending: Boolean;
+    procedure ApplyRibbonOnlyLayout;
     procedure CommitSignature;
     procedure UpdateTwoPageIcon;
     procedure UpdateThumbDragVisual(const ScreenPos: TPoint);
@@ -598,7 +600,12 @@ type
     function AnalyzePendingRedactions(out AAnalysis: TPDFRedactionBatchAnalysis): Boolean;
     procedure FinalizeRedactionClick(Sender: TObject);
     procedure SavePDFAs;
+    function SavePDFDirect: Boolean;
     procedure ShowDocumentProperties;
+    procedure ExecuteRibbonPDFCommand(ACommandId: Integer);
+    procedure SetRibbonSelection(ACommandId, AIndex: Integer; const AText: string);
+    function CanRibbonUndo: Boolean;
+    function CanRibbonRedo: Boolean;
     procedure TogglePageThumbnails;
     procedure SetPageThumbnailsVisible(AVisible: Boolean);
     procedure ApplySavedThumbnailsAfterLoad;
@@ -625,6 +632,7 @@ type
     procedure ApplyButtonDesign(ADesign: Integer);
     procedure ApplyPDFBackgroundDesign(ADesign: Integer);
     property ToolbarPanel: TPanel read FBar;
+    procedure SetRibbonOnlyMode(AEnabled: Boolean);
     property EditToggleButton: TPDFToolsButton read FEditToggle;
     property HandToolActive: Boolean read FHandToolActive;
     property OnHandToolChanged: TNotifyEvent read FOnHandToolChanged write FOnHandToolChanged;
@@ -652,6 +660,7 @@ type
     procedure SelectionMenuClick(Sender: TObject);
     function ConfirmUnsaved: Boolean;
     function HasUnsavedChanges: Boolean;
+    function ActiveRibbonToolCommand: Integer;
     function SaveUnsavedChanges: Boolean;
     property SearchMatchCount: Integer read FTotalSearchMatches;
     property SearchRunning: Boolean read FSearchRunning;
@@ -2395,11 +2404,48 @@ begin
   Invalidate;
 end;
 
+procedure TFreePDF64PDFiumView.ApplyRibbonOnlyLayout;
+begin
+  // In Registerkarten ersetzt das VCL-Ribbon beide PDFium-Leisten.
+  // Die Buttons und ihr Bearbeitungszustand bleiben intern erhalten.
+  if not FRibbonOnlyMode then Exit;
+  if FBar <> nil then FBar.Visible := False;
+  if FEditBar <> nil then
+  begin
+    FEditBar.Visible := False;
+    FEditBar.Height := 0;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.SetRibbonOnlyMode(AEnabled: Boolean);
+begin
+  if FRibbonOnlyMode = AEnabled then
+  begin
+    ApplyRibbonOnlyLayout;
+    Exit;
+  end;
+  FRibbonOnlyMode := AEnabled;
+  if AEnabled then
+    ApplyRibbonOnlyLayout
+  else
+  begin
+    if FBar <> nil then FBar.Visible := True;
+    if FEditBar <> nil then
+    begin
+      FEditBar.Visible := FEditVisible;
+      if FEditVisible then FEditBar.Height := MulDiv(30, CurrentPPI, 96);
+    end;
+  end;
+  Realign;
+end;
+
 procedure TFreePDF64PDFiumView.SetFullScreenDisplay(AEnabled: Boolean);
 begin
   // Nur die PDF-Seiten sichtbar lassen; den Bearbeitungszustand bewahren.
-  FBar.Visible := not AEnabled;
-  FEditBar.Visible := (not AEnabled) and FEditVisible;
+  FBar.Visible := (not AEnabled) and (not FRibbonOnlyMode);
+  FEditBar.Visible := (not AEnabled) and FEditVisible and
+    (not FRibbonOnlyMode);
+  ApplyRibbonOnlyLayout;
 end;
 
 procedure TPDFToolsButton.BMSetStyle(var Message: TMessage);
@@ -4975,6 +5021,160 @@ begin
     ZoomOut;
 end;
 
+// Apply native Ribbon choices through the existing VCL controls and handlers.
+procedure TFreePDF64PDFiumView.SetRibbonSelection(ACommandId, AIndex: Integer; const AText: string);
+var
+  N: Integer;
+begin
+  if FCore = nil then Exit;
+  case ACommandId of
+    115:
+      if (FViewSelect <> nil) and (AIndex >= 0) and (AIndex < FViewSelect.Items.Count) then
+      begin
+        FViewSelect.ItemIndex := AIndex;
+        ViewModeChange(FViewSelect);
+      end;
+    172:
+      if (FWidthSelect <> nil) and (AIndex >= 0) and (AIndex < FWidthSelect.Items.Count) then
+        FWidthSelect.ItemIndex := AIndex;
+    174:
+      if FTextFontSelect <> nil then
+      begin
+        N := FTextFontSelect.Items.IndexOf(AText);
+        if N >= 0 then
+        begin
+          FTextFontSelect.ItemIndex := N;
+          TextStyleChange(FTextFontSelect);
+        end;
+      end;
+    175:
+      if FTextSizeSelect <> nil then
+      begin
+        if TryStrToInt(Trim(StringReplace(AText, ' pt', '', [rfIgnoreCase])), N) and
+           (N >= 1) and (N <= 200) then
+        begin
+          FTextSizeSelect.Text := IntToStr(N);
+          TextStyleChange(FTextSizeSelect);
+        end;
+      end;
+  end;
+end;
+
+// Route native Ribbon commands through the existing PDFium handlers.
+// No duplicate editing, signature, watermark or redaction logic.
+procedure TFreePDF64PDFiumView.ExecuteRibbonPDFCommand(ACommandId: Integer);
+var
+  S: string;
+  N: Integer;
+begin
+  if FCore = nil then Exit;
+  case ACommandId of
+    105: PrintClick(Self);
+    115: FitClick(Self);
+    214: Zoom100Click(Self);
+    215: TwoPageClick(Self);
+    216: FlowToggleClick(Self);
+    217: ToggleHandTool;
+    123: InsertTextMenuClick(Self);
+    124: HighlightClick(Self);
+    126: InsertNoteMenuClick(Self);
+    129: TextUndoClick(Self);
+    130: TextRedoClick(Self);
+    133: InsertImageClick(Self);
+    134: SignatureClick(Self);
+    135: LinkMenuClick(Self);
+    137: TextWatermarkClick(Self);
+    138: ImageWatermarkClick(Self);
+    143: ShowEmbeddedImages(Self);
+    190: SavePDFAs;
+    191: ExportPagesAsImages(Self);
+    192: ExportPagesAsText(Self);
+    193: ShowEmbeddedImages(Self);
+    194: FinalizeRedactionClick(Self);
+    145: MeasureClick(Self);
+    168, 169, 170, 171, 184:
+      begin
+        if not FEditVisible then ToggleEditBar(nil);
+        if FShapeSelect <> nil then
+        begin
+          case ACommandId of
+            168: FShapeSelect.ItemIndex := 0;
+            169: FShapeSelect.ItemIndex := 1;
+            170: FShapeSelect.ItemIndex := 2;
+            171: FShapeSelect.ItemIndex := 3;
+            184: FShapeSelect.ItemIndex := 5;
+          end;
+          ShapeSelectChange(FShapeSelect);
+        end;
+      end;
+    172:
+      if FWidthSelect <> nil then
+      begin
+        S := FWidthSelect.Items[FWidthSelect.ItemIndex];
+        if InputQuery(ToolbarHint('Strichstärke', 'Stroke width'),
+          ToolbarHint('Strichstärke in Punkt (1, 2, 3, 5, 8, 12):',
+                      'Stroke width in points (1, 2, 3, 5, 8, 12):'), S) then
+        begin
+          N := FWidthSelect.Items.IndexOf(Trim(S) + ' pt');
+          if N < 0 then N := FWidthSelect.Items.IndexOf(Trim(S));
+          if N >= 0 then FWidthSelect.ItemIndex := N
+          else MessageBeep(MB_ICONWARNING);
+        end;
+      end;
+    173: ColorClick(Self);
+    174:
+      if FTextFontSelect <> nil then
+      begin
+        S := FTextFontSelect.Text;
+        if InputQuery(ToolbarHint('Schriftart', 'Font'),
+          ToolbarHint('Schriftart:', 'Font family:'), S) then
+        begin
+          N := FTextFontSelect.Items.IndexOf(Trim(S));
+          if N >= 0 then
+          begin
+            FTextFontSelect.ItemIndex := N;
+            TextStyleChange(FTextFontSelect);
+          end
+          else MessageBeep(MB_ICONWARNING);
+        end;
+      end;
+    175:
+      if FTextSizeSelect <> nil then
+      begin
+        S := FTextSizeSelect.Text;
+        if InputQuery(ToolbarHint('Schriftgröße', 'Font size'),
+          ToolbarHint('Schriftgröße in Punkt (1–200):', 'Font size in points (1–200):'), S) then
+        begin
+          if TryStrToInt(Trim(S), N) and (N >= 1) and (N <= 200) then
+          begin
+            FTextSizeSelect.Text := IntToStr(N);
+            TextStyleChange(FTextSizeSelect);
+          end
+          else MessageBeep(MB_ICONWARNING);
+        end;
+      end;
+    176: TextColorClick(Self);
+    177: ManageLinksClick(Self);
+    178: MeasureScaleClick(Self);
+    179: MeasureColorClick(Self);
+    180: ShowMeasureReport(Self);
+    181, 182, 183:
+      if FMeasureUnitSelect <> nil then
+      begin
+        FMeasureUnitSelect.ItemIndex := ACommandId - 181;
+        MeasureUnitChange(FMeasureUnitSelect);
+      end;
+    146: begin
+      if not FEditVisible then ToggleEditBar(nil);
+      if FShapeSelect <> nil then
+      begin
+        FShapeSelect.ItemIndex := 6;
+        ShapeSelectChange(FShapeSelect);
+      end;
+    end;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.FitClick(Sender: TObject);
 var
   KeepPage, I, AnchorY, ImageTop, ImageHeight: Integer;
@@ -5214,6 +5414,25 @@ begin
 
   // Schwaerzungswerkzeuge duerfen nicht vom aktiven Text-Hervorheben
   // abgefangen werden. Sonst wird beim MouseUp FMarkColor verwendet.
+  if FShapeSelect.ItemIndex = 6 then
+  begin
+    // Redaction preview is exclusive: disable all other active tools.
+    if FMeasureMode then MeasureClick(Self);
+    FLinkMode := False;
+    FTextInsertMode := False;
+    FNoteMode := False;
+    FHighlightMode := False;
+    FMarkMode := False;
+    if FTextEditor <> nil then FinishTextEditor(True);
+    if FNoteButton <> nil then
+      FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
+    if FTextInsertButton <> nil then
+      FTextInsertButton.Caption := Tr('Text einfügen');
+    if FHighlightButton <> nil then
+      FHighlightButton.Caption := ToolbarHint('Text hervorheben', 'Highlight text');
+    Screen.Cursor := crDefault;
+    UpdateTextUndoButtons;
+  end;
   if FShapeSelect.ItemIndex in [5, 6] then
   begin
     if FHighlightMode then
@@ -8883,6 +9102,7 @@ begin
   FBar.BringToFront;
   FEditToggle.Caption := '';
   LayoutToolbar(nil);
+  ApplyRibbonOnlyLayout;
   Realign;
   // Messungen beim Schließen der Werkzeuge nur ausblenden.
   if not FEditVisible then
@@ -11103,6 +11323,17 @@ begin
     TPDFDesignButton(AButton).SetAccentOrange(AActive);
 end;
 
+function TFreePDF64PDFiumView.CanRibbonUndo: Boolean;
+begin
+  // Gleiche Verfuegbarkeit wie die vorhandene Werkzeugleiste.
+  Result := (FTextUndoButton <> nil) and FTextUndoButton.Enabled;
+end;
+
+function TFreePDF64PDFiumView.CanRibbonRedo: Boolean;
+begin
+  Result := (FTextRedoButton <> nil) and FTextRedoButton.Enabled;
+end;
+
 procedure TFreePDF64PDFiumView.UpdateTextUndoButtons;
 begin
   // Gleiche Aktiv-Kennzeichnung wie beim Dropdown "Messen".
@@ -11321,6 +11552,15 @@ begin
   Screen.Cursor := crDefault;
   if FHighlightMode then
   begin
+    // Beim Wechsel aus dem Messmodus dessen orange Aktivkennzeichnung
+    // und den Messzustand sofort beenden.
+    if FMeasureMode then
+    begin
+      FMeasureMode := False;
+      CancelMeasurement;
+      if FMeasureButton <> nil then SetActiveModeButton(FMeasureButton, False);
+    end;
+    FLinkMode := False;
     FTextInsertMode := False;
     FNoteMode := False;
     if FNoteButton <> nil then FNoteButton.Caption := ToolbarHint('Kommentar', 'Comment');
@@ -14475,6 +14715,96 @@ begin
   end;
 end;
 
+function TFreePDF64PDFiumView.SavePDFDirect: Boolean;
+var
+  SourceFile, TempFile: string;
+  Measurements: TArray<TPDFMeasureAnnotation>;
+  I, RequiredCount: Integer;
+  Missing: TStringList;
+  TargetPage: Integer;
+begin
+  Result := False;
+  FinishInlineFormEdit(True);
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  SourceFile := FCore.FileName;
+  if (SourceFile = '') or not FileExists(SourceFile) then
+  begin
+    SaveClick(nil);
+    Exit;
+  end;
+  Missing := TStringList.Create;
+  try
+    RequiredCount := FCore.ListEmptyRequiredFields(Missing);
+    if RequiredCount > 0 then
+      if PDFModernMessageDlg(
+        Format(Tr('%d Pflichtfeld(er) sind noch leer:'), [RequiredCount]) +
+        sLineBreak + Tr('Trotzdem speichern?'),
+        mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
+  finally
+    Missing.Free;
+  end;
+  // Save into the same directory so the final replacement stays on one volume.
+  TempFile := ChangeFileExt(SourceFile, '.freepdf64-saving-' +
+    IntToHex(GetTickCount, 8) + '.tmp');
+  try
+    if FMeasureRects.Count > 0 then
+    begin
+      SetLength(Measurements, FMeasureRects.Count);
+      for I := 0 to FMeasureRects.Count - 1 do
+      begin
+        Measurements[I].PageIndex := FMeasureRects[I].Page;
+        Measurements[I].X1 := FMeasureRects[I].X1;
+        Measurements[I].Y1 := FMeasureRects[I].Y1;
+        Measurements[I].X2 := FMeasureRects[I].X2;
+        Measurements[I].Y2 := FMeasureRects[I].Y2;
+        Measurements[I].Scale := FMeasureRects[I].Scale;
+        Measurements[I].UnitIndex := FMeasureRects[I].UnitIndex;
+        Measurements[I].Color := FMeasureRects[I].Color;
+      end;
+      FCore.SaveAsWithMeasurements(TempFile, Measurements);
+    end
+    else if FCore.Modified then
+      FCore.SaveAs(TempFile)
+    else if not CopyFile(PChar(SourceFile), PChar(TempFile), True) then
+      RaiseLastOSError;
+    if not FileExists(TempFile) then
+      raise EPDFiumViewer.Create('Temporäre PDF-Datei ist leer.');
+    TargetPage := FPage;
+    // PDFium holds the source open. Release it before the atomic rename.
+    FCore.CloseFile;
+    if not MoveFileEx(PChar(TempFile), PChar(SourceFile),
+      MOVEFILE_REPLACE_EXISTING or MOVEFILE_WRITE_THROUGH) then
+    begin
+      try FCore.OpenFile(SourceFile); except end;
+      raise EPDFiumViewer.Create(
+        'Originaldatei konnte nicht ersetzt werden. Temporäre Datei: ' + TempFile);
+    end;
+    FCore.OpenFile(SourceFile);
+    CancelMeasurement;
+    FMeasureRects.Clear;
+    FMeasureUndo.Clear;
+    FMeasureRedo.Clear;
+    FMeasureDirty := False;
+    SetLength(FPageSizesValid, 0);
+    SetLength(FLoadedPages, 0);
+    FPage := 0;
+    FLayoutPageLimit := Min(1, FCore.PageCount);
+    PaintPage;
+    PopulateOutline;
+    BuildThumbnails;
+    if FCore.PageCount > 0 then
+      ShowPage(Min(TargetPage, FCore.PageCount - 1));
+    Inc(FSaveSuccessSerial);
+    UpdateSaveState;
+    Result := True;
+  except
+    on E: Exception do
+      PDFModernMessageDlg(Tr('Speichern fehlgeschlagen: ') + E.Message,
+        mtError, [mbOK], 0);
+  end;
+  // Never delete a recovery copy when replacing the original failed.
+end;
+
 procedure TFreePDF64PDFiumView.SaveClick(Sender: TObject);
 var
   D: TSaveDialog;
@@ -14577,13 +14907,27 @@ begin
     ((FMeasureRects <> nil) and (FMeasureRects.Count > 0)));
 end;
 
+function TFreePDF64PDFiumView.ActiveRibbonToolCommand: Integer;
+begin
+  Result := 0;
+  // A single active tool owns the orange state. The next tool activation
+  // replaces the previous command instead of accumulating highlighted buttons.
+  if FMeasureMode then Result := 145
+  else if FHighlightMode then Result := 124
+  else if FTextInsertMode then Result := 123
+  else if FNoteMode then Result := 126
+  else if FSignatureMode then Result := 134
+  else if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) then
+    Result := 146;
+end;
+
 function TFreePDF64PDFiumView.SaveUnsavedChanges: Boolean;
 var
   BeforeSave: Integer;
 begin
   if not HasUnsavedChanges then Exit(True);
   BeforeSave := FSaveSuccessSerial;
-  SaveClick(nil);
+  SavePDFDirect;
   // Eine erfolgreich geschriebene PDF-Kopie genügt zum Schließen.
   // Bei Abbruch oder Fehler bleibt der Tab geöffnet.
   Result := FSaveSuccessSerial <> BeforeSave;
@@ -14602,7 +14946,7 @@ begin
   if A = mrYes then
   begin
     BeforeSave := FSaveSuccessSerial;
-    SaveClick(nil);
+    SavePDFDirect;
     Result := FSaveSuccessSerial <> BeforeSave;
   end;
 end;

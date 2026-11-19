@@ -1,33 +1,45 @@
 ﻿[Closed Files]
-File_0=TSourceModule,'D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas',0,1,3177,31,3199,0,0,,
-File_1=TSourceModule,'D:\Delphi\FreePDF64ViewerPortable\uPDFErrorLogger.pas',0,1,1,1,1,0,0,,
-File_2=TSourceModule,'D:\Delphi\FreePDF64ViewerPortable\uPDFAttachmentTemp.pas',0,1,1,1,1,0,0,,
-File_3=TSourceModule,'D:\Delphi\FreePDF64_PostScriptPrinter\Source\FreePDF64PrinterSetupUnit.pas',0,1,1,1,1,0,0,,
-File_4=TSourceModule,'D:\Compiler\Delphi\FreePDF64_PostScriptPrinter\Source\FreePDF64PortMonitorUnit.pas',0,1,444,5,444,0,0,,
-File_5=TSourceModule,'D:\Downloads\FreePDF64_PostScriptPrinter_Fertig_Win64\Source\FreePDF64PrinterConfig.pas',0,1,1,1,1,0,0,,
-File_6=TSourceModule,'D:\Downloads\FreePDF64_PostScriptPrinter_Fertig_Win64\Source\FreePDF64PortMonitor.pas',0,1,1,1,1,0,0,,
-File_7=TSourceModule,'D:\Compiler\Delphi\FreePDF64\FreePDF64_Unit.pas',0,1,9396,1,9396,0,0,,{0
-File_8=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Info_Unit.pas',0,1,84,15,103,0,0,,
-File_9=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Suchen.pas',0,1,687,3,717,0,0,,{0
-File_10=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Unit.pas',0,1,968,15,984,0,0,,{0
-File_11=TSourceModule,'D:\Compiler\Delphi\FreePDF64\FreePDF64_Notify_Unit.pas',0,1,682,36,697,0,0,,{0
-File_12=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Suche_Info_Unit.pas',0,1,29,67,34,0,0,,
-File_13=TSourceModule,'D:\Compiler\Delphi\FreePDF64\uPDFBrowserForm.pas',0,1,96,1,99,0,0,,
-File_14=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Hilfe_Unit.pas',0,1,51,7,58,0,0,,
+File_0=TSourceModule,'D:\Delphi\FreePDF64ViewerPortable\uPDFErrorLogger.pas',0,1,1,1,1,0,0,,
+File_1=TSourceModule,'D:\Delphi\FreePDF64ViewerPortable\uPDFAttachmentTemp.pas',0,1,1,1,1,0,0,,
+File_2=TSourceModule,'D:\Delphi\FreePDF64_PostScriptPrinter\Source\FreePDF64PrinterSetupUnit.pas',0,1,1,1,1,0,0,,
+File_3=TSourceModule,'D:\Compiler\Delphi\FreePDF64_PostScriptPrinter\Source\FreePDF64PortMonitorUnit.pas',0,1,444,5,444,0,0,,
+File_4=TSourceModule,'D:\Downloads\FreePDF64_PostScriptPrinter_Fertig_Win64\Source\FreePDF64PrinterConfig.pas',0,1,1,1,1,0,0,,
+File_5=TSourceModule,'D:\Downloads\FreePDF64_PostScriptPrinter_Fertig_Win64\Source\FreePDF64PortMonitor.pas',0,1,1,1,1,0,0,,
+File_6=TSourceModule,'D:\Compiler\Delphi\FreePDF64\FreePDF64_Unit.pas',0,1,9396,1,9396,0,0,,{0
+File_7=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Info_Unit.pas',0,1,84,15,103,0,0,,
+File_8=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Suchen.pas',0,1,687,3,717,0,0,,{0
+File_9=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Einstellungen_Unit.pas',0,1,968,15,984,0,0,,{0
+File_10=TSourceModule,'D:\Compiler\Delphi\FreePDF64\FreePDF64_Notify_Unit.pas',0,1,682,36,697,0,0,,{0
+File_11=TSourceModule,'D:\Compiler\Delphi\FreePDF64\Suche_Info_Unit.pas',0,1,29,67,34,0,0,,
+File_12=TSourceModule,'D:\Compiler\Delphi\FreePDF64\uPDFBrowserForm.pas',0,1,96,1,99,0,0,,
 
 [Modules]
-Module0=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-Module1=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
-Module2=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
-Module3=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
-Module4=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
-Module5=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
-Module6=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
-Module7=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-Count=8
+Module0=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
+Module1=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
+Module2=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
+Module3=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
+Module4=D:\Delphi\FreePDF64ViewerPortable\uFreePDFVCLRibbon33e.pas
+Module5=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
+Module6=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
+Module7=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
+Module8=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
+Module9=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
+Count=10
 EditWindowCount=1
 
+[D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
+ModuleType=TSourceModule
+
 [D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas]
+ModuleType=TSourceModule
+
+[D:\Delphi\FreePDF64ViewerPortable\uFreePDFVCLRibbon33e.pas]
 ModuleType=TSourceModule
 
 [D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas]
@@ -45,15 +57,9 @@ ModuleType=TSourceModule
 [c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas]
 ModuleType=TSourceModule
 
-[D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas]
-ModuleType=TSourceModule
-
-[D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas]
-ModuleType=TSourceModule
-
 [EditWindow0]
-ViewCount=8
-CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
+ViewCount=10
+CurrentEditView=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 View0=0
 View1=1
 View2=2
@@ -62,6 +68,8 @@ View4=4
 View5=5
 View6=6
 View7=7
+View8=8
+View9=9
 PercentageSizes=1
 Create=1
 Visible=1
@@ -98,9 +106,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-CursorX=20
-CursorY=9189
-TopLine=9167
+CursorX=5
+CursorY=245
+TopLine=223
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -120,8 +128,8 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
 [View2]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
-CursorX=28
-CursorY=259
+CursorX=60
+CursorY=252
 TopLine=237
 LeftCol=1
 Elisions=
@@ -131,15 +139,37 @@ EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
 [View3]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-CursorX=5
-CursorY=26
-TopLine=26
+CursorX=107
+CursorY=8368
+TopLine=8334
 LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
 
 [View4]
+CustomEditViewType=TEditView
+Module=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
+CursorX=1
+CursorY=152
+TopLine=154
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFBrowserForm.pas
+
+[View5]
+CustomEditViewType=TEditView
+Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDFVCLRibbon33e.pas
+CursorX=21
+CursorY=283
+TopLine=283
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDFVCLRibbon33e.pas
+
+[View6]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
 CursorX=22
@@ -150,7 +180,7 @@ Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFPortableAttachments.pas
 
-[View5]
+[View7]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
 CursorX=10
@@ -161,7 +191,7 @@ Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumCore.pas
 
-[View6]
+[View8]
 CustomEditViewType=TEditView
 Module=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 CursorX=83
@@ -172,7 +202,7 @@ Elisions=
 Bookmarks=
 EditViewName=c:\program files (x86)\embarcadero\studio\37.0\SOURCE\RTL\SYS\System.SysUtils.pas
 
-[View7]
+[View9]
 CustomEditViewType=TEditView
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFLanguage.pas
 CursorX=22
@@ -306,7 +336,7 @@ ClientWidth=1895
 ClientHeight=3312
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -321,11 +351,11 @@ State=0
 Left=0
 Top=0
 Width=1996
-Height=6464
+Height=8543
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=6464
+ClientHeight=8543
 TBDockHeight=5957
 LRDockWidth=2512
 Dockable=1
@@ -337,8 +367,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=-2039
-Top=336
+Left=0
+Top=0
 Width=273
 Height=362
 MaxLeft=-1
@@ -349,8 +379,8 @@ TBDockHeight=362
 LRDockWidth=273
 Dockable=1
 StayOnTop=0
-Name=77
-Description=214
+Name=96
+Description=267
 filter=1
 
 [DebugLogView]
@@ -461,11 +491,11 @@ State=0
 Left=0
 Top=0
 Width=2340
-Height=978
+Height=1210
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=2340
-ClientHeight=978
+ClientHeight=1210
 TBDockHeight=2319
 LRDockWidth=2824
 Dockable=1
@@ -526,11 +556,11 @@ State=0
 Left=0
 Top=0
 Width=1996
-Height=6464
+Height=8543
 MaxLeft=-1
 MaxTop=-1
 ClientWidth=1996
-ClientHeight=6464
+ClientHeight=8543
 TBDockHeight=4884
 LRDockWidth=7148
 Dockable=1
@@ -542,8 +572,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=505
-Top=1083
+Left=0
+Top=0
 Width=2855
 Height=3210
 MaxLeft=-1
@@ -656,8 +686,8 @@ Create=1
 Visible=0
 Docked=1
 State=0
-Left=1270
-Top=36
+Left=8
+Top=8
 Width=3824
 Height=1420
 MaxLeft=-1
@@ -692,7 +722,7 @@ ClientWidth=1996
 ClientHeight=4551
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0
@@ -718,7 +748,7 @@ ClientWidth=1895
 ClientHeight=3500
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1895
 Dockable=1
 StayOnTop=0
@@ -744,7 +774,7 @@ ClientWidth=1996
 ClientHeight=2261
 PixelsPerInch=120
 MonitorNum=0
-TBDockHeight=9014
+TBDockHeight=8812
 LRDockWidth=1996
 Dockable=1
 StayOnTop=0

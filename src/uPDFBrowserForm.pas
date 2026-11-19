@@ -148,12 +148,20 @@ type
     function SaveGraphicPreview(const ACacheFile: string): Boolean;
     destructor Destroy; override;
     function IsShortCut(var Message: TWMKey): Boolean; override;
+    procedure ApplyRibbonNavigationLayout;
     procedure ApplyToolbarDesign(ADesign: Integer);
     procedure RefreshToolbarAfterSplit;
     procedure PlaceSplitButton(AButton: TButton; AVisible: Boolean);
     procedure UpdateAttachmentWindowPosition;
     procedure TogglePageThumbnails;
     procedure ShowCommentOverview;
+    procedure ExecuteRibbonPDFCommand(ACommandId: Integer);
+    procedure ExecuteRibbonImageCommand(ACommandId: Integer);
+    function TIFFRibbonPageCount: Cardinal;
+    function TIFFRibbonPageIndex: Cardinal;
+    procedure SetRibbonSelection(ACommandId, AIndex: Integer; const AText: string);
+    function CanRibbonUndo: Boolean;
+    function CanRibbonRedo: Boolean;
     procedure ShowRequiredFieldsReport;
     procedure FocusAdjacentFormWidget(ADirection: Integer);
     function HandleFormDialogKey(AKey: Word): Boolean;
@@ -176,9 +184,12 @@ type
     function WorkspaceViewMode: Integer;
     function WorkspaceTwoPage: Boolean;
     function WorkspaceContinuous: Boolean;
+    function RibbonHandToolActive: Boolean;
+    function RibbonActiveToolCommand: Integer;
     function WorkspaceSidebarVisible: Boolean;
     procedure SetWorkspaceLayout(AViewMode: Integer; ATwoPage, AContinuous, ASidebar: Boolean);
     function WorkspacePage: Integer;
+    procedure RibbonShowPage(APage: Integer);
     function WorkspaceZoom: Double;
     function WorkspaceFit: Boolean;
     function WorkspaceScrollX: Integer;
@@ -631,6 +642,21 @@ begin
     Result := FPDFiumView.WorkspaceTwoPage;
 end;
 
+function TPDFBrowserForm.RibbonActiveToolCommand: Integer;
+begin
+  Result := 0;
+  if FPDFiumView <> nil then
+  begin
+    Result := FPDFiumView.ActiveRibbonToolCommand;
+    if (Result = 0) and FPDFiumView.HandToolActive then Result := 217;
+  end;
+end;
+
+function TPDFBrowserForm.RibbonHandToolActive: Boolean;
+begin
+  Result := (FPDFiumView <> nil) and FPDFiumView.HandToolActive;
+end;
+
 function TPDFBrowserForm.WorkspaceContinuous: Boolean;
 begin
   Result := True;
@@ -667,6 +693,13 @@ begin
   Result := Max(1, FStartPage);
   if (FPDFiumView <> nil) and FNavigationSucceeded then
     Result := Max(1, FPDFiumView.PageIndex + 1);
+end;
+
+procedure TPDFBrowserForm.RibbonShowPage(APage: Integer);
+begin
+  if FClosing or not FNavigationSucceeded or (FPDFiumView = nil) or
+     IsBasicImage or (APage < 1) or (APage > FPDFiumView.GlobalPageCount) then Exit;
+  FPDFiumView.ShowPage(APage - 1);
 end;
 
 function TPDFBrowserForm.WorkspaceZoom: Double;
@@ -848,12 +881,24 @@ begin
     FPDFiumView.RefreshPDFDisplay;
 end;
 
+procedure TPDFBrowserForm.ApplyRibbonNavigationLayout;
+begin
+  // Ribbon-only mode is limited to document tabs. Keep the toolbar controls
+  // allocated: existing actions, attachment state and split view still use
+  // their handlers. Only the obsolete navigation surfaces are hidden.
+  if not FTabbedPDFMode then Exit;
+  if FToolbar <> nil then FToolbar.Visible := False;
+  if FPDFiumView <> nil then
+    FPDFiumView.SetRibbonOnlyMode(True);
+end;
+
 procedure TPDFBrowserForm.SetFullScreenDisplay(AEnabled: Boolean);
 begin
   if FToolbar <> nil then
     FToolbar.Visible := not AEnabled;
   if FPDFiumView <> nil then
     FPDFiumView.SetFullScreenDisplay(AEnabled);
+  if not AEnabled then ApplyRibbonNavigationLayout;
 end;
 
 procedure TPDFBrowserForm.UpdateAttachmentWindowPosition;
@@ -2414,10 +2459,11 @@ begin
   begin
     if FToolbar.Parent <> Self then FToolbar.Parent := Self;
     FToolbar.Align := alTop;
-    FToolbar.Visible := True;
+    FToolbar.Visible := not FTabbedPDFMode;
     FToolbar.Height := Max(FToolbar.Height, MulDiv(36, CurrentPPI, 96));
     FToolbar.BringToFront;
   end;
+  ApplyRibbonNavigationLayout;
   if FImageButtons[0] <> nil then
     for ButtonIndex := 0 to High(FImageButtons) do
       FImageButtons[ButtonIndex].Visible := True;
@@ -2469,6 +2515,7 @@ begin
   // Beide Symbolleisten bei ausreichender Breite in einer Zeile anordnen.
   UpdateUnifiedToolbar;
   ReflowNavigationToolbar;
+  ApplyRibbonNavigationLayout;
   Caption := PDFFileName;
   // Auch eingebettete PDF-Formulare muessen beim ersten Anzeigen laden.
   // Der Tab-Manager darf nicht der einzige Ausloeser sein.
@@ -3173,6 +3220,8 @@ begin
   Realign;
   if FPDFiumView <> nil then
     FPDFiumView.RefreshToolbarAfterSplit;
+  // Ribbon-Modus auch nach der Split-Rueckkehr konsequent beibehalten.
+  ApplyRibbonNavigationLayout;
 end;
 
 procedure TPDFBrowserForm.UpdateUnifiedToolbar;
@@ -3333,6 +3382,7 @@ begin
   if FImageDisplay <> nil then UpdateImageLayout;
   UpdateUnifiedToolbar;
   ReflowNavigationToolbar;
+  ApplyRibbonNavigationLayout;
   UpdateAttachmentWindowPosition;
 end;
 
@@ -3416,6 +3466,78 @@ end;
 procedure TPDFBrowserForm.FocusAdjacentFormWidget(ADirection: Integer);
 begin
   if FPDFiumView <> nil then FPDFiumView.FocusAdjacentFormWidget(ADirection);
+end;
+
+function TPDFBrowserForm.CanRibbonUndo: Boolean;
+begin
+  Result := (FPDFiumView <> nil) and not IsBasicImage and
+    FPDFiumView.CanRibbonUndo;
+end;
+
+function TPDFBrowserForm.CanRibbonRedo: Boolean;
+begin
+  Result := (FPDFiumView <> nil) and not IsBasicImage and
+    FPDFiumView.CanRibbonRedo;
+end;
+
+procedure TPDFBrowserForm.SetRibbonSelection(ACommandId, AIndex: Integer; const AText: string);
+begin
+  if (FPDFiumView <> nil) and not IsBasicImage then
+    FPDFiumView.SetRibbonSelection(ACommandId, AIndex, AText);
+end;
+
+// Grafikbefehle des VCL-Ribbons verwenden exakt dieselben Handler wie
+// die vorhandenen Grafikschaltflächen. Dadurch bleiben Zoom, Drehen,
+// Speichern und Drucken in ihrer bisherigen Implementierung erhalten.
+function TPDFBrowserForm.TIFFRibbonPageCount: Cardinal;
+begin
+  if IsBasicImage then Result := FTIFFPageCount else Result := 0;
+end;
+
+function TPDFBrowserForm.TIFFRibbonPageIndex: Cardinal;
+begin
+  if IsBasicImage then Result := FTIFFPageIndex else Result := 0;
+end;
+
+procedure TPDFBrowserForm.ExecuteRibbonImageCommand(ACommandId: Integer);
+var
+  ImageButtonIndex: Integer;
+begin
+  if FClosing or not IsBasicImage or (FImageDisplay = nil) then Exit;
+  if ACommandId in [218, 219] then
+  begin
+    if FTIFFPageCount < 2 then Exit;
+    if (ACommandId = 218) and (FTIFFPageIndex > 0) then
+      ShowTIFFPage(FTIFFPageIndex - 1)
+    else if (ACommandId = 219) and (FTIFFPageIndex + 1 < FTIFFPageCount) then
+      ShowTIFFPage(FTIFFPageIndex + 1);
+    Exit;
+  end;
+  case ACommandId of
+    201: ImageButtonIndex := 0; // Grafik verkleinern
+    202: ImageButtonIndex := 1; // Grafik vergrößern
+    203: ImageButtonIndex := 2; // Grafik links drehen
+    204: ImageButtonIndex := 3; // Grafik rechts drehen
+    205: ImageButtonIndex := 4; // Ganzes Bild
+    206: ImageButtonIndex := 5; // Bildbreite
+    207: ImageButtonIndex := 6; // Originalgröße
+    208: ImageButtonIndex := 7; // Grafik speichern
+    209: ImageButtonIndex := 8; // Grafik drucken
+  else
+    Exit;
+  end;
+  if FImageButtons[ImageButtonIndex] = nil then
+    CreateImageTools;
+  if (FImageButtons[ImageButtonIndex] <> nil) and
+     FImageButtons[ImageButtonIndex].Enabled then
+    ImageToolClick(FImageButtons[ImageButtonIndex]);
+end;
+
+procedure TPDFBrowserForm.ExecuteRibbonPDFCommand(ACommandId: Integer);
+begin
+  if FClosing or IsBasicImage or (FPDFiumView = nil) or
+     not FNavigationSucceeded then Exit;
+  FPDFiumView.ExecuteRibbonPDFCommand(ACommandId);
 end;
 
 procedure TPDFBrowserForm.ShowCommentOverview;

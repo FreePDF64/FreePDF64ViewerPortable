@@ -1,8 +1,8 @@
 ﻿[ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZUYWJzRm9ybS5wYXM=]
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFTabsForm.pas
-CursorX=73
-CursorY=4776
-TopLine=4754
+CursorX=8
+CursorY=10004
+TopLine=9982
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -337,7 +337,6 @@ LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uFreePDF64PDFiumView.pas
-
 [ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZTaWduYXR1cmVMaWJyYXJ5LnBh
 cw==]
 Module=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
@@ -348,4 +347,24 @@ LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureLibrary.pas
+[ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZTaWduYXR1cmVEaWFsb2cucGFz
+]
+Module=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
+CursorX=28
+CursorY=259
+TopLine=237
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
+[ClosedView_RDpcRGVscGhpXEZyZWVQREY2NFZpZXdlclBvcnRhYmxlXHVQREZTaWduYXR1cmVEaWFsb2cucGFz
+]
+Module=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
+CursorX=60
+CursorY=252
+TopLine=237
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=D:\Delphi\FreePDF64ViewerPortable\uPDFSignatureDialog.pas
 

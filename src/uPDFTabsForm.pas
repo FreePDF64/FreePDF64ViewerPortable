@@ -7,7 +7,8 @@ uses
   System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.RichEdit, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
   Vcl.Dialogs, uPDFModernDialogs, Vcl.Menus, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, System.IniFiles, System.Win.Registry, Math,
-  uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare;
+  uPDFBrowserForm, uFreePDF64PDFiumView, uFreePDF64PDFiumCore, uPDFGlobalSearch, uPDFMergeTabs, uPDFVisualCompare,
+  uFreePDFVCLRibbon33e;
 
 type
   // Teilungsbutton mit orangefarbenem Rahmen; keine protected Color-Eigenschaft.
@@ -49,6 +50,27 @@ type
   end;
 
   TPDFTabsForm = class(TForm)
+  private
+    FVCLRibbon: TFreePDFVCLRibbon;
+    FFinalStatusTimer: TTimer;
+    FLastOrangeTool: Integer;
+    FLastOrangeSave: Boolean;
+    FUnsavedRibbonTabs: TList;
+    procedure VCLRibbonCommand(Sender: TObject; CommandId: Integer; const Value: string);
+    procedure VCLRibbonCollapseChanged(Sender: TObject);
+    procedure DispatchRibbonCommand(CommandId: Integer);
+    procedure SyncVCLRibbonCommands;
+    procedure FinalStatusTick(Sender: TObject);
+    procedure UpdateFinalStatus;
+    procedure FillRibbonFonts;
+  private
+    FRibbonPreferenceMinimized: Boolean;
+    FRibbonPreferenceTimer: TTimer;
+    FLastRibbonDocumentView: Boolean;
+    procedure RibbonPreferenceTimerTick(Sender: TObject);
+    procedure SaveRibbonPreference;
+    procedure ApplyVCLRibbonDesign;
+    procedure UpdateVCLRibbonVisibility(const AHasDocuments: Boolean);
   private
     FTabs: TPageControl;
     FWelcomePanel: TScrollBox;
@@ -397,6 +419,7 @@ var
   PDFTabsShowMainForm: TNotifyEvent = nil;
 
 implementation
+
 
 uses
   uPDFAttachmentTemp;
@@ -1682,6 +1705,10 @@ begin
     FUpdateStartupTimer.Enabled := True;
   // Willkommensseite immer initialisieren, auch bei minimiertem Start.
   UpdateWelcomeView;
+  // Enforce the start-page state after the form has received its final DPI.
+  // Do not change the stored preference for subsequently opened documents.
+  if (FVCLRibbon <> nil) and (FTabs <> nil) and (FTabs.PageCount = 0) then
+    FVCLRibbon.Collapsed := True;
   if FStartupMinimizePending then
     PostMessage(Handle, WM_APP + 198, 0, 0);
   // Fensterzustand wurde bereits im Konstruktor vor dem ersten Anzeigen
@@ -3201,6 +3228,12 @@ begin
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
           'FreePDF64-Viewer Portable is not an official PDFium, V8 or Google product.');
+        AddSection('Tabler Icons – MIT License',
+          'Copyright (c) 2020-2026 Paweł Kuna' + sLineBreak +
+          'Ribbon icons from Tabler Icons, licensed under the MIT License.' + sLineBreak +
+          'When distributing the application with these icons, include the original MIT license text.' + sLineBreak +
+          'The complete license is provided in TablerIcons/LICENSE.txt.' + sLineBreak +
+          'https://github.com/tabler/tabler-icons');
         AddSection('Settings file',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
         AddSection('Application executable', Application.ExeName);
@@ -3225,6 +3258,12 @@ begin
           'PDFium: https://pdfium.googlesource.com/pdfium/' + sLineBreak +
           'V8: https://v8.dev/' + sLineBreak +
           'FreePDF64-Viewer Portable ist kein offizielles Produkt von PDFium, V8 oder Google.');
+        AddSection('Tabler Icons – MIT-Lizenz',
+          'Copyright (c) 2020-2026 Paweł Kuna' + sLineBreak +
+          'Die Ribbon-Symbole stammen aus Tabler Icons und stehen unter der MIT-Lizenz.' + sLineBreak +
+          'Bei der Weitergabe mit diesen Symbolen muss der Original-MIT-Lizenztext beiliegen.' + sLineBreak +
+          'Der vollständige Lizenztext befindet sich in TablerIcons/LICENSE.txt.' + sLineBreak +
+          'https://github.com/tabler/tabler-icons');
         AddSection('Einstellungsdatei',
           IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
         AddSection('Programmdatei', Application.ExeName);
@@ -3232,30 +3271,46 @@ begin
     end
     else if PDFLanguage = 'en' then
     begin
-      AddTOC(['Customizable user interface (themes)', 'Images and multipage TIFF files',
+      AddTOC(['Customizable user interface (themes)', 'Ribbon and Tabler Icons', 'Images and multipage TIFF files',
         'Opening and organizing PDFs', 'Viewing and searching', 'Editing and combining PDFs',
         'Watermarks and hyperlinks', 'PDF measurement tools', 'Handwritten signatures', 'Interactive forms', 'Document information and tools',
         'Display and Logging']);
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
-        'Five themes are available: Standard, Modern Light, Modern Dark, Windows Classic and Classic Blue. '
-        + 'Toolbars, buttons and controls use colors matching the selected theme. '
-        + 'Select a theme under Options → Theme.');
+        'Five themes are available: Standard, Modern Light, Windows Classic, Classic Blue and '
+        + 'Windows Classic – Flat Buttons. The VCL Ribbon is color-matched to the selected '
+        + 'theme as far as the selected design permits. The File button and some surfaces '
+        + 'retain their native Windows appearance. Choose a theme on the Ribbon under Help → Design.');
+      AddSection('Ribbon and Tabler Icons', '');
+      AddSection('Ribbon commands and high-DPI icons',
+        'The VCL Ribbon organizes commands by task. Use the File tab for saving and '
+        + 'exporting PDFs, pages and embedded images. The Objects tab contains object tools. '
+        + 'The Help tab contains theme selection, language settings and program information. '
+        + 'Ribbon icons use Tabler Icons SVG artwork rendered for high-DPI displays. '
+        + ''
+        + 'The image and PDF commands are integrated into the Ribbon.');
+      AddSection('Tabler Icons: license and redistribution',
+        'The Ribbon icon artwork is from Tabler Icons by Paweł Kuna and contributors, '
+        + 'distributed under the MIT License. The complete original license text is '
+        + 'included in TablerIcons/LICENSE.txt and must accompany redistributed copies '
+        + 'that include these icons. The project itself remains licensed under GNU GPL v3. '
+        + 'See Help → About for third-party notices and the official project link: '
+        + 'https://github.com/tabler/tabler-icons');
       AddSection('Images and multipage TIFF files', '');
       AddSection('Open image files',
         'Open JPG, JPEG, PNG, BMP, TIF and TIFF files alongside PDFs. Each file appears in its own tab. '
         + 'Switching between image and PDF tabs does not require reopening the files.');
-      AddSection('Image toolbar and zoom',
-        'Use the image toolbar to zoom in or out, show the image at 100%, fit the entire image to the viewing area, '
+      AddSection('Image tools in the ribbon and zoom',
+        'Use the Images ribbon group to zoom in or out, show the image at 100%, fit the entire image to the viewing area, '
         + 'or fit it to the available width. Fit to page centers the image in the viewing area. '
         + 'Hold Ctrl and turn the mouse wheel to zoom; without Ctrl, the wheel scrolls normally.');
       AddSection('Rotate, save and print images',
-        'Rotate images 90 degrees left or right using the toolbar. A changed image is indicated by an orange Save button. '
+        'Rotate images 90 degrees left or right using the Images ribbon group. A changed image is indicated by an orange Save button. '
         + 'Zooming, scrolling and fitting do not mark an image as changed. '
         + 'Use Save as to save a supported single-page image; cancelling keeps the change indicator. '
-        + 'Printing is available from the image toolbar.');
+        + 'Printing is available from the Images ribbon group.');
       AddSection('Multipage TIFF navigation',
-        'Open a multipage TIFF and use the previous/next arrow buttons and page counter to navigate its pages. '
+        'Open a multipage TIFF and use Previous TIFF / Next TIFF in the Images ribbon group to navigate its pages. '
         + 'Zoom and rotation are available for TIFF pages. '
         + 'Use Save as to export all pages as a new multipage TIFF, including individual page rotations. The original file is preserved.');
       AddSection('Opening and organizing PDFs', '');
@@ -3379,7 +3434,7 @@ begin
         + 'Type in the input field displayed over the page. Hold Ctrl and drag with the left mouse button to move the input field; '
         + 'drag its bottom-right resize handle to adjust its width and height. '
         + 'Press Enter to insert the text or Esc to cancel. '
-        + 'Choose the font, font size and text color in the text toolbar. '
+        + 'Choose the font, font size and text color in the ribbon. The font list contains the installed Windows fonts in alphabetical order. '
         + 'The text is inserted into the PDF page content; save changes with Save As.');
       AddSection('Highlight text and rectangular areas',
         'In Edit mode, enable Highlight text and drag the left mouse button over the desired words or text passages. '
@@ -3549,7 +3604,7 @@ begin
     end
     else
     begin
-      AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Bilder und mehrseitige TIFF-Dateien',
+      AddTOC(['Anpassbare Benutzeroberfläche (Designs)', 'Ribbon und Tabler-Symbole', 'Bilder und mehrseitige TIFF-Dateien',
         'PDFs öffnen und organisieren', 'Anzeige, Navigation und Suche',
         'PDFs bearbeiten und zusammenführen', 'Wasserzeichen und Hyperlinks', 'PDF-Messwerkzeuge',
         'Handschriftliche Unterschriften',
@@ -3557,25 +3612,40 @@ begin
         'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
       AddSection('Design auswählen',
-        'Vier Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik und Klassisch Blau. '
-        + 'Symbolleisten, Schaltflächen und Bedienelemente werden farblich an das gewählte Design angepasst. '
-        + 'Wählen Sie das gewünschte Design unter Optionen → Design.');
+        'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik, Klassisch Blau '
+        + 'und Windows Klassik – Flache Buttons. Das VCL-Ribbon übernimmt die Farben '
+        + 'des ausgewählten Designs. Wählen Sie das Design im Ribbon unter Hilfe → Design.');
+      AddSection('Ribbon und Tabler-Symbole', '');
+      AddSection('Ribbon-Befehle und hochauflösende Symbole',
+        'Das VCL-Ribbon ordnet die Befehle nach Aufgaben. Unter Datei finden Sie '
+        + 'das Speichern und den Export von PDFs, Seiten und eingebetteten Bildern. '
+        + 'Die Registerkarte Objekte enthält die Objektwerkzeuge. Unter Hilfe stehen '
+        + 'Design, Sprache und Programminformationen zur Verfügung. '
+        + 'Die Ribbon-Symbole basieren auf originalen Tabler-SVGs und sind für hohe '
+        + 'Bildschirmauflösungen aufbereitet. PDF- und Bildwerkzeuge sind im Ribbon integriert.');
+      AddSection('Tabler Icons: Lizenz und Weitergabe',
+        'Die Ribbon-Symbole stammen aus Tabler Icons von Paweł Kuna und Mitwirkenden '
+        + 'und stehen unter der MIT-Lizenz. Der vollständige Original-Lizenztext '
+        + 'liegt in TablerIcons/LICENSE.txt und muss bei einer Weitergabe mit '
+        + 'den enthaltenen Symbolen mitgeliefert werden. Das Programm selbst '
+        + 'bleibt unter GNU GPL v3 lizenziert. Weitere Hinweise finden Sie '
+        + 'unter Hilfe → Über. Projektseite: https://github.com/tabler/tabler-icons');
       AddSection('Bilder und mehrseitige TIFF-Dateien', '');
       AddSection('Bilddateien öffnen',
         'JPG-, JPEG-, PNG-, BMP-, TIF- und TIFF-Dateien können zusammen mit PDFs geöffnet werden. '
         + 'Jede Datei erhält eine eigene Registerkarte. Beim Wechsel zwischen Bild- und PDF-Registerkarten '
         + 'müssen die Dateien nicht erneut geöffnet werden.');
-      AddSection('Bild-Symbolleiste und Zoom',
-        'Über die Bild-Symbolleiste können Sie vergrößern, verkleinern, 100 % wählen, das ganze Bild '
+      AddSection('Bildwerkzeuge im Ribbon und Zoom',
+        'Über die Ribbon-Gruppe „Bilder“ können Sie vergrößern, verkleinern, 100 % wählen, das ganze Bild '
         + 'an den Anzeigebereich oder an dessen Breite anpassen. Beim Einpassen wird das Bild zentriert. '
         + 'Mit Strg + Mausrad zoomen Sie das Bild; ohne Strg wird wie gewohnt gescrollt.');
       AddSection('Bilder drehen, speichern und drucken',
         'Mit den Symbolen drehen Sie Bilder um 90° nach links oder rechts. Nach einer Änderung '
         + 'wird der Speichern-Button orange. Zoomen, Scrollen und Einpassen gelten nicht als Änderung. '
         + 'Einzelne Bilder lassen sich über „Speichern unter ...“ sichern; bei Abbruch bleibt die '
-        + 'Änderungsanzeige bestehen. Die Bild-Symbolleiste bietet auch eine Druckfunktion.');
+        + 'Änderungsanzeige bestehen. Die Ribbon-Gruppe „Bilder“ bietet auch eine Druckfunktion.');
       AddSection('Mehrseitige TIFF-Dateien',
-        'Bei mehrseitigen TIFFs wechseln Sie mit den Pfeilschaltflächen zwischen den Seiten; '
+        'Bei mehrseitigen TIFFs wechseln Sie im Ribbon über „TIFF zurück“ und „TIFF weiter“ zwischen den Seiten; '
         + 'die Seitenanzeige zeigt die aktuelle Position. Zoomen und Drehen sind auch hier möglich. '
         + 'Über „Speichern unter ...“ werden alle Seiten einschließlich ihrer individuellen Drehungen '
         + 'als neue mehrseitige TIFF-Datei gespeichert. Das Original bleibt unverändert.');
@@ -3732,7 +3802,7 @@ begin
         + 'Den Text in das eingeblendete Eingabefeld schreiben. Mit gedrückter Strg-Taste und linker Maustaste '
         + 'lässt sich das Eingabefeld verschieben; am Ziehgriff unten rechts können Breite und Höhe verändert werden. '
         + 'Mit Enter den Text einfügen oder mit Esc abbrechen. '
-        + 'In der Textwerkzeugleiste Schriftart, Schriftgröße und Textfarbe auswählen. '
+        + 'Im Ribbon Schriftart, Schriftgröße und Textfarbe auswählen. Die Schriftartenliste enthält die installierten Windows-Schriftarten in alphabetischer Reihenfolge. '
         + 'Der Text wird als PDF-Seiteninhalt eingefügt; Änderungen über „Speichern unter ...“ sichern.');
       AddSection('Text und rechteckige Bereiche hervorheben',
         'Im Bearbeitungsmodus „Text hervorheben“ aktivieren und mit gedrückter linker Maustaste '
@@ -4701,6 +4771,7 @@ begin
       ApplyPDFDialogDesign(Screen.Forms[TabIndex]);
   if FTabs <> nil then FTabs.Invalidate;
   if FEmptyTabStrip <> nil then FEmptyTabStrip.Invalidate;
+  ApplyVCLRibbonDesign;
 end;
 
 procedure TPDFTabsForm.RefreshLanguage;
@@ -4872,7 +4943,7 @@ begin
     FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Bilder öffnen (Strg+O)');
   end;
   if FWelcomeWorkspaceButton <> nil then
-    FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereich öffnen ...');
+    FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereiche verwalten ...');
 
   // Hilfe bleibt rechts, unabhängig von der gewählten Sprache.
   AlignHelpMenuRight;
@@ -5348,14 +5419,14 @@ begin
   FWelcomeOpenButton.OnClick := OpenPDFClick;
   FWelcomeWorkspaceButton := TButton.Create(Self);
   FWelcomeWorkspaceButton.Parent := FWelcomePanel;
-  FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereich öffnen ...');
+  FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereiche verwalten ...');
   FWelcomeWorkspaceButton.Width := MulDiv(260, Dpi, 96);
   FWelcomeWorkspaceButton.Height := MulDiv(44, Dpi, 96);
   FWelcomeWorkspaceButton.Font.Name := 'Segoe UI';
   FWelcomeWorkspaceButton.Font.Style := [fsBold];
-  FWelcomeWorkspaceButton.Hint := Tr('Gespeicherte Arbeitsbereiche mit Name und Datum auswählen');
+  FWelcomeWorkspaceButton.Hint := Tr('Gespeicherte Arbeitsbereiche verwalten');
   FWelcomeWorkspaceButton.ShowHint := True;
-  FWelcomeWorkspaceButton.OnClick := OpenWorkspaceClick;
+  FWelcomeWorkspaceButton.OnClick := ManageWorkspacesClick;
   FRecentTitle := TLabel.Create(Self);
   FRecentTitle.Parent := FWelcomePanel;
   FRecentTitle.Font.Name := 'Segoe UI';
@@ -5651,6 +5722,47 @@ begin
   ApplyViewerDesign;
   OnShow := TabsFormShow;
   RefreshLanguage;
+  with TIniFile.Create(TabsIniFileName) do
+  try
+    FRibbonPreferenceMinimized := ReadBool('Ribbon', 'MinimizedWithDocument', False);
+  finally
+    Free;
+  end;
+  FRibbonPreferenceTimer := TTimer.Create(Self);
+  FRibbonPreferenceTimer.Interval := 600;
+  FRibbonPreferenceTimer.OnTimer := RibbonPreferenceTimerTick;
+  FRibbonPreferenceTimer.Enabled := True;
+  // The old menu items remain as action handlers, but are not displayed.
+  Menu := nil;
+  FVCLRibbon := TFreePDFVCLRibbon.Create(Self);
+  FVCLRibbon.Parent := Self;
+  FVCLRibbon.OnCommand := VCLRibbonCommand;
+  FVCLRibbon.OnCollapseChanged := VCLRibbonCollapseChanged;
+  // Die Startseite beginnt bei jedem Programmstart mit eingeklappter Ribbon,
+  // unabhängig von der zuletzt gespeicherten Einstellung.
+  FVCLRibbon.Collapsed := True;
+  FVCLRibbon.SetComboItems(115, ['Seitenbreite', 'Ganze Seite',
+    'Originalgröße (100 %)', 'Benutzerdefiniert']);
+  FVCLRibbon.SetComboItems(172, ['1 pt', '2 pt', '3 pt', '5 pt',
+    '8 pt', '12 pt']);
+  FillRibbonFonts;
+  FVCLRibbon.SetComboItems(175, ['8','10','12','14','16','18','20',
+    '24','28','32','36','48','72']);
+  FVCLRibbon.SetComboValue(115, 'Ganze Seite');
+  FVCLRibbon.SetComboValue(172, '5 pt');
+  FVCLRibbon.SetComboValue(174, 'Arial');
+  FVCLRibbon.SetComboValue(175, '12');
+  FVCLRibbon.SetTabPreviewChecked(FTabPreviewEnabled);
+  FLastOrangeTool := 0;
+  FLastOrangeSave := False;
+  FUnsavedRibbonTabs := TList.Create;
+  FFinalStatusTimer := TTimer.Create(Self);
+  FFinalStatusTimer.Interval := 400;
+  FFinalStatusTimer.OnTimer := FinalStatusTick;
+  UpdateFinalStatus;
+  SyncVCLRibbonCommands; // no document: print, export, redaction disabled at startup
+  ApplyVCLRibbonDesign;
+  UpdateWelcomeView;
 end;
 
 procedure TPDFTabsForm.PaintTabCountBadge(Sender: TObject);
@@ -6284,6 +6396,391 @@ begin
   FWelcomePanel.VertScrollBar.Range := ListTop + MulDiv(29,Dpi,96) + Available + MulDiv(16,Dpi,96);
 end;
 
+// 3.3.0 / 33a-2: VCL Ribbon, using the tested 3.2.4 baseline.
+// The original start page and the PDFium implementation are not modified.
+procedure TPDFTabsForm.ApplyVCLRibbonDesign;
+var
+  RibbonBackground, RibbonHighlight, RibbonText: TColor;
+begin
+  if FVCLRibbon <> nil then
+  begin
+    case FDesignIndex of
+      1: FVCLRibbon.ApplyPalette(RGB(225,232,241), RGB(35,48,65), RGB(93,151,217));
+      3,6: FVCLRibbon.ApplyPalette(RGB(192,192,192), RGB(30,30,30), RGB(115,155,198));
+      5: FVCLRibbon.ApplyPalette(RGB(190,214,237), RGB(24,55,88), RGB(61,125,198));
+    else
+      FVCLRibbon.ApplyPalette(RGB(238,240,244), RGB(38,43,52), RGB(119,162,212));
+    end;
+  end;
+end;
+
+procedure TPDFTabsForm.SaveRibbonPreference;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(TabsIniFileName);
+  try
+    Ini.WriteBool('Ribbon', 'MinimizedWithDocument', FRibbonPreferenceMinimized);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TPDFTabsForm.RibbonPreferenceTimerTick(Sender: TObject);
+var
+  CurrentMinimized: Boolean;
+begin
+  if FVCLRibbon = nil then Exit;
+  SyncVCLRibbonCommands;
+  if (FTabs = nil) or (FTabs.PageCount = 0) or FFullScreen then Exit;
+  CurrentMinimized := FVCLRibbon.Collapsed;
+  if CurrentMinimized <> FRibbonPreferenceMinimized then
+  begin
+    FRibbonPreferenceMinimized := CurrentMinimized;
+    SaveRibbonPreference;
+  end;
+end;
+
+procedure TPDFTabsForm.DispatchRibbonCommand(CommandId: Integer);
+var
+  ActiveBrowser: TPDFBrowserForm;
+begin
+  ActiveBrowser := nil;
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
+    ActiveBrowser := PDFInTab(FTabs.ActivePage);
+  case CommandId of
+    103: OpenPDFClick(Self);
+    166: OpenPDFClick(Self);
+    163: if ActiveBrowser <> nil then ReloadActivePDFClick(Self);
+    164: if RunningAlongsideFreePDF64 then OpenMainProgramClick(Self);
+    165: ExitFromTray(Self);
+    167: HomeMenuClick(Self);
+    104: if ActiveBrowser <> nil then
+         begin
+           if ActiveBrowser.IsBasicImage then
+             ActiveBrowser.ExecuteRibbonImageCommand(208)
+           else if ActiveBrowser.SaveUnsavedPDFChanges then
+           begin
+             if (FTabs <> nil) and (FTabs.ActivePage <> nil) and
+                (FUnsavedRibbonTabs <> nil) then
+               FUnsavedRibbonTabs.Remove(FTabs.ActivePage);
+             UpdateFinalStatus;
+           end;
+         end;
+    220: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.SavePDFAs;
+    105: if ActiveBrowser <> nil then
+         begin
+           if ActiveBrowser.IsBasicImage then
+             ActiveBrowser.ExecuteRibbonImageCommand(209)
+           else
+             ActiveBrowser.ExecuteRibbonPDFCommand(105);
+         end;
+    107: OpenWorkspaceClick(Self);
+    108: ManageWorkspacesClick(Self);
+    196: SaveWorkspaceClick(Self);
+    -191, 191: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+                 ActiveBrowser.ExecuteRibbonPDFCommand(191);
+    -192, 192: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+                 ActiveBrowser.ExecuteRibbonPDFCommand(192);
+    210: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.RibbonShowPage(ActiveBrowser.WorkspacePage - 1);
+    211: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.RibbonShowPage(ActiveBrowser.WorkspacePage + 1);
+    201..209, 218, 219: if (ActiveBrowser <> nil) and ActiveBrowser.IsBasicImage then
+                ActiveBrowser.ExecuteRibbonImageCommand(CommandId);
+    110: LocalSearchMenuClick(Self);
+    111: GlobalSearchClick(Self);
+    114: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.TogglePageThumbnails;
+    127: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.ShowCommentOverview;
+    115, 123, 124, 126, 129, 130, 133, 134, 135, 137, 138,
+    143, 145, 146, 168..184, 190, 193, 194, 214..217:
+      if ActiveBrowser <> nil then
+      begin
+        ActiveBrowser.ExecuteRibbonPDFCommand(CommandId);
+        if CommandId in [129, 130] then
+          SyncVCLRibbonCommands;
+      end;
+    142: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage and
+            (ActiveBrowser.FAttachmentsButton <> nil) then
+           ActiveBrowser.FAttachmentsButton.Click;
+    116: if ActiveBrowser <> nil then ActiveBrowser.ZoomPDF(True);
+    117: if ActiveBrowser <> nil then ActiveBrowser.ZoomPDF(False);
+    119: if FSplitViewMenuItem <> nil then FSplitViewMenuItem.Click;
+    120: if FVisualCompareMenuItem <> nil then FVisualCompareMenuItem.Click;
+    141: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.ShowDocumentProperties;
+    149: ShowViewerHelp(Self);
+    150: ShowModernInfo(True);
+    // Existing handlers keep INI persistence, theme rules and restart prompt.
+    153: if FDesignItems[0] <> nil then DesignClick(FDesignItems[0]);
+    154: if FDesignItems[1] <> nil then DesignClick(FDesignItems[1]);
+    155: if FDesignItems[3] <> nil then DesignClick(FDesignItems[3]);
+    156: if FDesignItems[5] <> nil then DesignClick(FDesignItems[5]);
+    157: if FDesignItems[6] <> nil then DesignClick(FDesignItems[6]);
+    159: if FGermanMenuItem <> nil then ChangeLanguageClick(FGermanMenuItem);
+    160: if FEnglishMenuItem <> nil then ChangeLanguageClick(FEnglishMenuItem);
+  end;
+end;
+
+procedure TPDFTabsForm.VCLRibbonCollapseChanged(Sender: TObject);
+begin
+  if FVCLRibbon = nil then Exit;
+  // Die automatisch eingeklappte Startseite darf die gespeicherte
+  // Ribbon-Einstellung fuer geoeffnete Dokumente nicht ueberschreiben.
+  if (FTabs = nil) or (FTabs.PageCount = 0) then Exit;
+  FRibbonPreferenceMinimized := FVCLRibbon.Collapsed;
+  SaveRibbonPreference;
+end;
+
+procedure TPDFTabsForm.VCLRibbonCommand(Sender: TObject; CommandId: Integer;
+  const Value: string);
+var
+  Browser: TPDFBrowserForm;
+  Index: Integer;
+begin
+  Browser := nil;
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
+    Browser := PDFInTab(FTabs.ActivePage);
+  if CommandId = 213 then
+  begin
+    if (Browser <> nil) and not Browser.IsBasicImage then
+    begin
+      FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
+      FVCLRibbon.SetCommandEnabled(210, Browser.WorkspacePage > 1);
+      FVCLRibbon.SetCommandEnabled(211,
+        Browser.WorkspacePage < Browser.GlobalPageCount);
+    end
+    else
+    begin
+      FVCLRibbon.SetPageStatus(0, 0);
+      FVCLRibbon.SetCommandEnabled(210, False);
+      FVCLRibbon.SetCommandEnabled(211, False);
+    end;
+    Exit;
+  end;
+  if CommandId = 212 then
+  begin
+    if (Browser <> nil) and not Browser.IsBasicImage and
+       TryStrToInt(Value, Index) then
+      Browser.RibbonShowPage(Index);
+    if (Browser <> nil) and not Browser.IsBasicImage then
+      FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
+    Exit;
+  end;
+  if CommandId in [115, 172, 174, 175] then
+  begin
+    if (Browser = nil) or Browser.IsBasicImage then Exit;
+    Index := -1;
+    // The PDFium handler consumes the selected text and the list index.
+    case CommandId of
+      115: if SameText(Value, 'Seitenbreite') then Index := 0
+           else if SameText(Value, 'Ganze Seite') then Index := 1
+           else if SameText(Value, 'Originalgröße (100 %)') then Index := 2
+           else if SameText(Value, 'Benutzerdefiniert') then Index := 3;
+      172: if SameText(Value, '1 pt') then Index := 0
+           else if SameText(Value, '2 pt') then Index := 1
+           else if SameText(Value, '3 pt') then Index := 2
+           else if SameText(Value, '5 pt') then Index := 3
+           else if SameText(Value, '8 pt') then Index := 4
+           else if SameText(Value, '12 pt') then Index := 5;
+      174: Index := Screen.Fonts.IndexOf(Value);
+      175: Index := -1;
+    end;
+    Browser.SetRibbonSelection(CommandId, Index, Value);
+    Exit;
+  end;
+  // Prevent PDF-only commands from acting on image tabs.
+  if (Browser <> nil) and Browser.IsBasicImage and
+     (((CommandId = -192) or (CommandId = -191)) or
+      (CommandId in [110,111,114,123,124,126,127,133,134,135,
+       137,138,141,142,143,145,146,163,168..184,190..194,214..217])) then Exit;
+  if ((Browser = nil) or Browser.IsBasicImage) and
+     (((CommandId = -192) or (CommandId = -191)) or
+      (CommandId in [115,123,124,126,127,133,134,135,
+       137,138,141,142,143,145,146,163,168..184,190..194,214..217])) then Exit;
+  if CommandId = 197 then
+  begin
+    TabPreviewMenuClick(Self);
+    FVCLRibbon.SetTabPreviewChecked(FTabPreviewEnabled);
+    Exit;
+  end;
+  DispatchRibbonCommand(CommandId);
+  SyncVCLRibbonCommands;
+end;
+
+procedure TPDFTabsForm.FillRibbonFonts;
+var
+  Fonts: TStringList;
+  Names: TArray<string>;
+  I: Integer;
+begin
+  if FVCLRibbon = nil then Exit;
+  Fonts := TStringList.Create;
+  try
+    Fonts.Assign(Screen.Fonts);
+    Fonts.Sort;
+    SetLength(Names, Fonts.Count);
+    for I := 0 to Fonts.Count - 1 do Names[I] := Fonts[I];
+    FVCLRibbon.SetComboItems(174, Names);
+  finally
+    Fonts.Free;
+  end;
+end;
+
+procedure TPDFTabsForm.FinalStatusTick(Sender: TObject);
+var
+  I, J: Integer;
+  Found: Boolean;
+begin
+  if (FUnsavedRibbonTabs <> nil) and (FTabs <> nil) then
+    for I := FUnsavedRibbonTabs.Count - 1 downto 0 do
+    begin
+      Found := False;
+      for J := 0 to FTabs.PageCount - 1 do
+        if FUnsavedRibbonTabs[I] = FTabs.Pages[J] then
+        begin
+          Found := True;
+          Break;
+        end;
+      if not Found then FUnsavedRibbonTabs.Delete(I);
+    end;
+  UpdateFinalStatus;
+end;
+
+procedure TPDFTabsForm.UpdateFinalStatus;
+var
+  Browser: TPDFBrowserForm;
+  Dirty: Boolean;
+  ToolId: Integer;
+begin
+  if FVCLRibbon = nil then Exit;
+  Browser := nil;
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
+    Browser := PDFInTab(FTabs.ActivePage);
+  Dirty := False;
+  ToolId := 0;
+  if (Browser <> nil) and not Browser.IsBasicImage then
+  begin
+    Dirty := Browser.HasUnsavedPDFChanges;
+    ToolId := Browser.RibbonActiveToolCommand;
+  end;
+  // Remember unsaved state independently of Ribbon and tab visibility.
+  // A transient False while reactivating an asynchronous PDF must not
+  // erase the warning. Only an explicit successful save clears the cache.
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) and (Browser <> nil) and
+     not Browser.IsBasicImage then
+  begin
+    if Dirty and (FUnsavedRibbonTabs.IndexOf(FTabs.ActivePage) < 0) then
+      FUnsavedRibbonTabs.Add(FTabs.ActivePage);
+    Dirty := Dirty or (FUnsavedRibbonTabs.IndexOf(FTabs.ActivePage) >= 0);
+  end;
+  FVCLRibbon.SetCommandOrange(104, Dirty);
+  FLastOrangeSave := Dirty;
+  if (FLastOrangeTool <> 0) and (FLastOrangeTool <> ToolId) then
+    FVCLRibbon.SetCommandOrange(FLastOrangeTool, False);
+  if ToolId <> 0 then FVCLRibbon.SetCommandOrange(ToolId, True);
+  FLastOrangeTool := ToolId;
+
+end;
+
+procedure TPDFTabsForm.SyncVCLRibbonCommands;
+var
+  Browser: TPDFBrowserForm;
+  HasPDF, HasDocument: Boolean;
+  I: Integer;
+const
+  PDFCommands: array[0..35] of Integer =
+    (110,111,114,115,123,124,126,127,133,134,135,137,138,141,
+     142,143,145,146,163,168,169,170,171,172,173,174,175,
+     176,177,178,179,180,181,182,183,184);
+begin
+  if FVCLRibbon = nil then Exit;
+  Browser := nil;
+  if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
+    Browser := PDFInTab(FTabs.ActivePage);
+  HasDocument := Browser <> nil;
+  HasPDF := HasDocument and not Browser.IsBasicImage;
+  for I := Low(PDFCommands) to High(PDFCommands) do
+    FVCLRibbon.SetCommandEnabled(PDFCommands[I], HasPDF);
+  FVCLRibbon.SetCommandEnabled(-191, HasPDF); // Seiten als Bilder exportieren
+  FVCLRibbon.SetCommandEnabled(-192, HasPDF); // Seiten als Text exportieren
+  FVCLRibbon.SetCommandEnabled(104, HasPDF); // Direkt speichern
+  FVCLRibbon.SetCommandEnabled(220, HasPDF); // PDF speichern unter ...
+  FVCLRibbon.SetCommandEnabled(105, HasDocument); // Drucken
+  FVCLRibbon.SetCommandEnabled(218, HasDocument and not HasPDF and
+    (Browser.TIFFRibbonPageCount > 1) and (Browser.TIFFRibbonPageIndex > 0));
+  FVCLRibbon.SetCommandEnabled(219, HasDocument and not HasPDF and
+    (Browser.TIFFRibbonPageCount > 1) and
+    (Browser.TIFFRibbonPageIndex + 1 < Browser.TIFFRibbonPageCount));
+  FVCLRibbon.SetCommandEnabled(210, HasPDF and
+    (Browser.WorkspacePage > 1));
+  FVCLRibbon.SetCommandEnabled(211, HasPDF and
+    (Browser.WorkspacePage < Browser.GlobalPageCount));
+  if HasPDF then
+    FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount)
+  else FVCLRibbon.SetPageStatus(0, 0);
+  for I := 214 to 217 do
+    FVCLRibbon.SetCommandEnabled(I, HasPDF);
+  if HasPDF then
+  begin
+    if Browser.WorkspaceTwoPage then
+      FVCLRibbon.SetCommandText(215, 'Einzelansicht', 'Zur Einzelansicht wechseln')
+    else
+      FVCLRibbon.SetCommandText(215, 'Doppelansicht', 'Zur Doppelansicht wechseln');
+    if Browser.WorkspaceContinuous then
+      FVCLRibbon.SetCommandText(216, 'Seitenweise', 'Zur seitenweisen Ansicht wechseln')
+    else
+      FVCLRibbon.SetCommandText(216, 'Durchgehend', 'Zur durchgehenden Ansicht wechseln');
+    if Browser.RibbonHandToolActive then
+      FVCLRibbon.SetCommandText(217, 'Hand: Ein', 'Hand-Werkzeug ausschalten')
+    else
+      FVCLRibbon.SetCommandText(217, 'Hand-Werkzeug', 'PDF-Seite mit der Maus verschieben');
+  end;
+  FVCLRibbon.SetCommandEnabled(116, HasPDF);
+  FVCLRibbon.SetCommandEnabled(117, HasPDF);
+  FVCLRibbon.SetCommandEnabled(119, HasPDF and
+    (FSplitViewMenuItem <> nil) and FSplitViewMenuItem.Enabled);
+  FVCLRibbon.SetCommandEnabled(120, HasPDF and (FSplitHost <> nil) and
+    (FVisualCompareMenuItem <> nil) and FVisualCompareMenuItem.Enabled);
+  FVCLRibbon.SetCommandEnabled(129, HasPDF and Browser.CanRibbonUndo);
+  FVCLRibbon.SetCommandEnabled(130, HasPDF and Browser.CanRibbonRedo);
+  FVCLRibbon.SetCommandEnabled(194, HasPDF);
+  // Grafikwerkzeuge nur auf Grafikregisterkarten aktivieren.
+  // Die vorhandenen Grafikhandler werden direkt weiterverwendet.
+  for I := 201 to 209 do
+    FVCLRibbon.SetCommandEnabled(I, HasDocument and not HasPDF);
+  // Refresh the orange save border AFTER enabled-state and ribbon updates.
+  // A document tab owns its own dirty flag; do not reuse the previous tab's state.
+  FVCLRibbon.SetCommandOrange(104, HasPDF and
+    (Browser <> nil) and Browser.HasUnsavedPDFChanges);
+end;
+
+// Synchronize document-dependent commands without changing PDFium or the old toolbar.
+// Undo/Redo deliberately remain unchanged: their true state is maintained in
+// the PDFium view and must not be inferred merely from an open document.
+procedure TPDFTabsForm.UpdateVCLRibbonVisibility(const AHasDocuments: Boolean);
+begin
+  if FVCLRibbon = nil then Exit;
+  FVCLRibbon.Visible := not FFullScreen;
+  if AHasDocuments then
+  begin
+    if not FLastRibbonDocumentView then
+    begin
+      FLastRibbonDocumentView := True;
+      FVCLRibbon.Collapsed := FRibbonPreferenceMinimized;
+    end;
+  end
+  else
+  begin
+    FLastRibbonDocumentView := False;
+    FVCLRibbon.Collapsed := True;
+  end;
+  SyncVCLRibbonCommands;
+end;
+
 procedure TPDFTabsForm.UpdateWelcomeView;
 var
   Empty: Boolean;
@@ -6292,6 +6789,8 @@ begin
   Empty := FTabs.PageCount = 0;
   FWelcomePanel.Visible := Empty;
   FTabs.Visible := not Empty;
+  UpdateVCLRibbonVisibility(not Empty);
+  SyncVCLRibbonCommands;
   if FTabSearchButton <> nil then FTabSearchButton.Enabled := not Empty;
   if Empty then
   begin
@@ -6638,6 +7137,7 @@ end;
 
 destructor TPDFTabsForm.Destroy;
 begin
+  FreeAndNil(FUnsavedRibbonTabs);
   if Assigned(FUpdateStartupTimer) then FUpdateStartupTimer.Enabled := False;
   SetTrayIcon(False);
   if FLocalTextSearchHotkeyRegistered then
@@ -7049,6 +7549,7 @@ end;
 procedure TPDFTabsForm.TabsFormClose(Sender: TObject;
   var Action: TCloseAction);
 begin
+  RibbonPreferenceTimerTick(nil);
   if FTrayEnabled and not FExitFromTray then
   begin
     SetTrayIcon(True);
@@ -7168,7 +7669,8 @@ begin
   if TopBar is TControl then
   begin
     if not AShow then ATopWasVisible := TControl(TopBar).Visible;
-    TControl(TopBar).Visible := AShow and ATopWasVisible;
+    TControl(TopBar).Visible := AShow and ATopWasVisible and
+      not (APDF.TabbedPDFMode and (FVCLRibbon <> nil));
   end;
 
   // Die eigentliche PDFium-Leiste ist das obere Panel, das das Seitenfeld
@@ -7197,7 +7699,8 @@ begin
           if HasPageEditor then
           begin
             if not AShow then ANavWasVisible := NavBar.Visible;
-            NavBar.Visible := AShow and ANavWasVisible;
+            NavBar.Visible := AShow and ANavWasVisible and
+              not (APDF.TabbedPDFMode and (FVCLRibbon <> nil));
             Break;
           end;
         end;
@@ -7205,6 +7708,10 @@ begin
       Break;
     end;
 
+  // Auch die separat erzeugte PDFium-Bearbeitungsleiste darf im
+  // Splitmodus nicht wieder auftauchen (z. B. nach Werkzeuge EIN/AUS).
+  if APDF.TabbedPDFMode and (FVCLRibbon <> nil) then
+    APDF.ApplyRibbonNavigationLayout;
   APDF.Realign;
   // Nach dem Rueckwechsel die Toolbar- und Viewer-Geometrie neu berechnen.
   // Die Controls wurden zuvor in einem nur halb so breiten Host angeordnet.
@@ -7975,6 +8482,7 @@ begin
       FVisualCompareMenuItem.Enabled := (FSplitHost <> nil) and
         FSplitViewMenuItem.Enabled;
     end;
+  SyncVCLRibbonCommands;
   // VCL kann beim Umschalten der Menuepunkte das native Menue neu aufbauen.
   // Danach die rechtsbuendige Position von "Hilfe" wiederherstellen.
   AlignHelpMenuRight;
@@ -8113,6 +8621,8 @@ begin
   APDF.Parent := Tab;
   APDF.Align := alClient;
   APDF.ApplyToolbarDesign(FDesignIndex);
+  // Designwechsel darf die ausgeblendeten alten Navigationsleisten nicht zeigen.
+  APDF.ApplyRibbonNavigationLayout;
   // Lazy Loading: Alle Register anlegen, aber ausschliesslich das
   // jeweils aktive PDF initialisieren. Kein unsichtbarer Erst-Tab-Start.
   FAddingPDF := True;
@@ -9118,6 +9628,8 @@ var
 begin
   FTabPreviewEnabled := not FTabPreviewEnabled;
   FTabPreviewMenuItem.Checked := FTabPreviewEnabled;
+  if FVCLRibbon <> nil then
+    FVCLRibbon.SetTabPreviewChecked(FTabPreviewEnabled);
   Ini := TIniFile.Create(TabsIniFileName);
   try
     Ini.WriteBool('Viewer', 'TabPreviewEnabled', FTabPreviewEnabled);
@@ -9464,6 +9976,8 @@ begin
     FSplitLastSelectedTab := FTabs.ActivePage;
     UpdateSplitMenuState;
     UpdateWelcomeView;
+    SyncVCLRibbonCommands;
+    UpdateFinalStatus;
     Exit;
   end;
 
@@ -10163,7 +10677,7 @@ begin
     if (FSplitHost <> nil) and FSplitActiveRight then
       Tab := FSplitRightTab;
     PDF := PDFInTab(Tab);
-    if PDF <> nil then PDF.SavePDFAs;
+    if PDF <> nil then PDF.SaveUnsavedPDFChanges;
     Key := 0;
     Exit;
   end;

@@ -1,0 +1,627 @@
+// ******************************************************************************
+// * This is an automatically generated file containing the ribbon resource for *
+// * your application.                                                          *
+// ******************************************************************************
+
+#include ".\FreePDF64Ribbon.h"
+
+STRINGTABLE 
+BEGIN
+    Cmd101_LabelTitle_RESID L"Start" /* LabelTitle Cmd101_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd102_LabelTitle_RESID L"Datei" /* LabelTitle Cmd102_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd103_LabelTitle_RESID L"\x00d6ffnen" /* LabelTitle Cmd103_LabelTitle_RESID: (null) */
+END
+
+Cmd103_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd103_S.bmp" /* SmallImages Cmd103_SmallImages_RESID: (null) */
+Cmd103_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd103_L.bmp" /* LargeImages Cmd103_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd104_LabelTitle_RESID L"Speichern" /* LabelTitle Cmd104_LabelTitle_RESID: (null) */
+END
+
+Cmd104_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd104_S.bmp" /* SmallImages Cmd104_SmallImages_RESID: (null) */
+Cmd104_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd104_L.bmp" /* LargeImages Cmd104_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd105_LabelTitle_RESID L"Drucken" /* LabelTitle Cmd105_LabelTitle_RESID: (null) */
+END
+
+Cmd105_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd105_S.bmp" /* SmallImages Cmd105_SmallImages_RESID: (null) */
+Cmd105_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd105_L.bmp" /* LargeImages Cmd105_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd106_LabelTitle_RESID L"Arbeitsbereiche" /* LabelTitle Cmd106_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd107_LabelTitle_RESID L"Arbeitsbereiche \x00f6ffnen" /* LabelTitle Cmd107_LabelTitle_RESID: (null) */
+END
+
+Cmd107_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd107_S.bmp" /* SmallImages Cmd107_SmallImages_RESID: (null) */
+Cmd107_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd107_L.bmp" /* LargeImages Cmd107_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd108_LabelTitle_RESID L"Arbeitsbereiche verwalten" /* LabelTitle Cmd108_LabelTitle_RESID: (null) */
+END
+
+Cmd108_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd108_S.bmp" /* SmallImages Cmd108_SmallImages_RESID: (null) */
+Cmd108_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd108_L.bmp" /* LargeImages Cmd108_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd196_LabelTitle_RESID L"Arbeitsbereich speichern" /* LabelTitle Cmd196_LabelTitle_RESID: (null) */
+END
+
+Cmd196_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd104_S.bmp" /* SmallImages Cmd196_SmallImages_RESID: (null) */
+Cmd196_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd104_L.bmp" /* LargeImages Cmd196_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd109_LabelTitle_RESID L"Suche" /* LabelTitle Cmd109_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd110_LabelTitle_RESID L"PDF durchsuchen" /* LabelTitle Cmd110_LabelTitle_RESID: (null) */
+END
+
+Cmd110_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd110_S.bmp" /* SmallImages Cmd110_SmallImages_RESID: (null) */
+Cmd110_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd110_L.bmp" /* LargeImages Cmd110_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd111_LabelTitle_RESID L"Alle PDFs durchsuchen" /* LabelTitle Cmd111_LabelTitle_RESID: (null) */
+END
+
+Cmd111_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd111_S.bmp" /* SmallImages Cmd111_SmallImages_RESID: (null) */
+Cmd111_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd111_L.bmp" /* LargeImages Cmd111_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd112_LabelTitle_RESID L"Ansicht" /* LabelTitle Cmd112_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd113_LabelTitle_RESID L"Navigation" /* LabelTitle Cmd113_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd114_LabelTitle_RESID L"Miniaturen" /* LabelTitle Cmd114_LabelTitle_RESID: (null) */
+END
+
+Cmd114_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd114_S.bmp" /* SmallImages Cmd114_SmallImages_RESID: (null) */
+Cmd114_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd114_L.bmp" /* LargeImages Cmd114_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd115_LabelTitle_RESID L"Ganze Seite" /* LabelTitle Cmd115_LabelTitle_RESID: (null) */
+END
+
+Cmd115_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd115_S.bmp" /* SmallImages Cmd115_SmallImages_RESID: (null) */
+Cmd115_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd115_L.bmp" /* LargeImages Cmd115_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd116_LabelTitle_RESID L"Zoom +" /* LabelTitle Cmd116_LabelTitle_RESID: (null) */
+END
+
+Cmd116_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd116_S.bmp" /* SmallImages Cmd116_SmallImages_RESID: (null) */
+Cmd116_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd116_L.bmp" /* LargeImages Cmd116_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd117_LabelTitle_RESID L"Zoom -" /* LabelTitle Cmd117_LabelTitle_RESID: (null) */
+END
+
+Cmd117_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd117_S.bmp" /* SmallImages Cmd117_SmallImages_RESID: (null) */
+Cmd117_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd117_L.bmp" /* LargeImages Cmd117_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd118_LabelTitle_RESID L"Vergleichen" /* LabelTitle Cmd118_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd119_LabelTitle_RESID L"Ansicht teilen" /* LabelTitle Cmd119_LabelTitle_RESID: (null) */
+END
+
+Cmd119_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd119_S.bmp" /* SmallImages Cmd119_SmallImages_RESID: (null) */
+Cmd119_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd119_L.bmp" /* LargeImages Cmd119_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd120_LabelTitle_RESID L"PDFs visuell vergleichen" /* LabelTitle Cmd120_LabelTitle_RESID: (null) */
+END
+
+Cmd120_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd120_S.bmp" /* SmallImages Cmd120_SmallImages_RESID: (null) */
+Cmd120_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd120_L.bmp" /* LargeImages Cmd120_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd121_LabelTitle_RESID L"Bearbeiten" /* LabelTitle Cmd121_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd122_LabelTitle_RESID L"Text" /* LabelTitle Cmd122_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd123_LabelTitle_RESID L"Text einf\x00fcgen" /* LabelTitle Cmd123_LabelTitle_RESID: (null) */
+END
+
+Cmd123_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd123_S.bmp" /* SmallImages Cmd123_SmallImages_RESID: (null) */
+Cmd123_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd123_L.bmp" /* LargeImages Cmd123_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd124_LabelTitle_RESID L"Text hervorheben" /* LabelTitle Cmd124_LabelTitle_RESID: (null) */
+END
+
+Cmd124_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd124_S.bmp" /* SmallImages Cmd124_SmallImages_RESID: (null) */
+Cmd124_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd124_L.bmp" /* LargeImages Cmd124_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd125_LabelTitle_RESID L"Anmerkungen" /* LabelTitle Cmd125_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd126_LabelTitle_RESID L"Kommentar hinzuf\x00fcgen" /* LabelTitle Cmd126_LabelTitle_RESID: (null) */
+END
+
+Cmd126_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd126_S.bmp" /* SmallImages Cmd126_SmallImages_RESID: (null) */
+Cmd126_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd126_L.bmp" /* LargeImages Cmd126_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd127_LabelTitle_RESID L"Kommentare verwalten" /* LabelTitle Cmd127_LabelTitle_RESID: (null) */
+END
+
+Cmd127_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd127_S.bmp" /* SmallImages Cmd127_SmallImages_RESID: (null) */
+Cmd127_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd127_L.bmp" /* LargeImages Cmd127_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd128_LabelTitle_RESID L"\x00c4nderungen" /* LabelTitle Cmd128_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd129_LabelTitle_RESID L"R\x00fcckg\x00e4ngig" /* LabelTitle Cmd129_LabelTitle_RESID: (null) */
+END
+
+Cmd129_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd129_S.bmp" /* SmallImages Cmd129_SmallImages_RESID: (null) */
+Cmd129_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd129_L.bmp" /* LargeImages Cmd129_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd130_LabelTitle_RESID L"Wiederholen" /* LabelTitle Cmd130_LabelTitle_RESID: (null) */
+END
+
+Cmd130_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd130_S.bmp" /* SmallImages Cmd130_SmallImages_RESID: (null) */
+Cmd130_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd130_L.bmp" /* LargeImages Cmd130_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd131_LabelTitle_RESID L"Objekte" /* LabelTitle Cmd131_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd132_LabelTitle_RESID L"Objekte" /* LabelTitle Cmd132_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd133_LabelTitle_RESID L"Bild einf\x00fcgen" /* LabelTitle Cmd133_LabelTitle_RESID: (null) */
+END
+
+Cmd133_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd133_S.bmp" /* SmallImages Cmd133_SmallImages_RESID: (null) */
+Cmd133_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd133_L.bmp" /* LargeImages Cmd133_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd134_LabelTitle_RESID L"Unterschrift hinzuf\x00fcgen" /* LabelTitle Cmd134_LabelTitle_RESID: (null) */
+END
+
+Cmd134_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd134_S.bmp" /* SmallImages Cmd134_SmallImages_RESID: (null) */
+Cmd134_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd134_L.bmp" /* LargeImages Cmd134_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd135_LabelTitle_RESID L"Hyperlink hinzuf\x00fcgen" /* LabelTitle Cmd135_LabelTitle_RESID: (null) */
+END
+
+Cmd135_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd135_S.bmp" /* SmallImages Cmd135_SmallImages_RESID: (null) */
+Cmd135_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd135_L.bmp" /* LargeImages Cmd135_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd136_LabelTitle_RESID L"Wasserzeichen" /* LabelTitle Cmd136_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd137_LabelTitle_RESID L"Textwasserzeichen" /* LabelTitle Cmd137_LabelTitle_RESID: (null) */
+END
+
+Cmd137_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd137_S.bmp" /* SmallImages Cmd137_SmallImages_RESID: (null) */
+Cmd137_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd137_L.bmp" /* LargeImages Cmd137_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd138_LabelTitle_RESID L"Bildwasserzeichen" /* LabelTitle Cmd138_LabelTitle_RESID: (null) */
+END
+
+Cmd138_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd138_S.bmp" /* SmallImages Cmd138_SmallImages_RESID: (null) */
+Cmd138_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd138_L.bmp" /* LargeImages Cmd138_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd139_LabelTitle_RESID L"Werkzeuge" /* LabelTitle Cmd139_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd140_LabelTitle_RESID L"Dokument" /* LabelTitle Cmd140_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd141_LabelTitle_RESID L"Dokumenteigenschaften" /* LabelTitle Cmd141_LabelTitle_RESID: (null) */
+END
+
+Cmd141_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd141_S.bmp" /* SmallImages Cmd141_SmallImages_RESID: (null) */
+Cmd141_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd141_L.bmp" /* LargeImages Cmd141_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd142_LabelTitle_RESID L"PDF-Anlagen" /* LabelTitle Cmd142_LabelTitle_RESID: (null) */
+END
+
+Cmd142_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd142_S.bmp" /* SmallImages Cmd142_SmallImages_RESID: (null) */
+Cmd142_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd142_L.bmp" /* LargeImages Cmd142_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd143_LabelTitle_RESID L"Bilder extrahieren" /* LabelTitle Cmd143_LabelTitle_RESID: (null) */
+END
+
+Cmd143_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd143_S.bmp" /* SmallImages Cmd143_SmallImages_RESID: (null) */
+Cmd143_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd143_L.bmp" /* LargeImages Cmd143_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd144_LabelTitle_RESID L"Pr\x00fcfen" /* LabelTitle Cmd144_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd145_LabelTitle_RESID L"Messen" /* LabelTitle Cmd145_LabelTitle_RESID: (null) */
+END
+
+Cmd145_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd145_S.bmp" /* SmallImages Cmd145_SmallImages_RESID: (null) */
+Cmd145_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd145_L.bmp" /* LargeImages Cmd145_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd146_LabelTitle_RESID L"Schw\x00e4rzen" /* LabelTitle Cmd146_LabelTitle_RESID: (null) */
+END
+
+Cmd146_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd146_S.bmp" /* SmallImages Cmd146_SmallImages_RESID: (null) */
+Cmd146_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd146_L.bmp" /* LargeImages Cmd146_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd147_LabelTitle_RESID L"Hilfe" /* LabelTitle Cmd147_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd148_LabelTitle_RESID L"Information" /* LabelTitle Cmd148_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd149_LabelTitle_RESID L"Funktions\x00fcbersicht" /* LabelTitle Cmd149_LabelTitle_RESID: (null) */
+END
+
+Cmd149_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd149_S.bmp" /* SmallImages Cmd149_SmallImages_RESID: (null) */
+Cmd149_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd149_L.bmp" /* LargeImages Cmd149_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd150_LabelTitle_RESID L"\x00dcber FreePDF64" /* LabelTitle Cmd150_LabelTitle_RESID: (null) */
+END
+
+Cmd150_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd150_S.bmp" /* SmallImages Cmd150_SmallImages_RESID: (null) */
+Cmd150_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd150_L.bmp" /* LargeImages Cmd150_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd151_LabelTitle_RESID L"Darstellung" /* LabelTitle Cmd151_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd152_LabelTitle_RESID L"Design" /* LabelTitle Cmd152_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd153_LabelTitle_RESID L"Standard" /* LabelTitle Cmd153_LabelTitle_RESID: (null) */
+END
+
+Cmd153_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd153_S.bmp" /* SmallImages Cmd153_SmallImages_RESID: (null) */
+Cmd153_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd153_L.bmp" /* LargeImages Cmd153_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd154_LabelTitle_RESID L"Modern Hell" /* LabelTitle Cmd154_LabelTitle_RESID: (null) */
+END
+
+Cmd154_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd154_S.bmp" /* SmallImages Cmd154_SmallImages_RESID: (null) */
+Cmd154_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd154_L.bmp" /* LargeImages Cmd154_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd155_LabelTitle_RESID L"Windows Klassik" /* LabelTitle Cmd155_LabelTitle_RESID: (null) */
+END
+
+Cmd155_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd155_S.bmp" /* SmallImages Cmd155_SmallImages_RESID: (null) */
+Cmd155_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd155_L.bmp" /* LargeImages Cmd155_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd156_LabelTitle_RESID L"Klassisch Blau" /* LabelTitle Cmd156_LabelTitle_RESID: (null) */
+END
+
+Cmd156_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd156_S.bmp" /* SmallImages Cmd156_SmallImages_RESID: (null) */
+Cmd156_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd156_L.bmp" /* LargeImages Cmd156_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd157_LabelTitle_RESID L"Windows Klassik \x2013 Flache Buttons" /* LabelTitle Cmd157_LabelTitle_RESID: (null) */
+END
+
+Cmd157_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd157_S.bmp" /* SmallImages Cmd157_SmallImages_RESID: (null) */
+Cmd157_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd157_L.bmp" /* LargeImages Cmd157_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd158_LabelTitle_RESID L"Sprache / Language" /* LabelTitle Cmd158_LabelTitle_RESID: (null) */
+END
+
+Cmd158_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd158_S.bmp" /* SmallImages Cmd158_SmallImages_RESID: (null) */
+Cmd158_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd158_L.bmp" /* LargeImages Cmd158_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd159_LabelTitle_RESID L"Deutsch" /* LabelTitle Cmd159_LabelTitle_RESID: (null) */
+END
+
+Cmd159_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd159_S.bmp" /* SmallImages Cmd159_SmallImages_RESID: (null) */
+Cmd159_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd159_L.bmp" /* LargeImages Cmd159_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd160_LabelTitle_RESID L"English" /* LabelTitle Cmd160_LabelTitle_RESID: (null) */
+END
+
+Cmd160_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd160_S.bmp" /* SmallImages Cmd160_SmallImages_RESID: (null) */
+Cmd160_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd160_L.bmp" /* LargeImages Cmd160_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd161_LabelTitle_RESID L"Datei" /* LabelTitle Cmd161_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd162_LabelTitle_RESID L"Arbeitsbereiche" /* LabelTitle Cmd162_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd163_LabelTitle_RESID L"PDF neu laden (\x00c4nderungen verwerfen)" /* LabelTitle Cmd163_LabelTitle_RESID: (null) */
+END
+
+Cmd163_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd163_S.bmp" /* SmallImages Cmd163_SmallImages_RESID: (null) */
+Cmd163_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd163_L.bmp" /* LargeImages Cmd163_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd164_LabelTitle_RESID L"FreePDF64 \x00f6ffnen" /* LabelTitle Cmd164_LabelTitle_RESID: (null) */
+END
+
+Cmd164_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd164_S.bmp" /* SmallImages Cmd164_SmallImages_RESID: (null) */
+Cmd164_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd164_L.bmp" /* LargeImages Cmd164_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd165_LabelTitle_RESID L"Beenden" /* LabelTitle Cmd165_LabelTitle_RESID: (null) */
+END
+
+Cmd165_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd165_S.bmp" /* SmallImages Cmd165_SmallImages_RESID: (null) */
+Cmd165_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd165_L.bmp" /* LargeImages Cmd165_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd166_LabelTitle_RESID L"PDFs und Bilder \x00f6ffnen ..." /* LabelTitle Cmd166_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd166_Keytip_RESID L"O" /* Keytip Cmd166_Keytip_RESID: (null) */
+END
+
+Cmd166_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd166_S.bmp" /* SmallImages Cmd166_SmallImages_RESID: (null) */
+Cmd166_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd166_L.bmp" /* LargeImages Cmd166_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd168_LabelTitle_RESID L"Freihand" /* LabelTitle Cmd168_LabelTitle_RESID: (null) */
+END
+
+Cmd168_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd168_S.bmp" /* SmallImages Cmd168_SmallImages_RESID: (null) */
+Cmd168_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd168_L.bmp" /* LargeImages Cmd168_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd169_LabelTitle_RESID L"Linie" /* LabelTitle Cmd169_LabelTitle_RESID: (null) */
+END
+
+Cmd169_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd169_S.bmp" /* SmallImages Cmd169_SmallImages_RESID: (null) */
+Cmd169_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd169_L.bmp" /* LargeImages Cmd169_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd170_LabelTitle_RESID L"Rechteck" /* LabelTitle Cmd170_LabelTitle_RESID: (null) */
+END
+
+Cmd170_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd170_S.bmp" /* SmallImages Cmd170_SmallImages_RESID: (null) */
+Cmd170_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd170_L.bmp" /* LargeImages Cmd170_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd171_LabelTitle_RESID L"Ellipse" /* LabelTitle Cmd171_LabelTitle_RESID: (null) */
+END
+
+Cmd171_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd171_S.bmp" /* SmallImages Cmd171_SmallImages_RESID: (null) */
+Cmd171_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd171_L.bmp" /* LargeImages Cmd171_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd172_LabelTitle_RESID L"Strichst\x00e4rke ..." /* LabelTitle Cmd172_LabelTitle_RESID: (null) */
+END
+
+Cmd172_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd172_S.bmp" /* SmallImages Cmd172_SmallImages_RESID: (null) */
+Cmd172_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd172_L.bmp" /* LargeImages Cmd172_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd173_LabelTitle_RESID L"Farbe ..." /* LabelTitle Cmd173_LabelTitle_RESID: (null) */
+END
+
+Cmd173_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd173_S.bmp" /* SmallImages Cmd173_SmallImages_RESID: (null) */
+Cmd173_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd173_L.bmp" /* LargeImages Cmd173_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd174_LabelTitle_RESID L"Schriftart ..." /* LabelTitle Cmd174_LabelTitle_RESID: (null) */
+END
+
+Cmd174_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd174_S.bmp" /* SmallImages Cmd174_SmallImages_RESID: (null) */
+Cmd174_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd174_L.bmp" /* LargeImages Cmd174_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd175_LabelTitle_RESID L"Schriftgr\x00f6\x00dfe ..." /* LabelTitle Cmd175_LabelTitle_RESID: (null) */
+END
+
+Cmd175_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd175_S.bmp" /* SmallImages Cmd175_SmallImages_RESID: (null) */
+Cmd175_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd175_L.bmp" /* LargeImages Cmd175_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd176_LabelTitle_RESID L"Textfarbe ..." /* LabelTitle Cmd176_LabelTitle_RESID: (null) */
+END
+
+Cmd176_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd176_S.bmp" /* SmallImages Cmd176_SmallImages_RESID: (null) */
+Cmd176_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd176_L.bmp" /* LargeImages Cmd176_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd177_LabelTitle_RESID L"Hyperlinks verwalten ..." /* LabelTitle Cmd177_LabelTitle_RESID: (null) */
+END
+
+Cmd177_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd177_S.bmp" /* SmallImages Cmd177_SmallImages_RESID: (null) */
+Cmd177_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd177_L.bmp" /* LargeImages Cmd177_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd178_LabelTitle_RESID L"Ma\x00dfstab ..." /* LabelTitle Cmd178_LabelTitle_RESID: (null) */
+END
+
+Cmd178_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd178_S.bmp" /* SmallImages Cmd178_SmallImages_RESID: (null) */
+Cmd178_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd178_L.bmp" /* LargeImages Cmd178_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd179_LabelTitle_RESID L"Messfarbe ..." /* LabelTitle Cmd179_LabelTitle_RESID: (null) */
+END
+
+Cmd179_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd179_S.bmp" /* SmallImages Cmd179_SmallImages_RESID: (null) */
+Cmd179_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd179_L.bmp" /* LargeImages Cmd179_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd180_LabelTitle_RESID L"Messbericht ..." /* LabelTitle Cmd180_LabelTitle_RESID: (null) */
+END
+
+Cmd180_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd180_S.bmp" /* SmallImages Cmd180_SmallImages_RESID: (null) */
+Cmd180_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd180_L.bmp" /* LargeImages Cmd180_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd181_LabelTitle_RESID L"mm" /* LabelTitle Cmd181_LabelTitle_RESID: (null) */
+END
+
+Cmd181_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd181_S.bmp" /* SmallImages Cmd181_SmallImages_RESID: (null) */
+Cmd181_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd181_L.bmp" /* LargeImages Cmd181_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd182_LabelTitle_RESID L"cm" /* LabelTitle Cmd182_LabelTitle_RESID: (null) */
+END
+
+Cmd182_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd182_S.bmp" /* SmallImages Cmd182_SmallImages_RESID: (null) */
+Cmd182_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd182_L.bmp" /* LargeImages Cmd182_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd183_LabelTitle_RESID L"Zoll" /* LabelTitle Cmd183_LabelTitle_RESID: (null) */
+END
+
+Cmd183_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd183_S.bmp" /* SmallImages Cmd183_SmallImages_RESID: (null) */
+Cmd183_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd183_L.bmp" /* LargeImages Cmd183_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd184_LabelTitle_RESID L"Schw\x00e4rzen (optisch)" /* LabelTitle Cmd184_LabelTitle_RESID: (null) */
+END
+
+Cmd184_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd184_S.bmp" /* SmallImages Cmd184_SmallImages_RESID: (null) */
+Cmd184_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd184_L.bmp" /* LargeImages Cmd184_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd185_LabelTitle_RESID L"Zeichnen" /* LabelTitle Cmd185_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd186_LabelTitle_RESID L"Schrift" /* LabelTitle Cmd186_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd187_LabelTitle_RESID L"Messung" /* LabelTitle Cmd187_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd188_LabelTitle_RESID L"Einheiten" /* LabelTitle Cmd188_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd167_LabelTitle_RESID L"Home" /* LabelTitle Cmd167_LabelTitle_RESID: (null) */
+END
+
+Cmd167_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd167_S.bmp" /* SmallImages Cmd167_SmallImages_RESID: (null) */
+Cmd167_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd167_L.bmp" /* LargeImages Cmd167_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd189_LabelTitle_RESID L"Weitere Zeichenwerkzeuge" /* LabelTitle Cmd189_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    Cmd190_LabelTitle_RESID L"PDF speichern unter ..." /* LabelTitle Cmd190_LabelTitle_RESID: (null) */
+END
+
+Cmd190_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd190_S.bmp" /* SmallImages Cmd190_SmallImages_RESID: (null) */
+Cmd190_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd190_L.bmp" /* LargeImages Cmd190_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd191_LabelTitle_RESID L"Seiten als Bilder exportieren ..." /* LabelTitle Cmd191_LabelTitle_RESID: (null) */
+END
+
+Cmd191_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd191_S.bmp" /* SmallImages Cmd191_SmallImages_RESID: (null) */
+Cmd191_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd191_L.bmp" /* LargeImages Cmd191_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd192_LabelTitle_RESID L"Seiten als Text exportieren ..." /* LabelTitle Cmd192_LabelTitle_RESID: (null) */
+END
+
+Cmd192_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd192_S.bmp" /* SmallImages Cmd192_SmallImages_RESID: (null) */
+Cmd192_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd192_L.bmp" /* LargeImages Cmd192_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd193_LabelTitle_RESID L"PDF-Bilder extrahieren ..." /* LabelTitle Cmd193_LabelTitle_RESID: (null) */
+END
+
+Cmd193_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd193_S.bmp" /* SmallImages Cmd193_SmallImages_RESID: (null) */
+Cmd193_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd193_L.bmp" /* LargeImages Cmd193_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd194_LabelTitle_RESID L"Endg\x00fcltig schw\x00e4rzen ..." /* LabelTitle Cmd194_LabelTitle_RESID: (null) */
+END
+
+Cmd194_SmallImages_RESID    BITMAP    "RibbonIcons\\cmd194_S.bmp" /* SmallImages Cmd194_SmallImages_RESID: (null) */
+Cmd194_LargeImages_RESID    BITMAP    "RibbonIcons\\cmd194_L.bmp" /* LargeImages Cmd194_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    Cmd195_LabelTitle_RESID L"Exportieren" /* LabelTitle Cmd195_LabelTitle_RESID: (null) */
+END
+
+APPLICATION_RIBBON    UIFILE    "D:\\Delphi\\FreePDF64ViewerPortable\\FreePDF64Ribbon.bml"

@@ -1,0 +1,1078 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ns0:Application xmlns:ns0="http://schemas.microsoft.com/windows/2009/Ribbon">
+  <ns0:Application.Commands>
+    <ns0:Command Name="Cmd101" Id="101">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Start</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd102" Id="102">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Datei</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd103" Id="103">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Öffnen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20000">RibbonIcons/cmd103_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20001">RibbonIcons/cmd103_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd104" Id="104">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Speichern</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20002">RibbonIcons/cmd104_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20003">RibbonIcons/cmd104_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd105" Id="105">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Drucken</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20004">RibbonIcons/cmd105_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20005">RibbonIcons/cmd105_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd106" Id="106">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Arbeitsbereiche</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd107" Id="107">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Arbeitsbereiche öffnen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20006">RibbonIcons/cmd107_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20007">RibbonIcons/cmd107_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd108" Id="108">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Arbeitsbereiche verwalten</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20008">RibbonIcons/cmd108_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20009">RibbonIcons/cmd108_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd196" Id="196">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Arbeitsbereich speichern</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20132">RibbonIcons/cmd104_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20133">RibbonIcons/cmd104_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd109" Id="109">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Suche</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd110" Id="110">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDF durchsuchen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20010">RibbonIcons/cmd110_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20011">RibbonIcons/cmd110_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd111" Id="111">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Alle PDFs durchsuchen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20012">RibbonIcons/cmd111_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20013">RibbonIcons/cmd111_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd112" Id="112">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Ansicht</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd113" Id="113">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Navigation</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd114" Id="114">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Miniaturen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20014">RibbonIcons/cmd114_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20015">RibbonIcons/cmd114_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd115" Id="115">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Ganze Seite</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20016">RibbonIcons/cmd115_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20017">RibbonIcons/cmd115_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd116" Id="116">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Zoom +</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20018">RibbonIcons/cmd116_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20019">RibbonIcons/cmd116_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd117" Id="117">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Zoom -</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20020">RibbonIcons/cmd117_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20021">RibbonIcons/cmd117_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd118" Id="118">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Vergleichen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd119" Id="119">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Ansicht teilen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20022">RibbonIcons/cmd119_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20023">RibbonIcons/cmd119_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd120" Id="120">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDFs visuell vergleichen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20024">RibbonIcons/cmd120_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20025">RibbonIcons/cmd120_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd121" Id="121">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Bearbeiten</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd122" Id="122">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Text</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd123" Id="123">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Text einfügen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20026">RibbonIcons/cmd123_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20027">RibbonIcons/cmd123_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd124" Id="124">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Text hervorheben</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20028">RibbonIcons/cmd124_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20029">RibbonIcons/cmd124_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd125" Id="125">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Anmerkungen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd126" Id="126">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Kommentar hinzufügen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20030">RibbonIcons/cmd126_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20031">RibbonIcons/cmd126_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd127" Id="127">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Kommentare verwalten</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20032">RibbonIcons/cmd127_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20033">RibbonIcons/cmd127_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd128" Id="128">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Änderungen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd129" Id="129">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Rückgängig</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20034">RibbonIcons/cmd129_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20035">RibbonIcons/cmd129_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd130" Id="130">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Wiederholen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20036">RibbonIcons/cmd130_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20037">RibbonIcons/cmd130_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd131" Id="131">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Objekte</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd132" Id="132">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Objekte</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd133" Id="133">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Bild einfügen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20038">RibbonIcons/cmd133_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20039">RibbonIcons/cmd133_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd134" Id="134">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Unterschrift hinzufügen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20040">RibbonIcons/cmd134_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20041">RibbonIcons/cmd134_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd135" Id="135">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Hyperlink hinzufügen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20042">RibbonIcons/cmd135_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20043">RibbonIcons/cmd135_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd136" Id="136">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Wasserzeichen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd137" Id="137">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Textwasserzeichen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20044">RibbonIcons/cmd137_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20045">RibbonIcons/cmd137_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd138" Id="138">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Bildwasserzeichen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20046">RibbonIcons/cmd138_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20047">RibbonIcons/cmd138_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd139" Id="139">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Werkzeuge</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd140" Id="140">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Dokument</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd141" Id="141">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Dokumenteigenschaften</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20048">RibbonIcons/cmd141_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20049">RibbonIcons/cmd141_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd142" Id="142">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDF-Anlagen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20050">RibbonIcons/cmd142_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20051">RibbonIcons/cmd142_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd143" Id="143">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Bilder extrahieren</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20052">RibbonIcons/cmd143_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20053">RibbonIcons/cmd143_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd144" Id="144">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Prüfen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd145" Id="145">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Messen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20054">RibbonIcons/cmd145_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20055">RibbonIcons/cmd145_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd146" Id="146">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Schwärzen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20056">RibbonIcons/cmd146_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20057">RibbonIcons/cmd146_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd147" Id="147">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Hilfe</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd148" Id="148">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Information</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd149" Id="149">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Funktionsübersicht</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20058">RibbonIcons/cmd149_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20059">RibbonIcons/cmd149_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd150" Id="150">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Über FreePDF64</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20060">RibbonIcons/cmd150_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20061">RibbonIcons/cmd150_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd151" Id="151">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Darstellung</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd152" Id="152">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Design</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd153" Id="153">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Standard</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20106">RibbonIcons/cmd153_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20107">RibbonIcons/cmd153_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd154" Id="154">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Modern Hell</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20108">RibbonIcons/cmd154_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20109">RibbonIcons/cmd154_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd155" Id="155">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Windows Klassik</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20110">RibbonIcons/cmd155_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20111">RibbonIcons/cmd155_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd156" Id="156">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Klassisch Blau</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20112">RibbonIcons/cmd156_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20113">RibbonIcons/cmd156_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd157" Id="157">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Windows Klassik – Flache Buttons</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20114">RibbonIcons/cmd157_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20115">RibbonIcons/cmd157_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd158" Id="158">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Sprache / Language</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20116">RibbonIcons/cmd158_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20117">RibbonIcons/cmd158_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd159" Id="159">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Deutsch</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20118">RibbonIcons/cmd159_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20119">RibbonIcons/cmd159_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd160" Id="160">
+      <ns0:Command.LabelTitle>
+        <ns0:String>English</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20120">RibbonIcons/cmd160_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20121">RibbonIcons/cmd160_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd161" Id="161">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Datei</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd162" Id="162">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Arbeitsbereiche</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd163" Id="163">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDF neu laden (Änderungen verwerfen)</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20062">RibbonIcons/cmd163_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20063">RibbonIcons/cmd163_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd164" Id="164">
+      <ns0:Command.LabelTitle>
+        <ns0:String>FreePDF64 öffnen</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20064">RibbonIcons/cmd164_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20065">RibbonIcons/cmd164_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd165" Id="165">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Beenden</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20066">RibbonIcons/cmd165_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20067">RibbonIcons/cmd165_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd166" Id="166">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDFs und Bilder öffnen ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.Keytip>
+        <ns0:String>O</ns0:String>
+      </ns0:Command.Keytip>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20068">RibbonIcons/cmd166_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20069">RibbonIcons/cmd166_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd168" Id="168">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Freihand</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20072">RibbonIcons/cmd168_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20073">RibbonIcons/cmd168_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd169" Id="169">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Linie</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20074">RibbonIcons/cmd169_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20075">RibbonIcons/cmd169_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd170" Id="170">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Rechteck</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20076">RibbonIcons/cmd170_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20077">RibbonIcons/cmd170_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd171" Id="171">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Ellipse</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20078">RibbonIcons/cmd171_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20079">RibbonIcons/cmd171_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd172" Id="172">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Strichstärke ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20080">RibbonIcons/cmd172_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20081">RibbonIcons/cmd172_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd173" Id="173">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Farbe ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20082">RibbonIcons/cmd173_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20083">RibbonIcons/cmd173_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd174" Id="174">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Schriftart ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20084">RibbonIcons/cmd174_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20085">RibbonIcons/cmd174_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd175" Id="175">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Schriftgröße ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20086">RibbonIcons/cmd175_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20087">RibbonIcons/cmd175_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd176" Id="176">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Textfarbe ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20088">RibbonIcons/cmd176_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20089">RibbonIcons/cmd176_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd177" Id="177">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Hyperlinks verwalten ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20090">RibbonIcons/cmd177_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20091">RibbonIcons/cmd177_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd178" Id="178">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Maßstab ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20092">RibbonIcons/cmd178_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20093">RibbonIcons/cmd178_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd179" Id="179">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Messfarbe ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20094">RibbonIcons/cmd179_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20095">RibbonIcons/cmd179_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd180" Id="180">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Messbericht ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20096">RibbonIcons/cmd180_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20097">RibbonIcons/cmd180_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd181" Id="181">
+      <ns0:Command.LabelTitle>
+        <ns0:String>mm</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20098">RibbonIcons/cmd181_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20099">RibbonIcons/cmd181_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd182" Id="182">
+      <ns0:Command.LabelTitle>
+        <ns0:String>cm</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20100">RibbonIcons/cmd182_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20101">RibbonIcons/cmd182_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd183" Id="183">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Zoll</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20102">RibbonIcons/cmd183_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20103">RibbonIcons/cmd183_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd184" Id="184">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Schwärzen (optisch)</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20104">RibbonIcons/cmd184_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20105">RibbonIcons/cmd184_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd185" Id="185">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Zeichnen</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd186" Id="186">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Schrift</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd187" Id="187">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Messung</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd188" Id="188">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Einheiten</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd167" Id="167">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Home</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20070">RibbonIcons/cmd167_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20071">RibbonIcons/cmd167_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd189" Id="189">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Weitere Zeichenwerkzeuge</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+    <ns0:Command Name="Cmd190" Id="190">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDF speichern unter ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20122">RibbonIcons/cmd190_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20123">RibbonIcons/cmd190_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd191" Id="191">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Seiten als Bilder exportieren ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20124">RibbonIcons/cmd191_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20125">RibbonIcons/cmd191_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd192" Id="192">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Seiten als Text exportieren ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20126">RibbonIcons/cmd192_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20127">RibbonIcons/cmd192_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd193" Id="193">
+      <ns0:Command.LabelTitle>
+        <ns0:String>PDF-Bilder extrahieren ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20128">RibbonIcons/cmd193_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20129">RibbonIcons/cmd193_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd194" Id="194">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Endgültig schwärzen ...</ns0:String>
+      </ns0:Command.LabelTitle>
+      <ns0:Command.SmallImages>
+        <ns0:Image Id="20130">RibbonIcons/cmd194_S.bmp</ns0:Image>
+      </ns0:Command.SmallImages>
+      <ns0:Command.LargeImages>
+        <ns0:Image Id="20131">RibbonIcons/cmd194_L.bmp</ns0:Image>
+      </ns0:Command.LargeImages>
+    </ns0:Command>
+    <ns0:Command Name="Cmd195" Id="195">
+      <ns0:Command.LabelTitle>
+        <ns0:String>Exportieren</ns0:String>
+      </ns0:Command.LabelTitle>
+    </ns0:Command>
+  </ns0:Application.Commands>
+  <ns0:Application.Views>
+    <ns0:Ribbon>
+      <ns0:Ribbon.SizeDefinitions>
+        <ns0:SizeDefinition Name="DesignFiveLarge">
+          <ns0:ControlNameMap>
+            <ns0:ControlNameDefinition Name="Item1" />
+            <ns0:ControlNameDefinition Name="Item2" />
+            <ns0:ControlNameDefinition Name="Item3" />
+            <ns0:ControlNameDefinition Name="Item4" />
+            <ns0:ControlNameDefinition Name="Item5" />
+          </ns0:ControlNameMap>
+          <ns0:GroupSizeDefinition Size="Large">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item3" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item4" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item5" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+          <ns0:GroupSizeDefinition Size="Medium">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item3" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item4" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item5" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+          <ns0:GroupSizeDefinition Size="Small">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item3" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item4" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item5" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+        </ns0:SizeDefinition>
+        <ns0:SizeDefinition Name="HelpTwoLarge">
+          <ns0:ControlNameMap>
+            <ns0:ControlNameDefinition Name="Item1" />
+            <ns0:ControlNameDefinition Name="Item2" />
+          </ns0:ControlNameMap>
+          <ns0:GroupSizeDefinition Size="Large">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+          <ns0:GroupSizeDefinition Size="Medium">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Large" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+          <ns0:GroupSizeDefinition Size="Small">
+            <ns0:ControlSizeDefinition ControlName="Item1" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+            <ns0:ControlSizeDefinition ControlName="Item2" ImageSize="Small" IsImageVisible="true" IsLabelVisible="true" />
+          </ns0:GroupSizeDefinition>
+        </ns0:SizeDefinition>
+      </ns0:Ribbon.SizeDefinitions>
+      <ns0:Ribbon.ApplicationMenu>
+        <ns0:ApplicationMenu CommandName="Cmd161">
+          <ns0:MenuGroup Class="MajorItems">
+            <ns0:Button CommandName="Cmd167" />
+          </ns0:MenuGroup>
+          <ns0:MenuGroup Class="MajorItems">
+            <ns0:Button CommandName="Cmd166" />
+            <ns0:Button CommandName="Cmd163" />
+          </ns0:MenuGroup>
+          <ns0:MenuGroup Class="MajorItems">
+            <ns0:Button CommandName="Cmd190" />
+            <ns0:Button CommandName="Cmd191" />
+            <ns0:Button CommandName="Cmd192" />
+            <ns0:Button CommandName="Cmd193" />
+          </ns0:MenuGroup>
+          <ns0:MenuGroup Class="MajorItems">
+            <ns0:Button CommandName="Cmd164" ApplicationModes="1" />
+          </ns0:MenuGroup>
+          <ns0:MenuGroup Class="MajorItems">
+            <ns0:Button CommandName="Cmd165" />
+          </ns0:MenuGroup>
+        </ns0:ApplicationMenu>
+      </ns0:Ribbon.ApplicationMenu>
+      <ns0:Ribbon.Tabs>
+        <ns0:Tab CommandName="Cmd101">
+          <ns0:Group CommandName="Cmd102" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd103" />
+            <ns0:Button CommandName="Cmd104" />
+            <ns0:Button CommandName="Cmd105" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd106" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd107" />
+            <ns0:Button CommandName="Cmd108" />
+            <ns0:Button CommandName="Cmd196" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd109" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd110" />
+            <ns0:Button CommandName="Cmd111" />
+          </ns0:Group>
+        </ns0:Tab>
+        <ns0:Tab CommandName="Cmd112">
+          <ns0:Group CommandName="Cmd113">
+            <ns0:Button CommandName="Cmd114" />
+            <ns0:ComboBox CommandName="Cmd115" IsEditable="true" />
+            <ns0:Button CommandName="Cmd116" />
+            <ns0:Button CommandName="Cmd117" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd118" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd119" />
+            <ns0:Button CommandName="Cmd120" />
+          </ns0:Group>
+        </ns0:Tab>
+        <ns0:Tab CommandName="Cmd121">
+          <ns0:Group CommandName="Cmd122" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd123" />
+            <ns0:Button CommandName="Cmd124" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd125" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd126" />
+            <ns0:Button CommandName="Cmd127" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd128" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd129" />
+            <ns0:Button CommandName="Cmd130" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd185" SizeDefinition="FourButtons">
+            <ns0:Button CommandName="Cmd168" />
+            <ns0:Button CommandName="Cmd169" />
+            <ns0:Button CommandName="Cmd170" />
+            <ns0:Button CommandName="Cmd171" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd189">
+            <ns0:ComboBox CommandName="Cmd172" IsEditable="true" />
+            <ns0:Button CommandName="Cmd173" />
+            <ns0:Button CommandName="Cmd184" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd186">
+            <ns0:ComboBox CommandName="Cmd174" IsEditable="true" />
+            <ns0:ComboBox CommandName="Cmd175" IsEditable="true" />
+            <ns0:Button CommandName="Cmd176" />
+          </ns0:Group>
+        </ns0:Tab>
+        <ns0:Tab CommandName="Cmd131">
+          <ns0:Group CommandName="Cmd132" SizeDefinition="FourButtons">
+            <ns0:Button CommandName="Cmd133" />
+            <ns0:Button CommandName="Cmd134" />
+            <ns0:Button CommandName="Cmd135" />
+            <ns0:Button CommandName="Cmd177" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd136" SizeDefinition="TwoButtons">
+            <ns0:Button CommandName="Cmd137" />
+            <ns0:Button CommandName="Cmd138" />
+          </ns0:Group>
+        </ns0:Tab>
+        <ns0:Tab CommandName="Cmd139">
+          <ns0:Group CommandName="Cmd140" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd141" />
+            <ns0:Button CommandName="Cmd142" />
+            <ns0:Button CommandName="Cmd143" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd144" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd145" />
+            <ns0:Button CommandName="Cmd146" />
+            <ns0:Button CommandName="Cmd194" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd187" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd178" />
+            <ns0:Button CommandName="Cmd179" />
+            <ns0:Button CommandName="Cmd180" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd188" SizeDefinition="ThreeButtons">
+            <ns0:Button CommandName="Cmd181" />
+            <ns0:Button CommandName="Cmd182" />
+            <ns0:Button CommandName="Cmd183" />
+          </ns0:Group>
+        </ns0:Tab>
+        <ns0:Tab CommandName="Cmd147">
+          <ns0:Group CommandName="Cmd152" SizeDefinition="DesignFiveLarge">
+            <ns0:Button CommandName="Cmd153" />
+            <ns0:Button CommandName="Cmd154" />
+            <ns0:Button CommandName="Cmd155" />
+            <ns0:Button CommandName="Cmd156" />
+            <ns0:Button CommandName="Cmd157" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd158" SizeDefinition="HelpTwoLarge">
+            <ns0:Button CommandName="Cmd159" />
+            <ns0:Button CommandName="Cmd160" />
+          </ns0:Group>
+          <ns0:Group CommandName="Cmd148" SizeDefinition="HelpTwoLarge">
+            <ns0:Button CommandName="Cmd149" />
+            <ns0:Button CommandName="Cmd150" />
+          </ns0:Group>
+        </ns0:Tab>
+      </ns0:Ribbon.Tabs>
+    </ns0:Ribbon>
+  </ns0:Application.Views>
+</ns0:Application>
