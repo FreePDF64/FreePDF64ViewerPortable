@@ -602,6 +602,9 @@ begin
   FTabs.Parent := Self;
   FTabs.Align := alTop;
   FTabs.Height := 32;
+  // Clicking the unused tab-strip area toggles the Ribbon, just like the arrow.
+  // Child tab panels retain their own click handlers.
+  FTabs.OnClick := CollapseClick;
   FCollapseButton := TSpeedButton.Create(Self);
   FCollapseButton.Parent := FTabs;
   FCollapseButton.Caption := '^';
