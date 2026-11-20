@@ -1,4 +1,4 @@
-﻿unit uFreePDFVCLRibbon33e;
+unit uFreePDFVCLRibbon33e;
 
 interface
 
@@ -246,8 +246,8 @@ begin
     else if S = 'Standard' then Result := 'Standard'
     else if S = 'Modern Light' then Result := 'Modern Hell'
     else if S = 'Classic Blue' then Result := 'Klassisch Blau'
-    else if S = 'Windows Classic' then Result := 'Windows Klassik'
-    else if S = 'Windows Classic – Flat Buttons' then Result := 'Windows Klassik – Flache Buttons'
+    else if S = 'Classic Gray' then Result := 'Klassisch Grau'
+    else if S = 'Ice Gray' then Result := 'Eisgrau'
     else if S = 'German' then Result := 'Deutsch'
     else if S = 'English' then Result := 'English'
     else if S = 'Feature overview' then Result := 'Funktionsübersicht'
@@ -387,8 +387,8 @@ begin
     else if German = 'Standard' then Result := 'Standard'
     else if German = 'Modern Hell' then Result := 'Modern Light'
     else if German = 'Klassisch Blau' then Result := 'Classic Blue'
-    else if German = 'Windows Klassik' then Result := 'Windows Classic'
-    else if German = 'Windows Klassik – Flache Buttons' then Result := 'Windows Classic – Flat Buttons'
+    else if German = 'Klassisch Grau' then Result := 'Classic Gray'
+    else if German = 'Eisgrau' then Result := 'Ice Gray'
     else if German = 'Deutsch' then Result := 'German'
     else if German = 'English' then Result := 'English'
     else if German = 'Funktionsübersicht' then Result := 'Feature overview'
@@ -903,9 +903,9 @@ begin
       143: Result := 'Extract' + #13#10 + 'images';
       194: Result := 'Apply' + #13#10 + 'redaction';
       154: Result := 'Modern' + #13#10 + 'Light';
-      155: Result := 'Windows' + #13#10 + 'Classic';
+      155: Result := 'Classic' + #13#10 + 'Gray';
       156: Result := 'Classic' + #13#10 + 'Blue';
-      157: Result := 'Windows Classic' + #13#10 + 'Flat Buttons';
+      157: Result := 'Ice' + #13#10 + 'Gray';
       149: Result := 'Feature' + #13#10 + 'overview';
       150: Result := 'About' + #13#10 + 'FreePDF64';
     end;
@@ -939,9 +939,9 @@ begin
     143: Result := 'Bilder' + #13#10 + 'extrahieren';
     194: Result := 'Endgültig' + #13#10 + 'schwärzen';
     154: Result := 'Modern' + #13#10 + 'Hell';
-    155: Result := 'Windows' + #13#10 + 'Klassik';
+    155: Result := 'Klassisch' + #13#10 + 'Grau';
     156: Result := 'Klassisch' + #13#10 + 'Blau';
-    157: Result := 'Windows Klassik' + #13#10 + '– Flache Buttons';
+    157: Result := 'Eisgrau';
     149: Result := 'Funktions-' + #13#10 + 'übersicht';
     150: Result := 'Über' + #13#10 + 'FreePDF64';
   end;
@@ -2094,8 +2094,8 @@ begin
   AddCommand(5, 153, 'Standard', false);
   AddCommand(5, 154, 'Modern Hell', false);
   AddCommand(5, 156, 'Klassisch Blau', false);
-  AddCommand(5, 155, 'Windows Klassik', false);
-  AddCommand(5, 157, 'Windows Klassik – Flache Buttons', false);
+  AddCommand(5, 155, 'Klassisch Grau', false);
+  AddCommand(5, 157, 'Eisgrau', false);
   AddGroup(5, 'Sprache / Language');
   AddCommand(5, 159, 'Deutsch', false);
   AddCommand(5, 160, 'English', false);

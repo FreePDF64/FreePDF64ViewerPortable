@@ -1186,7 +1186,8 @@ procedure PDFToolbarHoverColors(const ADesign: Integer;
   var ABack, AEdge: TColor);
 begin
   case ADesign of
-    3, 6: begin ABack := RGB(225, 225, 225); AEdge := RGB(96, 96, 96); end;
+    3: begin ABack := RGB(225, 225, 225); AEdge := RGB(96, 96, 96); end;
+      6: begin ABack := RGB(216,221,225); AEdge := RGB(157,169,179); end;
     5: begin ABack := RGB(230, 244, 255); AEdge := RGB(55, 110, 166); end;
   end;
 end;
@@ -1211,7 +1212,8 @@ begin
   State := Message.DrawItemStruct^.itemState;
   case FDesign of
     1: begin Back := RGB(248, 250, 253); Edge := RGB(209, 219, 232); Fore := RGB(35, 48, 65); end;
-    3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+      6: begin Back := RGB(231,234,237); Edge := RGB(177,187,195); Fore := clBlack; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
     begin
@@ -1401,7 +1403,8 @@ begin
   case FDesign of
     1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); Fore := RGB(35, 48, 65); end;
     2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); Fore := clWhite; end;
-    3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+    3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); Fore := clBlack; end;
+      6: begin Back := RGB(231,234,237); Edge := RGB(177,187,195); Fore := clBlack; end;
     4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); Fore := clWhite; end;
     5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); Fore := RGB(24, 55, 88); end;
   else
@@ -1871,7 +1874,8 @@ begin
     case FEditToggle.FDesign of
       1: begin M.Color := RGB(248,250,253); M.Font.Color := RGB(35,48,65); end;
       2: begin M.Color := RGB(65,70,79); M.Font.Color := clWhite; end;
-      3, 6: begin M.Color := clWhite; M.Font.Color := clBlack; end;
+      3: begin M.Color := clWhite; M.Font.Color := clBlack; end;
+      6: begin M.Color := clWhite; M.Font.Color := clBlack; end;
       4: begin M.Color := RGB(45,48,54); M.Font.Color := clWhite; end;
       5: begin M.Color := RGB(246,250,255); M.Font.Color := RGB(24,55,88); end;
     else begin M.Color := clWindow; M.Font.Color := clWindowText; end;
@@ -2221,7 +2225,8 @@ begin
     case FDesign of
       1: begin Back := RGB(249, 251, 254); Edge := RGB(206, 217, 230); end;
       2: begin Back := RGB(65, 70, 79); Edge := RGB(112, 122, 137); end;
-      3, 6: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
+      3: begin Back := RGB(192, 192, 192); Edge := RGB(128, 128, 128); end;
+      6: begin Back := RGB(231,234,237); Edge := RGB(177,187,195); end;
       4: begin Back := RGB(44, 47, 52); Edge := RGB(100, 106, 116); end;
       5: begin Back := RGB(190, 214, 237); Edge := RGB(93, 139, 185); end;
     else
@@ -2230,7 +2235,8 @@ begin
     if FHover and Enabled and not FHighlighted then
       case FDesign of
         1: Back := RGB(229, 239, 251);
-        3, 6: begin Back := RGB(225, 225, 225); Edge := RGB(96, 96, 96); end;
+        3: begin Back := RGB(225, 225, 225); Edge := RGB(96, 96, 96); end;
+      6: begin Back := RGB(216,221,225); Edge := RGB(157,169,179); end;
         5: begin Back := RGB(230, 244, 255); Edge := RGB(55, 110, 166); end;
       end;
     if (State and ODS_SELECTED) <> 0 then
@@ -3880,7 +3886,8 @@ begin
   begin
     case FEditToggle.FDesign of
       1: BackColor := RGB(222, 234, 248); // Modern Hell: bisheriger Farbton
-      3, 6: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
+      3: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
+      6: begin BackColor := RGB(42, 85, 139); TextColor := clWhite; end;
       5: begin BackColor := RGB(34, 94, 157); TextColor := clWhite; end;
     else
       if C.Color = RGB(249, 251, 254) then
@@ -3942,7 +3949,8 @@ begin
   case ADesign of
     1: begin BackColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); FieldColor := RGB(249, 251, 254); end;
     2: begin BackColor := RGB(54, 58, 65); TextColor := clWhite; FieldColor := RGB(65, 70, 79); end;
-    3, 6: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
+    3: begin BackColor := RGB(192, 192, 192); TextColor := clBlack; FieldColor := RGB(192, 192, 192); end;
+      6: begin BackColor := RGB(231,234,237); TextColor := clBlack; FieldColor := RGB(231,234,237); end;
     4: begin BackColor := RGB(34, 36, 40); TextColor := clWhite; FieldColor := RGB(45, 48, 54); end;
     5: begin BackColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); FieldColor := RGB(205, 225, 245); end;
   else
@@ -11619,7 +11627,8 @@ begin
   case FEditToggle.FDesign of
     1: begin BackColor := RGB(249,251,254); TextColor := RGB(35,48,65); AccentColor := clHighlight; end;
     2: begin BackColor := RGB(65,70,79); TextColor := clWhite; AccentColor := RGB(83,105,135); end;
-    3, 6: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := clHighlight; end;
+    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; AccentColor := clHighlight; end;
+      6: begin BackColor := RGB(231,234,237); TextColor := clBlack; AccentColor := clHighlight; end;
     4: begin BackColor := RGB(45,48,54); TextColor := clWhite; AccentColor := RGB(69,91,124); end;
     5: begin BackColor := RGB(205,225,245); TextColor := RGB(24,55,88); AccentColor := clHighlight; end;
   else
@@ -12170,7 +12179,8 @@ begin
     case FEditToggle.FDesign of
       1: begin Edit.Color := RGB(249,251,254); Edit.Font.Color := RGB(35,48,65); end;
       2: begin Edit.Color := RGB(65,70,79); Edit.Font.Color := clWhite; end;
-      3, 6: begin Edit.Color := clWhite; Edit.Font.Color := clBlack; end;
+      3: begin Edit.Color := clWhite; Edit.Font.Color := clBlack; end;
+      6: begin Edit.Color := clWhite; Edit.Font.Color := clBlack; end;
       4: begin Edit.Color := RGB(45,48,54); Edit.Font.Color := clWhite; end;
       5: begin Edit.Color := RGB(246,250,255); Edit.Font.Color := RGB(24,55,88); end;
     else
@@ -14606,7 +14616,8 @@ begin
     case FEditToggle.FDesign of
       1: begin FieldBack := RGB(249,251,254); FieldText := RGB(35,48,65); end;
       2: begin FieldBack := RGB(65,70,79); FieldText := clWhite; end;
-      3, 6: begin FieldBack := clWhite; FieldText := clBlack; end;
+      3: begin FieldBack := clWhite; FieldText := clBlack; end;
+      6: begin FieldBack := clWhite; FieldText := clBlack; end;
       4: begin FieldBack := RGB(45,48,54); FieldText := clWhite; end;
       5: begin FieldBack := RGB(246,250,255); FieldText := RGB(24,55,88); end;
     else begin FieldBack := clWindow; FieldText := clWindowText; end;

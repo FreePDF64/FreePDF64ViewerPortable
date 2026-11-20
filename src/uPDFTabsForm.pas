@@ -738,7 +738,8 @@ begin
     Dialog.ClientHeight := MulDiv(390, OwnerForm.CurrentPPI, 96);
     case DesignIndex of
       1: Dialog.Color := RGB(249,251,254);
-      3, 6: Dialog.Color := RGB(232,232,232);
+      3: Dialog.Color := RGB(232,232,232);
+      6: Dialog.Color := RGB(231,234,237);
       5: Dialog.Color := RGB(220,233,247);
     else Dialog.Color := clWhite;
     end;
@@ -753,7 +754,8 @@ begin
     // Auch die Dateipfadanzeige im Inhaltsdialog an das gewählte Design anpassen.
     case DesignIndex of
       1: begin Memo.Color := RGB(249,251,254); Memo.Font.Color := RGB(35,48,65); end;
-      3, 6: begin Memo.Color := RGB(232,232,232); Memo.Font.Color := clBlack; end;
+      3: begin Memo.Color := RGB(232,232,232); Memo.Font.Color := clBlack; end;
+      6: begin Memo.Color := RGB(242,244,246); Memo.Font.Color := RGB(49,57,65); end;
       5: begin Memo.Color := RGB(220,233,247); Memo.Font.Color := RGB(24,55,88); end;
     else begin Memo.Color := clWindow; Memo.Font.Color := clWindowText; end;
     end;
@@ -813,7 +815,8 @@ begin
     Dialog.Font.Size := 11;
     case ADesign of
       1: begin BackColor := RGB(249,251,254); ForeColor := RGB(35,48,65); end;
-      3, 6: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
+      3: begin BackColor := RGB(232,232,232); ForeColor := clBlack; end;
+      6: begin BackColor := RGB(231,234,237); ForeColor := RGB(49,57,65); end;
       5: begin BackColor := RGB(220,233,247); ForeColor := RGB(24,55,88); end;
     else begin BackColor := clWhite; ForeColor := clWindowText; end;
     end;
@@ -2277,7 +2280,8 @@ begin
     Form.Font.Size := 10;
     case FDesignIndex of
       1: begin BackColor := RGB(249,251,254); HeadColor := RGB(225,232,241); ForeColor := RGB(35,48,65); end;
-      3, 6: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
+      3: begin BackColor := RGB(232,232,232); HeadColor := RGB(220,220,220); ForeColor := clBlack; end;
+      6: begin BackColor := RGB(231,234,237); HeadColor := RGB(216,221,225); ForeColor := RGB(49,57,65); end;
       5: begin BackColor := RGB(220,233,247); HeadColor := RGB(190,214,237); ForeColor := RGB(24,55,88); end;
     else begin BackColor := $00FAFAFA; HeadColor := clWhite; ForeColor := clWindowText; end;
     end;
@@ -3277,8 +3281,8 @@ begin
         'Display and Logging']);
       AddSection('Customizable user interface (themes)', '');
       AddSection('Select a theme',
-        'Five themes are available: Standard, Modern Light, Windows Classic, Classic Blue and '
-        + 'Windows Classic – Flat Buttons. The VCL Ribbon is color-matched to the selected '
+        'Five themes are available: Standard, Modern Light, Classic Gray, Classic Blue and '
+        + 'Ice Gray. The VCL Ribbon is color-matched to the selected '
         + 'theme as far as the selected design permits. The File button and some surfaces '
         + 'retain their native Windows appearance. Choose a theme on the Ribbon under Help → Design.');
       AddSection('Ribbon and Tabler Icons', '');
@@ -3612,8 +3616,8 @@ begin
         'Darstellung und Protokollierung']);
       AddSection('Anpassbare Benutzeroberfläche (Designs)', '');
       AddSection('Design auswählen',
-        'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Windows Klassik, Klassisch Blau '
-        + 'und Windows Klassik – Flache Buttons. Das VCL-Ribbon übernimmt die Farben '
+        'Fünf Designs stehen zur Auswahl: Standard, Modern Hell, Klassisch Grau, Klassisch Blau '
+        + 'und Eisgrau. Das VCL-Ribbon übernimmt die Farben '
         + 'des ausgewählten Designs. Wählen Sie das Design im Ribbon unter Hilfe → Design.');
       AddSection('Ribbon und Tabler-Symbole', '');
       AddSection('Ribbon-Befehle und hochauflösende Symbole',
@@ -4615,7 +4619,8 @@ begin
     case FDesignIndex of
       1: begin BaseColor := RGB(229, 236, 246); HeaderColor := RGB(225, 232, 241); TextColor := RGB(35, 48, 65); end;
       2: begin BaseColor := RGB(42, 45, 51); HeaderColor := RGB(54, 58, 65); TextColor := clWhite; end;
-      3, 6: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
+      3: begin BaseColor := RGB(192, 192, 192); HeaderColor := RGB(192, 192, 192); TextColor := clBlack; end;
+      6: begin BaseColor := RGB(231,234,237); HeaderColor := RGB(216,221,225); TextColor := RGB(49,57,65); end;
       4: begin BaseColor := RGB(21, 22, 25); HeaderColor := RGB(34, 36, 40); TextColor := clWhite; end;
     else
       begin BaseColor := RGB(220, 233, 247); HeaderColor := RGB(190, 214, 237); TextColor := RGB(24, 55, 88); end;
@@ -4636,10 +4641,10 @@ begin
     if FRecentScroll <> nil then FRecentScroll.Font.Color := TextColor;
     // Windows Klassik: Startseite wie die Zusatzfenster in hellem Grau.
     if FWelcomePanel <> nil then
-      if FDesignIndex in [3, 6] then FWelcomePanel.Color := RGB(232, 232, 232)
+      if FDesignIndex = 3 then FWelcomePanel.Color := RGB(232, 232, 232)
       else FWelcomePanel.Color := BaseColor;
     if FRecentScroll <> nil then
-      if FDesignIndex in [3, 6] then FRecentScroll.Color := RGB(232, 232, 232)
+      if FDesignIndex = 3 then FRecentScroll.Color := RGB(232, 232, 232)
       else FRecentScroll.Color := BaseColor;
     if FLeftPDFOverlay <> nil then FLeftPDFOverlay.Color := BaseColor;
     if FRightPDFOverlay <> nil then FRightPDFOverlay.Color := BaseColor;
@@ -4686,7 +4691,8 @@ begin
   begin
     case FDesignIndex of
       2: FSplitDivider.Color := RGB(91, 99, 111);
-      3, 6: FSplitDivider.Color := RGB(128, 128, 128);
+      3: FSplitDivider.Color := RGB(128, 128, 128);
+      6: FSplitDivider.Color := RGB(177,187,195);
       4: FSplitDivider.Color := RGB(72, 76, 84);
       5: FSplitDivider.Color := RGB(114, 156, 196);
       1: FSplitDivider.Color := RGB(166, 183, 205);
@@ -4823,20 +4829,20 @@ begin
       FDesignItems[0].Caption := 'Default';
       FDesignItems[1].Caption := 'Modern Light';
       FDesignItems[2].Caption := 'Modern Dark';
-      FDesignItems[3].Caption := 'Windows Classic – Classic Buttons';
+      FDesignItems[3].Caption := 'Classic Gray';
       FDesignItems[4].Caption := 'Black';
       FDesignItems[5].Caption := 'Classic Blue';
-      FDesignItems[6].Caption := 'Windows Classic – Flat Buttons';
+      FDesignItems[6].Caption := 'Ice Gray';
     end
     else
     begin
       FDesignItems[0].Caption := 'Standard';
       FDesignItems[1].Caption := 'Modern Hell';
       FDesignItems[2].Caption := 'Modern Dunkel';
-      FDesignItems[3].Caption := 'Windows Klassik – Klassische Buttons';
+      FDesignItems[3].Caption := 'Klassisch Grau';
       FDesignItems[4].Caption := 'Schwarz';
       FDesignItems[5].Caption := 'Klassisch Blau';
-      FDesignItems[6].Caption := 'Windows Klassik – Flache Buttons';
+      FDesignItems[6].Caption := 'Eisgrau';
     end;
   end;
   if FUpdateManualMenuItem <> nil then
@@ -5199,11 +5205,10 @@ begin
     if (DesignI <> 2) and (DesignI <> 4) and (DesignI <> 6) then
       FDesignMenu.Add(FDesignItems[DesignI]);
   end;
-  // Windows Klassik bleibt als Design erhalten; die beiden
-  // Schaltflaechenvarianten sind darunter separat auswaehlbar.
+  // Klassisch Grau und Eisgrau sind eigenstaendige Designs.
   // Zwei direkte Menueeintraege statt eines aufklappenden Untermenues:
   // Der Benutzer kann den gewuenschten Modus ohne automatische Navigation waehlen.
-  // Design 3 bleibt der unveraenderte klassische Windows-Stil.
+  // Design 3 behaelt die klassische 3D-Optik; Design 6 ist Eisgrau.
   FDesignItems[3].RadioItem := True;
   FDesignItems[3].AutoCheck := False;
   FDesignItems[6].RadioItem := True;
@@ -6406,7 +6411,8 @@ begin
   begin
     case FDesignIndex of
       1: FVCLRibbon.ApplyPalette(RGB(225,232,241), RGB(35,48,65), RGB(93,151,217));
-      3,6: FVCLRibbon.ApplyPalette(RGB(192,192,192), RGB(30,30,30), RGB(115,155,198));
+      3: FVCLRibbon.ApplyPalette(RGB(192,192,192), RGB(30,30,30), RGB(115,155,198));
+      6: FVCLRibbon.ApplyPalette(RGB(216,221,225), RGB(49,57,65), RGB(155,169,181));
       5: FVCLRibbon.ApplyPalette(RGB(190,214,237), RGB(24,55,88), RGB(61,125,198));
     else
       FVCLRibbon.ApplyPalette(RGB(238,240,244), RGB(38,43,52), RGB(119,162,212));
@@ -9381,7 +9387,12 @@ begin
   end;
   if VisualActive then
   begin
-    if FDesignIndex in [3, 6] then
+    if FDesignIndex = 6 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(216, 221, 225);
+      FTabs.Canvas.Font.Color := RGB(49, 57, 65);
+    end
+    else if FDesignIndex = 3 then
     begin
       FTabs.Canvas.Brush.Color := RGB(192, 192, 192);
       FTabs.Canvas.Font.Color := clBlack;
@@ -9415,7 +9426,12 @@ begin
   end
   else
   begin
-    if FDesignIndex in [3, 6] then
+    if FDesignIndex = 6 then
+    begin
+      FTabs.Canvas.Brush.Color := RGB(231, 234, 237);
+      FTabs.Canvas.Font.Color := RGB(49, 57, 65);
+    end
+    else if FDesignIndex = 3 then
     begin
       FTabs.Canvas.Brush.Color := RGB(212, 208, 200);
       FTabs.Canvas.Font.Color := clBlack;
@@ -9455,7 +9471,9 @@ begin
   begin
     if FDesignIndex in [2, 4] then
       BorderColor := RGB(133, 153, 179)
-    else if FDesignIndex in [3, 6] then
+    else if FDesignIndex = 6 then
+      BorderColor := RGB(157, 169, 179)
+    else if FDesignIndex = 3 then
       BorderColor := RGB(115, 115, 115)
     else
       BorderColor := RGB(107, 142, 174);
@@ -9466,8 +9484,15 @@ begin
     FTabs.Canvas.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
     FTabs.Canvas.Brush.Style := bsSolid;
   end
-  else if FDesignIndex in [3, 6] then
-    DrawEdge(FTabs.Canvas.Handle, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT);
+  else if FDesignIndex = 3 then
+    DrawEdge(FTabs.Canvas.Handle, R, BDR_RAISEDINNER or BDR_RAISEDOUTER, BF_RECT)
+  else if FDesignIndex = 6 then
+  begin
+    FTabs.Canvas.Brush.Style := bsClear;
+    FTabs.Canvas.Pen.Color := RGB(177, 187, 195);
+    FTabs.Canvas.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+    FTabs.Canvas.Brush.Style := bsSolid;
+  end;
   S := FTabs.Pages[TabIndex].Caption;
   CloseR := TabCloseRect(TabIndex);
   TextR := R;
@@ -9487,12 +9512,14 @@ begin
   Hovered := TabIndex = FHoverCloseTabIndex;
   if Hovered then
   begin
-    if FDesignIndex in [3, 6] then
+    if FDesignIndex = 6 then
+      FTabs.Canvas.Brush.Color := RGB(216, 221, 225)
+    else if FDesignIndex = 3 then
       FTabs.Canvas.Brush.Color := RGB(192, 192, 192)
     else
       FTabs.Canvas.Brush.Color := RGB(204, 210, 218);
     FTabs.Canvas.Pen.Style := psClear;
-    if FDesignIndex in [3, 6] then
+    if FDesignIndex = 3 then
     begin
       FTabs.Canvas.FillRect(CloseR);
       DrawEdge(FTabs.Canvas.Handle, CloseR, EDGE_RAISED, BF_RECT);
