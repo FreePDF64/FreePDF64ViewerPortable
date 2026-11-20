@@ -1,4 +1,4 @@
-unit uFreePDFVCLRibbon33e;
+﻿unit uFreePDFVCLRibbon33e;
 
 interface
 
@@ -44,6 +44,8 @@ type
     FCollapsed: Boolean;
     FOnCollapseChanged: TNotifyEvent;
     FTabPreviewCheck: TCheckBox;
+    FUpdateAutoCheck: TCheckBox;
+    FUpdatingAutoCheck: Boolean;
     FUpdatingTabPreviewCheck: Boolean;
     FPageEdit: TEdit;
     FZoomEdit: TEdit;
@@ -67,6 +69,7 @@ type
     procedure UpdateFileTabHint;
     procedure CommandClick(Sender: TObject);
     procedure TabPreviewCheckClick(Sender: TObject);
+    procedure UpdateAutoCheckClick(Sender: TObject);
     procedure ComboChanged(Sender: TObject);
     procedure FitPageClick(Sender: TObject);
     procedure ShowTab(Index: Integer);
@@ -93,6 +96,7 @@ type
     procedure SetCommandText(CommandId: Integer; const ACaption, AHint: string);
     procedure RefreshLanguage;
     procedure SetTabPreviewChecked(Value: Boolean);
+    procedure SetUpdateAutoChecked(Value: Boolean);
     procedure SetComboValue(CommandId: Integer; const Value: string);
     procedure SetComboItems(CommandId: Integer; const Values: array of string);
     procedure SetPageStatus(APage, ACount: Integer);
@@ -250,6 +254,8 @@ begin
     else if S = 'Ice Gray' then Result := 'Eisgrau'
     else if S = 'German' then Result := 'Deutsch'
     else if S = 'English' then Result := 'English'
+    else if S = 'Check for updates' then Result := 'Nach Updates suchen ...'
+    else if S = 'Check weekly' then Result := 'Wöchentlich prüfen'
     else if S = 'Feature overview' then Result := 'Funktionsübersicht'
     else if S = 'About FreePDF64' then Result := 'Über FreePDF64'
     else if S = 'Home' then Result := 'Home'
@@ -318,6 +324,8 @@ begin
     else if German = 'Registerkarten' then Result := 'Tabs'
     else if German = 'Design' then Result := 'Theme'
     else if German = 'Sprache / Language' then Result := 'Language'
+    else if German = 'Nach Updates suchen ...' then Result := 'Check for updates'
+    else if German = 'Wöchentlich prüfen' then Result := 'Check weekly'
     else if German = 'Information' then Result := 'Information'
     else if German = 'Arbeitsbereiche' then Result := 'Workspaces'
     else if German = 'Suche' then Result := 'Search'
@@ -858,7 +866,8 @@ begin
     ((TabIndex = 2) and ((GroupName = 'Weitere Zeichenwerkzeuge') or
                          (GroupName = 'Schrift'))) or
     ((TabIndex = 1) and ((GroupName = 'Bilder') or (GroupName = 'Seiten') or (GroupName = 'Anzeigen'))) or
-    (TabIndex = 6);
+    (TabIndex = 6) or
+    ((TabIndex = 5) and (GroupName = 'Updates'));
 end;
 
 function RibbonGroupTitle(Group: TPanel): string;
@@ -908,6 +917,7 @@ begin
       157: Result := 'Ice' + #13#10 + 'Gray';
       149: Result := 'Feature' + #13#10 + 'overview';
       150: Result := 'About' + #13#10 + 'FreePDF64';
+      223: Result := 'Check for' + #13#10 + 'updates';
     end;
     Exit;
   end;
@@ -944,6 +954,7 @@ begin
     157: Result := 'Eisgrau';
     149: Result := 'Funktions-' + #13#10 + 'übersicht';
     150: Result := 'Über' + #13#10 + 'FreePDF64';
+    223: Result := 'Nach Updates' + #13#10 + 'suchen';
   end;
 end;
 
@@ -1205,6 +1216,7 @@ begin
         else if GroupName = 'Programm' then CellWidth := 135
         else CellWidth := 165;
       end
+      else if (TabIndex = 5) and (GroupName = 'Updates') then CellWidth := 160
       else if (TabIndex = 1) and (GroupName = 'Bilder') then CellWidth := 146
       else if (TabIndex = 1) and (GroupName = 'Anzeigen') then CellWidth := 205
       else if (TabIndex = 2) and (GroupName = 'Schrift') then CellWidth := 245
@@ -1235,6 +1247,7 @@ begin
       159,160: ButtonWidth := 72;
       149: ButtonWidth := 111;
       150: ButtonWidth := 84;
+      223: ButtonWidth := 105;
       194: ButtonWidth := 94;
     end;
     // Leave a 2-pixel gap between adjacent large buttons.
@@ -1364,6 +1377,9 @@ begin
     Button.Tag := CommandId;
     if (CommandId = 104) and (TabIndex = 0) then
       Button.Hint := RibbonText('Änderungen direkt in der geöffneten PDF speichern (Strg+S).')
+    else if CommandId = 223 then
+      if SameText(PDFLanguage, 'en') then Button.Hint := 'Check for updates now'
+      else Button.Hint := 'Jetzt nach Updates suchen'
     else
       Button.Hint := RibbonText(ACaption);
     Button.ShowHint := True;
@@ -1371,6 +1387,19 @@ begin
     // Tab headings keep their inherited font.
     Button.Font.Name := 'Segoe UI';
     Button.Font.Size := 8;
+    // The update command is always available, even when no PDF is open.
+    // Give it the active theme text color instead of inheriting a gray state.
+    if CommandId = 223 then
+    begin
+      Button.Enabled := True;
+      if (GetRValue(ColorToRGB(FThemeBackground)) * 299 +
+          GetGValue(ColorToRGB(FThemeBackground)) * 587 +
+          GetBValue(ColorToRGB(FThemeBackground)) * 114) >= 128000 then
+        Button.Font.Color := clBlack
+      else
+        Button.Font.Color := clWhite;
+      Button.ParentFont := False;
+    end;
     // The entire row is one button:
     // icon, caption, hover highlight and click target stay together.
     if Compact then
@@ -1575,6 +1604,23 @@ begin
   end;
 end;
 
+procedure TFreePDFVCLRibbon.UpdateAutoCheckClick(Sender: TObject);
+begin
+  if FUpdatingAutoCheck then Exit;
+  if Assigned(FOnCommand) then FOnCommand(Self, 222, '');
+end;
+
+procedure TFreePDFVCLRibbon.SetUpdateAutoChecked(Value: Boolean);
+begin
+  if FUpdateAutoCheck = nil then Exit;
+  FUpdatingAutoCheck := True;
+  try
+    FUpdateAutoCheck.Checked := Value;
+  finally
+    FUpdatingAutoCheck := False;
+  end;
+end;
+
 procedure TFreePDFVCLRibbon.FitPageClick(Sender: TObject);
 begin
   if (Sender is TControl) and not TControl(Sender).Enabled then Exit;
@@ -1640,7 +1686,20 @@ begin
           if Group.Controls[K] is TCheckBox then
             TCheckBox(Group.Controls[K]).Font.Color := TextColor;
           if Group.Controls[K] is TSpeedButton then
-            TSpeedButton(Group.Controls[K]).Font.Color := TextColor;
+            begin
+              TSpeedButton(Group.Controls[K]).Font.Color := TextColor;
+              if TSpeedButton(Group.Controls[K]).Tag = 223 then
+              begin
+                // Always render the clickable update command with a clear,
+                // high-contrast caption (not the disabled-looking gray).
+                if (GetRValue(ColorToRGB(Background)) * 299 +
+                    GetGValue(ColorToRGB(Background)) * 587 +
+                    GetBValue(ColorToRGB(Background)) * 114) >= 128000 then
+                  TSpeedButton(Group.Controls[K]).Font.Color := clBlack
+                else
+                  TSpeedButton(Group.Controls[K]).Font.Color := clWhite;
+              end;
+            end;
         end;
       end;
   end;
@@ -1741,7 +1800,21 @@ begin
               TSpeedButton(C).Caption := RibbonText(German)
             else
               TSpeedButton(C).Caption := DisplayCaption(TSpeedButton(C).Tag, German);
-            TSpeedButton(C).Hint := RibbonText(RibbonGermanText(TSpeedButton(C).Hint));
+            if TSpeedButton(C).Tag = 223 then
+            begin
+              TSpeedButton(C).Enabled := True;
+              if (GetRValue(ColorToRGB(FThemeBackground)) * 299 +
+          GetGValue(ColorToRGB(FThemeBackground)) * 587 +
+          GetBValue(ColorToRGB(FThemeBackground)) * 114) >= 128000 then
+        TSpeedButton(C).Font.Color := clBlack
+      else
+        TSpeedButton(C).Font.Color := clWhite;
+              if SameText(PDFLanguage, 'en') then
+                TSpeedButton(C).Hint := 'Check for updates now'
+              else TSpeedButton(C).Hint := 'Jetzt nach Updates suchen';
+            end
+            else
+              TSpeedButton(C).Hint := RibbonText(RibbonGermanText(TSpeedButton(C).Hint));
           end
           else if C is TComboBox then
           begin
@@ -1754,6 +1827,19 @@ begin
           end;
         end;
       end;
+  end;
+  if FUpdateAutoCheck <> nil then
+  begin
+    if SameText(PDFLanguage, 'en') then
+    begin
+      FUpdateAutoCheck.Caption := 'Check weekly';
+      FUpdateAutoCheck.Hint := 'Automatically check for updates every week';
+    end
+    else
+    begin
+      FUpdateAutoCheck.Caption := 'Wöchentlich prüfen';
+      FUpdateAutoCheck.Hint := 'Automatisch einmal pro Woche nach Updates suchen';
+    end;
   end;
   if FTabPreviewCheck <> nil then
   begin
@@ -2099,6 +2185,24 @@ begin
   AddGroup(5, 'Sprache / Language');
   AddCommand(5, 159, 'Deutsch', false);
   AddCommand(5, 160, 'English', false);
+  AddGroup(5, 'Updates');
+  AddCommand(5, 223, 'Nach Updates suchen ...', false);
+  // Reuse the existing INI-backed weekly update setting.
+  FUpdateAutoCheck := TCheckBox.Create(Self);
+  FUpdateAutoCheck.Parent := TWinControl(TPanel(FPages[5]).Controls[
+    TPanel(FPages[5]).ControlCount - 1]);
+  FUpdateAutoCheck.Tag := 222;
+  FUpdateAutoCheck.Caption := RibbonText('Wöchentlich prüfen');
+  FUpdateAutoCheck.Font.Name := 'Segoe UI';
+  FUpdateAutoCheck.Font.Size := 8;
+  FUpdateAutoCheck.SetBounds(9, 41, 146, 29);
+  if SameText(PDFLanguage, 'en') then
+    FUpdateAutoCheck.Hint := 'Automatically check for updates every week'
+  else
+    FUpdateAutoCheck.Hint := 'Automatisch einmal pro Woche nach Updates suchen';
+  FUpdateAutoCheck.ShowHint := True;
+  FUpdateAutoCheck.OnClick := UpdateAutoCheckClick;
+  TPanel(FUpdateAutoCheck.Parent).Width := 166;
   AddGroup(5, 'Information');
   AddCommand(5, 149, 'Funktionsübersicht', false);
   AddCommand(5, 150, 'Über FreePDF64', false);
