@@ -12674,7 +12674,9 @@ begin
     begin
       FObjectRotating := True;
       TPDFiumImage(Sender).Cursor := crSizeWE;
-      Screen.Cursor := crSizeWE;
+      // Kein globaler Screen.Cursor: ausserhalb der PDF muss der
+      // normale Mauszeiger (z. B. im Ribbon) erhalten bleiben.
+      Screen.Cursor := crDefault;
       FObjectRotationCenter := Point((ObjRect.Left+ObjRect.Right) div 2,
                                      (ObjRect.Top+ObjRect.Bottom) div 2);
       FObjectPreviewAngle := 0;
@@ -13625,8 +13627,9 @@ begin
               FCore.FindEditableObject(ObjImg.Tag, PageX, PageY, HoverObj) then
         NewCursor := crSizeAll;
     end;
+    // Nur den Cursor der PDF-Seite setzen. Screen.Cursor ist global
+    // und wuerde den Werkzeugcursor auch ueber dem Ribbon erzwingen.
     ObjImg.Cursor := NewCursor;
-    Screen.Cursor := NewCursor;
     if FObjectDragging or FObjectScaling or FObjectRotating then
     begin
       FObjectCurrent := Point(X,Y);
@@ -13635,7 +13638,6 @@ begin
         UpdateObjectRotationPreview(ObjImg, X, Y, Shift);
         // Ein fester Links-Rechts-Cursor verhindert Richtungsflackern.
         ObjImg.Cursor := crSizeWE;
-        Screen.Cursor := crSizeWE;
       end
       else
         ObjectSelectionRedraw;
