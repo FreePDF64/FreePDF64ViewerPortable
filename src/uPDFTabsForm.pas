@@ -548,8 +548,14 @@ var
   I, J, Tmp, C: Integer;
   Item: TListItem;
   SelectedFile: string;
+  SelectedFiles: TStringList;
   Match: Boolean;
 begin
+  SelectedFiles := TStringList.Create;
+  try
+  for I := 0 to List.Items.Count - 1 do
+    if List.Items[I].Selected and (List.Items[I].SubItems.Count > 2) then
+      SelectedFiles.Add(List.Items[I].SubItems[2]);
   SelectedFile := '';
   if (List.Selected <> nil) and (List.Selected.SubItems.Count > 2) then
     SelectedFile := List.Selected.SubItems[2];
@@ -600,13 +606,16 @@ begin
         Item.SubItems.Add('–');
       Item.SubItems.Add(IntToStr(Entries[Indices[I]].PDFCount));
       Item.SubItems.Add(Entries[Indices[I]].FilePath);
-      if SameText(Entries[Indices[I]].FilePath, SelectedFile) then
-        List.Selected := Item;
+      if SelectedFiles.IndexOf(Entries[Indices[I]].FilePath) >= 0 then
+        Item.Selected := True;
     end;
     if (List.Selected = nil) and (List.Items.Count > 0) then
       List.Selected := List.Items[0];
   finally
     List.Items.EndUpdate;
+  end;
+  finally
+    SelectedFiles.Free;
   end;
 end;
 
@@ -615,7 +624,13 @@ var
   I: Integer;
   Item: TListItem;
   Filter, SelectedFile: string;
+  SelectedFiles: TStringList;
 begin
+  SelectedFiles := TStringList.Create;
+  try
+  for I := 0 to List.Items.Count - 1 do
+    if List.Items[I].Selected and (List.Items[I].SubItems.Count > 2) then
+      SelectedFiles.Add(List.Items[I].SubItems[2]);
   // Nur die sichtbaren Einträge filtern. Der vollständige Datenbestand
   // in Entries bleibt bei Eingabe und Löschen des Suchtexts erhalten.
   Filter := AnsiLowerCase(Trim(Search.Text));
@@ -638,13 +653,16 @@ begin
         Item.SubItems.Add('–');
       Item.SubItems.Add(IntToStr(Entries[I].PDFCount));
       Item.SubItems.Add(Entries[I].FilePath);
-      if SameText(Entries[I].FilePath, SelectedFile) then
-        List.Selected := Item;
+      if SelectedFiles.IndexOf(Entries[I].FilePath) >= 0 then
+        Item.Selected := True;
     end;
     if (List.Selected = nil) and (List.Items.Count > 0) then
       List.Selected := List.Items[0];
   finally
     List.Items.EndUpdate;
+  end;
+  finally
+    SelectedFiles.Free;
   end;
 end;
 
@@ -722,6 +740,10 @@ var
   I, Count: Integer;
   S, FilePath: string;
 begin
+  Count := 0;
+  for I := 0 to List.Items.Count - 1 do
+    if List.Items[I].Selected then Inc(Count);
+  if Count <> 1 then Exit;
   if (List.Selected = nil) or (List.Selected.SubItems.Count < 3) then Exit;
   FilePath := List.Selected.SubItems[2];
   if not FileExists(FilePath) then Exit;
@@ -2139,10 +2161,28 @@ var
   Name, Path, NewName: string;
   Modified: TDateTime;
   Action: Integer;
-  PendingWorkspacePath: string;
+  PendingWorkspacePaths: TStringList;
   ReplaceWorkspace: Boolean;
   EntryCount, InsertAt: Integer;
   BackColor, HeadColor, ForeColor: TColor;
+  SelectedPaths: TStringList;
+  SelectedCount, DeleteIndex: Integer;
+  WorkspaceIndex: Integer;
+  procedure CaptureSelectedWorkspaces;
+  var
+    K: Integer;
+    Candidate: string;
+  begin
+    PendingWorkspacePaths.Clear;
+    for K := 0 to List.Items.Count - 1 do
+      if List.Items[K].Selected and (List.Items[K].SubItems.Count > 2) then
+      begin
+        Candidate := List.Items[K].SubItems[2];
+        if (Candidate <> '') and FileExists(Candidate) and
+           (PendingWorkspacePaths.IndexOf(Candidate) < 0) then
+          PendingWorkspacePaths.Add(Candidate);
+      end;
+  end;
   function SelectedPath: string;
   begin
     Result := '';
@@ -2244,6 +2284,7 @@ var
   end;
 begin
   Controller := nil;
+  PendingWorkspacePaths := TStringList.Create;
   Form := TForm.CreateNew(Self);
   try
     Form.Caption := Tr('Arbeitsbereiche verwalten');
@@ -2355,6 +2396,7 @@ begin
     // TListView bietet bei vielen Einträgen automatisch eine vertikale
     // Scrollleiste sowie Mausrad- und Tastaturnavigation.
     List.ReadOnly := True;
+    List.MultiSelect := True;
     List.RowSelect := True;
     List.HideSelection := False;
     if FDesignIndex = 1 then
@@ -2460,32 +2502,27 @@ begin
     BClose.Caption := Tr('Schließen'); BClose.ModalResult := mrCancel;
     BClose.Cancel := True;
     Form.ActiveControl := List;
-    PendingWorkspacePath := '';
     ReplaceWorkspace := False;
     repeat
       ReloadList(nil);
       Action := Form.ShowModal;
       if Action = mrOk then
       begin
-        Path := SelectedPath;
-        if Path <> '' then
-        begin
-          PendingWorkspacePath := Path;
-          Break;
-        end;
+        CaptureSelectedWorkspaces;
+        if PendingWorkspacePaths.Count > 0 then Break;
       end
       else if Action = mrYes then
       begin
-        Path := SelectedPath;
-        if (Path <> '') and FileExists(Path) then
+        CaptureSelectedWorkspaces;
+        if PendingWorkspacePaths.Count > 0 then
         begin
           // Abbrechen oder fehlgeschlagenes Speichern behaelt alle Tabs.
           if ConfirmCloseUnsavedPDFs(False) then
           begin
-            PendingWorkspacePath := Path;
             ReplaceWorkspace := True;
             Break;
           end;
+          PendingWorkspacePaths.Clear;
         end;
       end
       else if Action = mrRetry then
@@ -2507,8 +2544,32 @@ begin
       end
       else if Action = mrIgnore then
       begin
-        Path := SelectedPath;
-        if (Path <> '') and (WorkspaceDialog(Self, 'Arbeitsbereich löschen', 'Arbeitsbereich wirklich löschen?', True, False, NewName, FDesignIndex) = mrYes) then System.SysUtils.DeleteFile(Path);
+        // Alle markierten Arbeitsbereiche erfassen, bevor die Liste neu geladen wird.
+        SelectedPaths := TStringList.Create;
+        try
+          for DeleteIndex := 0 to List.Items.Count - 1 do
+            if List.Items[DeleteIndex].Selected and
+               (List.Items[DeleteIndex].SubItems.Count > 2) then
+            begin
+              Path := List.Items[DeleteIndex].SubItems[2];
+              if (Path <> '') and (SelectedPaths.IndexOf(Path) < 0) then
+                SelectedPaths.Add(Path);
+            end;
+          SelectedCount := SelectedPaths.Count;
+          if SelectedCount > 0 then
+          begin
+            if SelectedCount = 1 then
+              Name := 'Arbeitsbereich wirklich löschen?'
+            else
+              Name := IntToStr(SelectedCount) + ' Arbeitsbereiche wirklich löschen?';
+            if WorkspaceDialog(Self, 'Arbeitsbereich löschen', Name,
+              True, False, NewName, FDesignIndex) = mrYes then
+              for DeleteIndex := 0 to SelectedPaths.Count - 1 do
+                System.SysUtils.DeleteFile(SelectedPaths[DeleteIndex]);
+          end;
+        finally
+          SelectedPaths.Free;
+        end;
       end
       else Break;
     until False;
@@ -2531,11 +2592,18 @@ begin
   // Den Arbeitsbereich erst nach dem vollständigen Schließen des modalen
   // Verwaltungsdialogs wechseln. So laufen dessen Nachrichten und
   // Ereignisse nicht parallel zur Freigabe der bisherigen PDF-Controls.
-  if PendingWorkspacePath <> '' then
-  begin
-    if ReplaceWorkspace then
-      ClearAllPDFTabs;
-    OpenWorkspaceFile(PendingWorkspacePath);
+  try
+    if PendingWorkspacePaths.Count > 0 then
+    begin
+      if ReplaceWorkspace then
+        ClearAllPDFTabs;
+      // In Listenreihenfolge alle gewaehlten Arbeitsbereiche laden.
+      // OpenWorkspaceFile vermeidet doppelt geoeffnete Dateien.
+      for WorkspaceIndex := 0 to PendingWorkspacePaths.Count - 1 do
+        OpenWorkspaceFile(PendingWorkspacePaths[WorkspaceIndex]);
+    end;
+  finally
+    PendingWorkspacePaths.Free;
   end;
 end;
 
@@ -3335,9 +3403,12 @@ begin
         + 'The management window is centered over the viewer and shows each workspace name, save date and PDF count. '
         + 'Use the search field to filter workspaces by name. Click the Name, Saved on or PDFs column header to sort; click again to reverse the order. '
         + 'The last selected sort column and direction are stored in FreePDFViewer.ini and restored the next time the window opens. '
-        + 'Use Show contents ... to inspect the saved PDF file paths without opening the workspace. '
-        + 'Double-click a workspace or press Enter to open it, or use Open. Close all and open closes existing PDFs after checking for unsaved changes, then loads the selected workspace. '
-        + 'Workspaces can also be renamed or deleted. Already open PDFs remain open and duplicates are not opened again. Missing files are reported. '
+        + 'Use Ctrl+Click to select or deselect individual workspaces, Shift+Click to select a range, or Ctrl+A to select all displayed workspaces. '
+        + 'Use Show contents ... to inspect the saved PDF file paths of a single workspace without opening it. '
+        + 'Double-click a workspace or press Enter to open it, or use Open to load all selected workspaces. '
+        + 'Close all and open closes existing PDFs after checking for unsaved changes, then loads all selected workspaces. '
+        + 'You can rename one workspace at a time or delete multiple selected workspaces together after a confirmation. '
+        + 'Already open PDFs remain open when using Open, and duplicates are not opened again. Missing files are reported. '
         + 'Workspaces are stored as local INI files in the workspace folder beside the EXE; the PDF files themselves are not modified. '
         + 'Each workspace stores the PDFs in tab order, their page, zoom and scroll positions, and the last active tab.');
       AddSection('Split view and thumbnails',
@@ -3464,7 +3535,7 @@ begin
         + 'in the order they were created. This does not apply to other drawings or page operations. '
         + 'The editing history belongs to the open document and is reset when the document is closed or saved.');
       AddSection('Merge PDF files and selected pages',
-        'Choose Edit > Merge PDFs... to combine PDF files already open in tabs. '
+        'Choose File > Merge PDFs... (below Extract PDF images...) to combine PDF files already open in tabs. '
         + 'Tick the files to include and enter pages separately for each PDF: All, 3, 2-5, '
         + '1, 4, 8 or 1-3, 7, 10-12. Select a row and use the arrow buttons to change '
         + 'the PDF order; its page selection moves with it. Click the question-mark '
@@ -3677,10 +3748,12 @@ begin
         + 'Das Verwaltungsfenster erscheint mittig über dem Viewer und zeigt Name, Speicherdatum und PDF-Anzahl. '
         + 'Über das Suchfeld filtern Sie Arbeitsbereiche nach ihrem Namen. Klicken Sie auf die Spaltenüberschriften „Name“, „Gespeichert am“ oder „PDFs“, um zu sortieren; ein weiterer Klick kehrt die Reihenfolge um. '
         + 'Die zuletzt gewählte Sortierspalte und Sortierrichtung werden in der FreePDFViewer.ini gespeichert und beim nächsten Öffnen wiederhergestellt. '
-        + 'Mit „Inhalt anzeigen ...“ sehen Sie die gespeicherten PDF-Dateipfade, ohne den Arbeitsbereich zu öffnen. '
-        + 'Ein Doppelklick oder Enter öffnet den markierten Arbeitsbereich; alternativ verwenden Sie „Öffnen“. '
-        + 'Mit „Alle schließen + öffnen“ werden nach Prüfung ungespeicherter Änderungen die bisher geöffneten PDFs geschlossen und nur der gewählte Arbeitsbereich geladen. '
-        + 'Umbenennen und Löschen sind ebenfalls möglich. Bereits geöffnete PDFs bleiben beim normalen Öffnen erhalten; doppelte Dateien werden nicht erneut geöffnet. Fehlende Dateien werden gemeldet. '
+        + 'Mit Strg+Klick wählen Sie mehrere Arbeitsbereiche einzeln aus oder ab, mit Umschalt+Klick markieren Sie einen zusammenhängenden Bereich und mit Strg+A alle angezeigten Arbeitsbereiche. '
+        + 'Mit „Inhalt anzeigen ...“ sehen Sie die gespeicherten PDF-Dateipfade eines einzelnen Arbeitsbereichs, ohne ihn zu öffnen. '
+        + 'Ein Doppelklick oder Enter öffnet einen Arbeitsbereich; mit „Öffnen“ laden Sie alle ausgewählten Arbeitsbereiche. '
+        + 'Mit „Alle schließen + öffnen“ werden nach Prüfung ungespeicherter Änderungen die bisher geöffneten PDFs geschlossen und anschließend alle ausgewählten Arbeitsbereiche geladen. '
+        + 'Einzelne Arbeitsbereiche können umbenannt werden; mehrere markierte Arbeitsbereiche lassen sich nach einer gemeinsamen Sicherheitsabfrage löschen. '
+        + 'Beim normalen Öffnen bleiben bereits geöffnete PDFs erhalten; doppelte Dateien werden nicht erneut geöffnet. Fehlende Dateien werden gemeldet. '
         + 'Arbeitsbereiche liegen als lokale INI-Dateien im Arbeitsbereichsordner neben der EXE; die PDF-Dateien selbst bleiben unverändert. '
         + 'Gespeichert werden die PDFs in Tab-Reihenfolge, je PDF Seite, Zoomstufe und Scrollposition sowie der zuletzt aktive Tab.');
       AddSection('Zweifensteransicht und Miniaturen',
@@ -3834,7 +3907,7 @@ begin
         + 'zurücknehmen und wiederherstellen. Andere Zeichnungen und Seitenbearbeitungen sind nicht enthalten. '
         + 'Der Verlauf gehört zum geöffneten Dokument und wird beim Schließen oder Speichern zurückgesetzt.');
       AddSection('PDF-Dateien und ausgewählte Seiten zusammenführen',
-        'Über „Bearbeiten > PDFs zusammenführen ...“ können Sie PDF-Dateien aus '
+        'Über „Datei > PDFs zusammenführen ...“ (direkt unter „PDF-Bilder extrahieren ...“) können Sie PDF-Dateien aus '
         + 'geöffneten Registerkarten zu einer neuen PDF zusammenführen. '
         + 'Wählen Sie die gewünschten Dateien per Kontrollkästchen und geben Sie '
         + 'für jede PDF eigene Seiten an: Alle, 3, 2-5, 1, 4, 8 oder 1-3, 7, 10-12. '
@@ -6520,6 +6593,14 @@ begin
            ActiveBrowser.ShowDocumentProperties;
     149: ShowViewerHelp(Self);
     150: ShowModernInfo(True);
+    223: UpdateManualClick(Self);
+    224: if (FMergePDFMenuItem <> nil) and FMergePDFMenuItem.Enabled then
+           MergePDFClick(Self);
+    222: begin
+           UpdateAutoClick(Self);
+           if FVCLRibbon <> nil then
+             FVCLRibbon.SetUpdateAutoChecked(FUpdateAutoMenuItem.Checked);
+         end;
     // Existing handlers keep INI persistence, theme rules and restart prompt.
     153: if FDesignItems[0] <> nil then DesignClick(FDesignItems[0]);
     154: if FDesignItems[1] <> nil then DesignClick(FDesignItems[1]);
@@ -6675,6 +6756,8 @@ var
   ToolId: Integer;
 begin
   if FVCLRibbon = nil then Exit;
+  if FUpdateAutoMenuItem <> nil then
+    FVCLRibbon.SetUpdateAutoChecked(FUpdateAutoMenuItem.Checked);
   Browser := nil;
   if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
     Browser := PDFInTab(FTabs.ActivePage);
@@ -6727,6 +6810,8 @@ begin
   FVCLRibbon.SetCommandEnabled(-192, HasPDF); // Seiten als Text exportieren
   FVCLRibbon.SetCommandEnabled(104, HasPDF); // Direkt speichern
   FVCLRibbon.SetCommandEnabled(220, HasPDF); // PDF speichern unter ...
+  FVCLRibbon.SetCommandEnabled(224, HasPDF and (FTabs <> nil) and
+    (FTabs.PageCount > 1) and (FSplitHost = nil)); // PDFs zusammenführen
   FVCLRibbon.SetCommandEnabled(105, HasDocument); // Drucken
   FVCLRibbon.SetCommandEnabled(218, HasDocument and not HasPDF and
     (Browser.TIFFRibbonPageCount > 1) and (Browser.TIFFRibbonPageIndex > 0));

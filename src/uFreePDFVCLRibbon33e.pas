@@ -267,6 +267,7 @@ begin
     else if S = 'Export pages as images ...' then Result := 'Seiten als Bilder exportieren ...'
     else if S = 'Export pages as text ...' then Result := 'Seiten als Text exportieren ...'
     else if S = 'Extract PDF images ...' then Result := 'PDF-Bilder extrahieren ...'
+    else if S = 'Merge PDFs ...' then Result := 'PDFs zusammenführen ...'
     else if S = 'Exit' then Result := 'Beenden'
     else if S = 'Enable / disable tab previews' then Result := 'Registerkartenvorschau anzeigen'
     else if S = 'Preview when hovering over a PDF tab' then Result := 'Vorschau beim Überfahren einer PDF-Registerkarte'
@@ -409,6 +410,7 @@ begin
     else if German = 'Seiten als Bilder exportieren ...' then Result := 'Export pages as images ...'
     else if German = 'Seiten als Text exportieren ...' then Result := 'Export pages as text ...'
     else if German = 'PDF-Bilder extrahieren ...' then Result := 'Extract PDF images ...'
+    else if German = 'PDFs zusammenführen ...' then Result := 'Merge PDFs ...'
     else if German = 'Beenden' then Result := 'Exit'
     else if German = 'Home' then Result := 'Home'
     else if German = 'Zur Einzelansicht wechseln' then Result := 'Switch to single-page view'
@@ -921,6 +923,7 @@ begin
       149: Result := 'Feature' + #13#10 + 'overview';
       150: Result := 'About' + #13#10 + 'FreePDF64';
       223: Result := 'Check for' + #13#10 + 'updates';
+      224: Result := 'Merge' + #13#10 + 'PDFs';
     end;
     Exit;
   end;
@@ -958,6 +961,7 @@ begin
     149: Result := 'Funktions-' + #13#10 + 'übersicht';
     150: Result := 'Über' + #13#10 + 'FreePDF64';
     223: Result := 'Nach Updates' + #13#10 + 'suchen';
+    224: Result := 'PDFs' + #13#10 + 'zusammenführen';
   end;
 end;
 
@@ -978,6 +982,7 @@ begin
     218: CommandId := 210; // previous page arrow, embedded Tabler icon
     219: CommandId := 211; // next page arrow, embedded Tabler icon
     220: CommandId := 104; // save-as uses existing embedded save glyph
+    224: CommandId := 120; // use embedded PDF comparison glyph as fallback
   end;
   SizeCode := '_S';
   if Large then SizeCode := '_L';
@@ -2220,6 +2225,7 @@ begin
   AddCommand(6, -191, 'Seiten als Bilder exportieren ...', false);
   AddCommand(6, -192, 'Seiten als Text exportieren ...', false);
   AddCommand(6, 143, 'PDF-Bilder extrahieren ...', false);
+  AddCommand(6, 224, 'PDFs zusammenführen ...', false);
   AddGroup(6, 'Programm');
   AddCommand(6, 165, 'Beenden', false);
   // Export command states are synchronized with the active PDF tab.
