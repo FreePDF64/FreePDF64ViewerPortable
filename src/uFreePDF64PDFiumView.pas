@@ -318,6 +318,18 @@ type
     FMeasurePopup: TPopupMenu;
     FMeasureMenuItem, FMeasureScaleMenuItem, FMeasureColorMenuItem: TMenuItem;
     FMeasureColor: TColor;
+    FObjectEditMode: Boolean;
+    FObjectSelectedPage: Integer;
+    FObjectSelectedIndex: Integer;
+    FObjectDragging: Boolean;
+    FObjectScaling: Boolean;
+    FObjectRotating: Boolean;
+    FObjectRotationCenter: TPoint;
+    FObjectPreviewAngle: Double;
+    FObjectRotationPageCenterX: Double;
+    FObjectRotationPageCenterY: Double;
+    FObjectStart: TPoint;
+    FObjectCurrent: TPoint;
     FMeasureMode: Boolean;
     FMeasureDragging: Boolean;
     FMeasurePage: Integer;
@@ -413,6 +425,14 @@ type
     FViewSelect: TComboBox;
     FInitialRenderDeferred: Boolean;
     FSidebarInitPending: Boolean;
+    procedure ToggleObjectEditing;
+    procedure ObjectSelectionRedraw;
+    procedure ObjectEditEscape;
+    procedure DrawObjectSelection(Sender: TObject);
+    function ObjectScreenBounds(Img: TPDFiumImage; out ARect: TRect): Boolean;
+    procedure ApplyObjectDrag(Img: TPDFiumImage; X, Y: Integer; AShift: TShiftState);
+    procedure CancelObjectRotationPreview;
+    procedure UpdateObjectRotationPreview(Img: TPDFiumImage; X, Y: Integer; AShift: TShiftState);
     procedure ApplyRibbonOnlyLayout;
     procedure CommitSignature;
     procedure UpdateTwoPageIcon;
@@ -637,6 +657,7 @@ type
     property HandToolActive: Boolean read FHandToolActive;
     property OnHandToolChanged: TNotifyEvent read FOnHandToolChanged write FOnHandToolChanged;
     procedure ToggleHandTool;
+    procedure TogglePDFObjectEditing;
     procedure RefreshLanguage;
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomIn;
@@ -1916,6 +1937,223 @@ begin
   end;
 end;
 
+procedure TFreePDF64PDFiumView.CancelObjectRotationPreview;
+begin
+  if (Abs(FObjectPreviewAngle) > 0.0000001) and (FCore <> nil) and
+     (FObjectSelectedPage >= 0) and (FObjectSelectedIndex >= 0) then
+  begin
+    if FCore.PreviewRotateExistingObject(FObjectSelectedPage, FObjectSelectedIndex,
+      -FObjectPreviewAngle, FObjectRotationPageCenterX,
+      FObjectRotationPageCenterY) then
+      RefreshTextPage(FObjectSelectedPage);
+  end;
+  FObjectPreviewAngle := 0;
+end;
+
+procedure TFreePDF64PDFiumView.UpdateObjectRotationPreview(Img: TPDFiumImage;
+  X, Y: Integer; AShift: TShiftState);
+var
+  Angle, Step, Delta: Double;
+begin
+  if not FObjectRotating or (Img = nil) or (FCore = nil) then Exit;
+  Angle := - (ArcTan2(Y - FObjectRotationCenter.Y,
+    X - FObjectRotationCenter.X) -
+    ArcTan2(FObjectStart.Y - FObjectRotationCenter.Y,
+    FObjectStart.X - FObjectRotationCenter.X));
+  if ssShift in AShift then
+  begin
+    Step := Pi / 12;
+    Angle := Round(Angle / Step) * Step;
+  end;
+  Delta := Angle - FObjectPreviewAngle;
+  if Abs(Delta) < 0.000001 then Exit;
+  if FCore.PreviewRotateExistingObject(Img.Tag, FObjectSelectedIndex,
+    Delta, FObjectRotationPageCenterX, FObjectRotationPageCenterY) then
+  begin
+    FObjectPreviewAngle := Angle;
+    RefreshTextPage(Img.Tag);
+    ObjectSelectionRedraw;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.TogglePDFObjectEditing;
+begin
+  ToggleObjectEditing;
+end;
+
+procedure TFreePDF64PDFiumView.ToggleObjectEditing;
+begin
+  CancelObjectRotationPreview;
+  FObjectEditMode := not FObjectEditMode;
+  FObjectSelectedPage := -1;
+  FObjectSelectedIndex := -1;
+  FObjectDragging := False;
+  FObjectScaling := False;
+  FObjectRotating := False;
+  Screen.Cursor := crDefault;
+  for var I := 0 to FPages.Count - 1 do
+    if Assigned(FPages[I]) then
+      TPDFiumImage(FPages[I]).Cursor := crDefault;
+  if FObjectEditMode then
+  begin
+    // The object editor is exclusive with the existing interactive tools.
+    FSignatureMode := False;
+    FMeasureMode := False;
+    FHighlightMode := False;
+    FNoteMode := False;
+    FLinkMode := False;
+    FTextInsertMode := False;
+    FHandToolActive := False;
+  end;
+  ObjectSelectionRedraw;
+  UpdateTextUndoButtons;
+end;
+
+procedure TFreePDF64PDFiumView.ObjectEditEscape;
+var
+  OldPage: Integer;
+begin
+  if not FObjectEditMode then Exit;
+  OldPage := FObjectSelectedPage;
+  CancelObjectRotationPreview;
+  FObjectDragging := False;
+  FObjectScaling := False;
+  FObjectRotating := False;
+  if (OldPage >= 0) and (OldPage < FPages.Count) and
+     (PageImage(OldPage) <> nil) then
+  begin
+    PageImage(OldPage).MouseCapture := False;
+    PageImage(OldPage).Cursor := crDefault;
+  end;
+  // ESC always exits the editor, including when an object is selected.
+  ToggleObjectEditing;
+end;
+
+procedure TFreePDF64PDFiumView.ObjectSelectionRedraw;
+var I: Integer;
+begin
+  for I := 0 to High(FLoadedPages) do
+    if FLoadedPages[I] and (I < FPages.Count) and (PageImage(I) <> nil) then
+    begin
+      PageImage(I).Invalidate;
+      PageImage(I).Repaint;
+    end;
+end;
+
+function TFreePDF64PDFiumView.ObjectScreenBounds(Img: TPDFiumImage;
+  out ARect: TRect): Boolean;
+var O: TPDFEditableObject; X1,Y1,X2,Y2: Integer;
+begin
+  Result := False;
+  if (Img = nil) or (FCore = nil) or
+     (Img.Tag <> FObjectSelectedPage) or (FObjectSelectedIndex < 0) then Exit;
+  if not FCore.GetEditableObject(Img.Tag, FObjectSelectedIndex, O) then Exit;
+  if not FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+    O.Left, O.Top, X1, Y1) then Exit;
+  if not FCore.PagePointToDevice(Img.Tag, Img.Width, Img.Height,
+    O.Right, O.Bottom, X2, Y2) then Exit;
+  ARect := Rect(Min(X1,X2), Min(Y1,Y2), Max(X1,X2), Max(Y1,Y2));
+  Result := True;
+end;
+
+procedure TFreePDF64PDFiumView.DrawObjectSelection(Sender: TObject);
+var Img: TPDFiumImage; R: TRect; C: TCanvas; S, DX, DY, HX, HY: Integer;
+begin
+  if not FObjectEditMode or not (Sender is TPDFiumImage) then Exit;
+  Img := TPDFiumImage(Sender);
+  if not ObjectScreenBounds(Img, R) then Exit;
+  if FObjectDragging or FObjectScaling then
+  begin
+    DX := FObjectCurrent.X - FObjectStart.X;
+    DY := FObjectCurrent.Y - FObjectStart.Y;
+    if FObjectScaling then
+    begin
+      R.Right := Max(R.Left + 3, R.Right + DX);
+      R.Bottom := Max(R.Top + 3, R.Bottom + DY);
+    end
+    else OffsetRect(R, DX, DY);
+  end;
+  S := Max(4, MulDiv(5, CurrentPPI, 96));
+  // Draw on the actual TGraphicControl paint canvas, not on the parent HWND.
+  // Otherwise the parent double-buffering erases the selection immediately.
+  C := TPDFGraphicCanvasAccess(Img).Canvas;
+  try
+    C.Pen.Color := RGB(30, 110, 210);
+    C.Pen.Width := 2;
+    C.Brush.Style := bsClear;
+    C.Rectangle(R);
+    C.Brush.Style := bsSolid;
+    C.Brush.Color := clWhite;
+    C.Rectangle(R.Left-S,R.Top-S,R.Left+S,R.Top+S);
+    C.Rectangle(R.Right-S,R.Top-S,R.Right+S,R.Top+S);
+    C.Rectangle(R.Left-S,R.Bottom-S,R.Left+S,R.Bottom+S);
+    C.Rectangle(R.Right-S,R.Bottom-S,R.Right+S,R.Bottom+S);
+    // Drehgriff ueber der oberen Kante, mit Verbindungslinie.
+    HX := (R.Left + R.Right) div 2;
+    HY := R.Top - Max(22, MulDiv(25, CurrentPPI, 96));
+    C.Pen.Color := RGB(30, 110, 210);
+    C.MoveTo(HX, R.Top);
+    C.LineTo(HX, HY);
+    C.Brush.Color := clWhite;
+    C.Ellipse(HX-S, HY-S, HX+S+1, HY+S+1);
+    if FObjectRotating then
+    begin
+      C.Brush.Style := bsSolid;
+      C.Brush.Color := clWhite;
+      C.Font.Color := RGB(30, 110, 210);
+      C.TextOut(HX + S + 6, HY - S,
+        FormatFloat('0', FObjectPreviewAngle * 180 / Pi) + '°');
+    end;
+  finally
+    C.Brush.Style := bsSolid;
+    C.Pen.Width := 1;
+  end;
+end;
+
+procedure TFreePDF64PDFiumView.ApplyObjectDrag(Img: TPDFiumImage; X, Y: Integer; AShift: TShiftState);
+var X0,Y0,X1,Y1: Double; O: TPDFEditableObject; SX,SY: Double;
+    Angle, Step: Double;
+    R: TRect; Success: Boolean;
+begin
+  if (FCore = nil) or (Img = nil) or (FObjectSelectedIndex < 0) then Exit;
+  if not FCore.DevicePointToPage(Img.Tag,Img.Width,Img.Height,
+    FObjectStart.X,FObjectStart.Y,X0,Y0) or
+     not FCore.DevicePointToPage(Img.Tag,Img.Width,Img.Height,
+    X,Y,X1,Y1) then Exit;
+  Success := False;
+  if FObjectRotating then
+  begin
+    Angle := ArcTan2(Y-FObjectRotationCenter.Y, X-FObjectRotationCenter.X) -
+      ArcTan2(FObjectStart.Y-FObjectRotationCenter.Y,
+              FObjectStart.X-FObjectRotationCenter.X);
+    // Bildschirm-Y ist nach unten positiv; PDF-Y nach oben.
+    Angle := -Angle;
+    if ssShift in AShift then
+    begin
+      Step := Pi / 12; // 15 Grad
+      Angle := Round(Angle / Step) * Step;
+    end;
+    // Undo the temporary live rotation before creating ONE undoable action.
+    CancelObjectRotationPreview;
+    Success := FCore.RotateExistingObject(Img.Tag,FObjectSelectedIndex,Angle);
+  end
+  else if FObjectScaling then
+  begin
+    if FCore.GetEditableObject(Img.Tag,FObjectSelectedIndex,O) and
+       ObjectScreenBounds(Img,R) and (R.Right > R.Left) and
+       (R.Bottom > R.Top) then
+    begin
+      SX := Max(0.02, (R.Right-R.Left + X-FObjectStart.X) / (R.Right-R.Left));
+      SY := Max(0.02, (R.Bottom-R.Top + Y-FObjectStart.Y) / (R.Bottom-R.Top));
+      // The Core anchors scaling at the object's lower-left PDF corner.
+      Success := FCore.ScaleExistingObject(Img.Tag,FObjectSelectedIndex,SX,SY);
+    end;
+  end
+  else
+    Success := FCore.MoveExistingObject(Img.Tag,FObjectSelectedIndex,X1-X0,Y1-Y0);
+  if Success then RefreshTextPage(Img.Tag);
+end;
+
 procedure TFreePDF64PDFiumView.PageImagePainted(Sender: TObject);
 var
   Img: TPDFiumImage;
@@ -1926,6 +2164,7 @@ var
   NX, NY: Integer;
 begin
   DrawMeasurement(Sender);
+  DrawObjectSelection(Sender);
   // Transparente Signaturvorschau auf der PDF-Seite (nicht im PDF gespeichert).
   if FSignatureMode and FSignaturePreviewVisible and
      (Sender is TPDFiumImage) and (FSignaturePreview <> nil) and
@@ -4609,7 +4848,54 @@ end;
 
 procedure TFreePDF64PDFiumView.PageKeyDown(Sender: TObject;
   var Key: Word; Shift: TShiftState);
+var ObjPage,ObjDX,ObjDY,ObjStep: Integer;
+    ObjPW,ObjPH: Single;
+    ObjImg: TPDFiumImage;
 begin
+  if FObjectEditMode then
+  begin
+    if Key = VK_ESCAPE then
+    begin
+      ObjectEditEscape;
+      Key := 0;
+      Exit;
+    end;
+    if (ssCtrl in Shift) and (Key = Ord('Z')) then
+    begin
+      if FCore.UndoObjectTransform(ObjPage) then RefreshTextPage(ObjPage);
+       UpdateTextUndoButtons;
+      Key := 0;
+      Exit;
+    end;
+    if (ssCtrl in Shift) and (Key = Ord('Y')) then
+    begin
+      if FCore.RedoObjectTransform(ObjPage) then RefreshTextPage(ObjPage);
+       UpdateTextUndoButtons;
+      Key := 0;
+      Exit;
+    end;
+    if (FObjectSelectedIndex >= 0) and (Key in [VK_LEFT,VK_RIGHT,VK_UP,VK_DOWN]) then
+    begin
+      ObjDX := 0; ObjDY := 0;
+      if ssShift in Shift then ObjStep := 10 else ObjStep := 1;
+      case Key of
+        VK_LEFT: ObjDX := -ObjStep;
+        VK_RIGHT: ObjDX := ObjStep;
+        VK_UP: ObjDY := ObjStep;
+        VK_DOWN: ObjDY := -ObjStep;
+      end;
+      ObjImg := PageImage(FObjectSelectedPage);
+      if (ObjImg <> nil) and FCore.PageSize(FObjectSelectedPage,ObjPW,ObjPH) and
+         (ObjImg.Width > 0) and (ObjImg.Height > 0) then
+      begin
+        if FCore.MoveExistingObject(FObjectSelectedPage,FObjectSelectedIndex,
+           ObjDX*ObjPW/ObjImg.Width,ObjDY*ObjPH/ObjImg.Height) then
+          RefreshTextPage(FObjectSelectedPage);
+      end;
+      Key := 0;
+      Exit;
+    end;
+  end;
   if FRedactionReportOpen then Exit;
   // ESC also leaves the optical (non-destructive) redaction tool.
   if (Key = VK_ESCAPE) and FEditVisible and
@@ -5044,6 +5330,10 @@ var
   N: Integer;
 begin
   if FCore = nil then Exit;
+  // Only the active object-editing tool may move PDF page objects.
+  // Switching to another interactive tool immediately deactivates it.
+  if FObjectEditMode and (ACommandId in [123, 124, 126, 133, 134, 135, 145, 146, 168..184, 217]) then
+    ToggleObjectEditing;
   case ACommandId of
     115:
       if (FViewSelect <> nil) and (AIndex >= 0) and (AIndex < FViewSelect.Items.Count) then
@@ -5109,6 +5399,7 @@ begin
     193: ShowEmbeddedImages(Self);
     194: FinalizeRedactionClick(Self);
     145: MeasureClick(Self);
+    229: ToggleObjectEditing;
     168, 169, 170, 171, 184:
       begin
         if not FEditVisible then ToggleEditBar(nil);
@@ -6674,6 +6965,18 @@ var
   SigPageImage: TPDFiumImage;
   Step, DX, DY, MaxLeft, MaxTop: Integer;
 begin
+  // ESC fuer PDF-Objektbearbeitung auch bei Fokus auf Ribbon/Hauptfenster.
+  // Keine fremden Dialoge oder Eingabefelder abfangen.
+  if FObjectEditMode and (Msg.message = WM_KEYDOWN) and
+     (Msg.wParam = VK_ESCAPE) and not FRedactionReportOpen and
+     (Screen.ActiveCustomForm = Application.MainForm) and
+     (FInlineFormEditor = nil) and (FTextEditor = nil) and
+     not (Screen.ActiveControl is TCustomEdit) then
+  begin
+    ObjectEditEscape;
+    Handled := True;
+    Exit;
+  end;
   // Modale Berichtstasten dürfen niemals PDF-Vormerkungen verändern.
   if FRedactionReportOpen then Exit;
   // Patch 32au: Nur lesender Analysebericht fuer vorgemerkte Schwaerzungen.
@@ -7665,6 +7968,12 @@ begin
      (Owner is TFreePDF64PDFiumView) then
   begin
     Viewer := TFreePDF64PDFiumView(Owner);
+    if Viewer.FObjectEditMode then
+    begin
+      Viewer.ObjectEditEscape;
+      Message.Result := 1;
+      Exit;
+    end;
     if Viewer.FSignatureMode then
     begin
       Viewer.CancelSignature;
@@ -11370,9 +11679,9 @@ begin
       SetActiveModeButton(FInsertButton, False);
   end;
   if FTextUndoButton <> nil then
-    FTextUndoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionPreviews.Count > 0)) or (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote;
+    FTextUndoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionPreviews.Count > 0)) or (FMeasureMode and (FMeasureUndo.Count > 0)) or (FCore.Strokes.Count > 0) or FCore.CanUndoInsertedText or FCore.CanUndoNote or (FObjectEditMode and FCore.CanUndoObjectTransform);
   if FTextRedoButton <> nil then
-    FTextRedoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionRedo.Count > 0)) or (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote;
+    FTextRedoButton.Enabled := ((FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and (FRedactionRedo.Count > 0)) or (FMeasureMode and (FMeasureRedo.Count > 0)) or (FStrokeRedo.Count > 0) or FCore.CanRedoInsertedText or FCore.CanRedoNote or (FObjectEditMode and FCore.CanRedoObjectTransform);
   if FRedactionFinalizeButton <> nil then
   begin
     // Den Orange-Zustand immer aus dem tatsaechlich aktiven Werkzeugmodus
@@ -11400,6 +11709,12 @@ begin
       PageImage(APageIndex).Width, PageImage(APageIndex).Height);
     DrawPageStrokes(APageIndex);
     PageImage(APageIndex).Invalidate;
+    // A synchronous repaint is required after the bitmap has been replaced:
+    // otherwise the object selection overlay can disappear until the next
+    // unrelated WM_PAINT message (e.g. moving the mouse or scrolling).
+    if FObjectEditMode and (FObjectSelectedPage = APageIndex) and
+       (FObjectSelectedIndex >= 0) then
+      PageImage(APageIndex).Repaint;
   end;
   UpdateSaveState;
   UpdateTextUndoButtons;
@@ -11437,6 +11752,12 @@ var
   Pg, Index: Integer;
   Action: TPDFMeasureAction;
 begin
+  if FObjectEditMode and FCore.CanUndoObjectTransform then
+  begin
+    if FCore.UndoObjectTransform(Pg) then RefreshTextPage(Pg);
+    UpdateTextUndoButtons;
+    Exit;
+  end;
   if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
      (FRedactionPreviews.Count > 0) then
   begin
@@ -11499,6 +11820,12 @@ var
   Pg, Index: Integer;
   Action: TPDFMeasureAction;
 begin
+  if FObjectEditMode and FCore.CanRedoObjectTransform then
+  begin
+    if FCore.RedoObjectTransform(Pg) then RefreshTextPage(Pg);
+    UpdateTextUndoButtons;
+    Exit;
+  end;
   if (FShapeSelect <> nil) and (FShapeSelect.ItemIndex = 6) and
      (FRedactionRedo.Count > 0) then
   begin
@@ -12324,8 +12651,67 @@ var
   SelectedIndices: TArray<Integer>;
   IsListBox, IsMultiSelect: Boolean;
   PX, PY: Double;
+  Obj: TPDFEditableObject;
+  ObjRect: TRect;
   NoteItem: TMenuItem;
 begin
+  if FObjectEditMode and (Sender is TPDFiumImage) then
+  begin
+    Img := TPDFiumImage(Sender);
+    if Button = mbRight then
+    begin
+      FObjectSelectedIndex := -1;
+      ObjectSelectionRedraw;
+      Exit;
+    end;
+    if Button <> mbLeft then Exit;
+    FObjectDragging := False;
+    FObjectScaling := False;
+    FObjectRotating := False;
+    if ObjectScreenBounds(Img, ObjRect) and
+       (Abs(X - (ObjRect.Left + ObjRect.Right) div 2) <= Max(7,MulDiv(9,CurrentPPI,96))) and
+       (Abs(Y - (ObjRect.Top - Max(22,MulDiv(25,CurrentPPI,96)))) <= Max(7,MulDiv(9,CurrentPPI,96))) then
+    begin
+      FObjectRotating := True;
+      TPDFiumImage(Sender).Cursor := crSizeWE;
+      Screen.Cursor := crSizeWE;
+      FObjectRotationCenter := Point((ObjRect.Left+ObjRect.Right) div 2,
+                                     (ObjRect.Top+ObjRect.Bottom) div 2);
+      FObjectPreviewAngle := 0;
+      if FCore.GetEditableObject(Img.Tag, FObjectSelectedIndex, Obj) then
+      begin
+        FObjectRotationPageCenterX := (Obj.Left + Obj.Right) * 0.5;
+        FObjectRotationPageCenterY := (Obj.Bottom + Obj.Top) * 0.5;
+      end;
+    end
+    else if ObjectScreenBounds(Img, ObjRect) and
+       (Abs(X-ObjRect.Right) <= Max(7,MulDiv(9,CurrentPPI,96))) and
+       (Abs(Y-ObjRect.Bottom) <= Max(7,MulDiv(9,CurrentPPI,96))) then
+      FObjectScaling := True
+    else if ObjectScreenBounds(Img, ObjRect) and PtInRect(ObjRect, Point(X,Y)) then
+      FObjectDragging := True
+    else if FCore.DevicePointToPage(Img.Tag,Img.Width,Img.Height,X,Y,PX,PY) and
+            FCore.FindEditableObject(Img.Tag,PX,PY,Obj) then
+    begin
+      FObjectSelectedPage := Img.Tag;
+      FObjectSelectedIndex := Obj.ObjectIndex;
+      FObjectDragging := True;
+    end
+    else
+    begin
+      FObjectSelectedIndex := -1;
+      FObjectSelectedPage := -1;
+    end;
+    FObjectStart := Point(X,Y);
+    FObjectCurrent := FObjectStart;
+    if FObjectDragging or FObjectScaling or FObjectRotating then
+    begin
+      Img.MouseCapture := True;
+      if (FScroll <> nil) and FScroll.CanFocus then FScroll.SetFocus;
+    end;
+    ObjectSelectionRedraw;
+    Exit;
+  end;
   if FSignatureMode and (Sender is TPDFiumImage) then
   begin
     Img := TPDFiumImage(Sender);
@@ -13200,7 +13586,62 @@ var
   Target: TPDFLinkTarget;
   CurrentScreen: TPoint;
   URL: string;
+  ObjImg: TPDFiumImage;
+  ObjRect: TRect;
+  HoverObj: TPDFEditableObject;
+  PageX, PageY: Double;
+  NewCursor: TCursor;
+  GripTolerance: Integer;
 begin
+  if FObjectEditMode and (Sender is TPDFiumImage) then
+  begin
+    ObjImg := TPDFiumImage(Sender);
+    NewCursor := crDefault;
+    if FObjectRotating then
+    begin
+      NewCursor := crSizeWE;
+    end
+    else if FObjectScaling then
+      NewCursor := crSizeNWSE
+    else if FObjectDragging then
+      NewCursor := crSizeAll
+    else
+    begin
+      GripTolerance := Max(7, MulDiv(9, CurrentPPI, 96));
+      if ObjectScreenBounds(ObjImg, ObjRect) and
+         (Abs(X - (ObjRect.Left + ObjRect.Right) div 2) <= GripTolerance) and
+         (Abs(Y - (ObjRect.Top - Max(22,MulDiv(25,CurrentPPI,96)))) <= GripTolerance) then
+        NewCursor := crSizeWE
+      else if ObjectScreenBounds(ObjImg, ObjRect) and
+         (Abs(X - ObjRect.Right) <= GripTolerance) and
+         (Abs(Y - ObjRect.Bottom) <= GripTolerance) then
+        NewCursor := crSizeNWSE
+      else if ObjectScreenBounds(ObjImg, ObjRect) and
+              PtInRect(ObjRect, Point(X, Y)) then
+        NewCursor := crSizeAll
+      else if (FCore <> nil) and
+              FCore.DevicePointToPage(ObjImg.Tag, ObjImg.Width,
+                ObjImg.Height, X, Y, PageX, PageY) and
+              FCore.FindEditableObject(ObjImg.Tag, PageX, PageY, HoverObj) then
+        NewCursor := crSizeAll;
+    end;
+    ObjImg.Cursor := NewCursor;
+    Screen.Cursor := NewCursor;
+    if FObjectDragging or FObjectScaling or FObjectRotating then
+    begin
+      FObjectCurrent := Point(X,Y);
+      if FObjectRotating then
+      begin
+        UpdateObjectRotationPreview(ObjImg, X, Y, Shift);
+        // Ein fester Links-Rechts-Cursor verhindert Richtungsflackern.
+        ObjImg.Cursor := crSizeWE;
+        Screen.Cursor := crSizeWE;
+      end
+      else
+        ObjectSelectionRedraw;
+    end;
+    Exit;
+  end;
   if FSignatureMode then
   begin
     if Sender is TPDFiumImage then
@@ -13477,6 +13918,26 @@ var
   TextX, TextY, TextWidth: Double;
   LinkTextBounds: TPDFInkRect;
 begin
+  if FObjectEditMode and (Sender is TPDFiumImage) then
+  begin
+    if (Button = mbLeft) and (FObjectDragging or FObjectScaling or FObjectRotating) then
+    begin
+      if (Abs(X-FObjectStart.X) > 2) or (Abs(Y-FObjectStart.Y) > 2) then
+        ApplyObjectDrag(TPDFiumImage(Sender),X,Y,Shift)
+      else if FObjectRotating then
+        CancelObjectRotationPreview;
+      FObjectDragging := False;
+      FObjectScaling := False;
+      FObjectRotating := False;
+      TPDFiumImage(Sender).MouseCapture := False;
+      TPDFiumImage(Sender).Cursor := crDefault;
+      Screen.Cursor := crDefault;
+      // Keep the selected object highlighted after mouse release.
+      // RefreshTextPage may have replaced the underlying page bitmap.
+      ObjectSelectionRedraw;
+    end;
+    Exit;
+  end;
   if FSignatureMode and (Sender is TPDFiumImage) then
   begin
     FSignatureDragging := False;
@@ -14941,7 +15402,8 @@ begin
   Result := 0;
   // A single active tool owns the orange state. The next tool activation
   // replaces the previous command instead of accumulating highlighted buttons.
-  if FMeasureMode then Result := 145
+  if FObjectEditMode then Result := 229
+  else if FMeasureMode then Result := 145
   else if FHighlightMode then Result := 124
   else if FTextInsertMode then Result := 123
   else if FNoteMode then Result := 126

@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.3.0
+# FreePDF64-Viewer Portable 3.4.0
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -14,9 +14,9 @@
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.3.0 – new VCL Ribbon and main window" width="900"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.4.0 – new VCL Ribbon and main window" width="900"></a>
 
-*FreePDF64-Viewer Portable 3.3.0 – redesigned main window and VCL Ribbon. Click to enlarge.*
+*FreePDF64-Viewer Portable 3.4.0 – redesigned main window and VCL Ribbon. Click to enlarge.*
 
 </div>
 
@@ -26,7 +26,11 @@
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
 
-## New in version 3.3.0
+## New in version 3.4.0
+
+- **Edit existing PDF objects:** Select, move, resize and rotate text, images and vector objects with a persistent selection outline, live rotation preview, angle display, 15° snapping (Shift), Undo/Redo and one-key Esc exit.
+- **Comparison-only split view:** Compare two PDFs side by side, with navigation and zoom targeting the active pane. Editing and ambiguous document actions are disabled; ribbon state and update controls are restored after leaving split view.
+
 
 - **Redesigned VCL Ribbon:** Replaced the Windows Ribbon Framework with a custom VCL Ribbon. Clearly organized tabs, including **Objects**, provide direct access to viewing, editing, image, and PDF tools. Monochrome Tabler icons are embedded in the executable; no external icon folder is required.
 - **Editable PDF zoom percentage:** View the current zoom level in the **View** ribbon, enter a value such as `150 %`, and press Enter to apply it. The display follows zoom changes and switching between open PDFs.
@@ -71,7 +75,7 @@ See the **Workspaces** screenshot below for the management interface.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.3.0" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.4.0" width="260"></a>
 <a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
 <a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
 <a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
@@ -109,7 +113,11 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
 
-## Neu in Version 3.3.0
+## Neu in Version 3.4.0
+
+- **Vorhandene PDF-Objekte bearbeiten:** Text-, Bild- und Vektorobjekte auswählen, verschieben, skalieren und drehen. Dauerhafter Auswahlrahmen, Live-Drehvorschau, Winkelanzeige, 15°-Raster (Umschalt), Rückgängig/Wiederholen und Beenden mit einmal ESC.
+- **Geteilte Ansicht als Vergleichsmodus:** Zwei PDFs nebeneinander vergleichen; Navigation und Zoom steuern die aktive Teilansicht. Bearbeitung und mehrdeutige Dokumentbefehle sind deaktiviert; Ribbon-Zustände einschließlich Update werden beim Beenden wiederhergestellt.
+
 
 - **Neu gestaltetes VCL-Ribbon:** Das Windows Ribbon Framework wurde durch ein eigenes VCL-Ribbon ersetzt. Übersichtlich angeordnete Registerkarten, darunter **„Objekte“**, bieten direkten Zugriff auf Anzeige-, Bearbeitungs-, Grafik- und PDF-Werkzeuge. Einfarbige Tabler-Symbole sind direkt in die EXE eingebettet; ein externer Symbolordner ist nicht erforderlich.
 - **Editierbare PDF-Zoom-Prozentanzeige:** Den aktuellen Zoomfaktor im Ribbon unter **„Ansicht“** ablesen, einen Wert wie `150 %` eingeben und mit Enter übernehmen. Die Anzeige folgt Zoomänderungen und dem Wechsel zwischen geöffneten PDFs.
@@ -154,7 +162,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.3.0" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.4.0" width="260"></a>
 <a href="images/Zweifensteransicht_deutsch.png"><img src="images/Zweifensteransicht_deutsch.png" alt="Zweifensteransicht" width="260"></a>
 <a href="images/Globalesuche_deutsch.png"><img src="images/Globalesuche_deutsch.png" alt="Globale PDF-Suche" width="260"></a>
 <a href="images/Messen_deutsch.png"><img src="images/Messen_deutsch.png" alt="PDF-Messwerkzeuge" width="260"></a>

@@ -29,6 +29,7 @@ type
 
   TFreePDFVCLRibbon = class(TPanel)
   private
+    FObjectEditPressed: Boolean;
     FTabs: TPanel;
     FContent: TPanel;
     FPages: TList;
@@ -53,7 +54,7 @@ type
     FLayoutReady: Boolean;
     FFourKGeometryApplied: Boolean;
     FScrollBack, FScrollForward: TButton;
-    FGroupScroll: array[0..6] of Integer;
+    FGroupScroll: array[0..7] of Integer;
     procedure ScrollGroups(Sender: TObject);
     procedure UpdateGroupViewport;
     procedure ApplyFourKGeometry;
@@ -93,6 +94,8 @@ type
     procedure ApplyPalette(Background, TextColor, Accent: TColor);
     procedure SetCommandEnabled(CommandId: Integer; Enabled: Boolean);
     procedure SetCommandOrange(CommandId: Integer; Active: Boolean);
+    procedure SetCommandChecked(CommandId: Integer; Checked: Boolean);
+    procedure SetStandaloneOptionsVisible(Visible: Boolean);
     procedure SetCommandText(CommandId: Integer; const ACaption, AHint: string);
     procedure RefreshLanguage;
     procedure SetTabPreviewChecked(Value: Boolean);
@@ -168,6 +171,7 @@ begin
     else if S = 'Changes' then Result := 'Änderungen'
     else if S = 'Drawing' then Result := 'Zeichnen'
     else if S = 'More drawing tools' then Result := 'Weitere Zeichenwerkzeuge'
+    else if S = 'PDF objects' then Result := 'PDF-Objekte'
     else if S = 'Font' then Result := 'Schrift'
     else if S = 'Watermarks' then Result := 'Wasserzeichen'
     else if S = 'Document' then Result := 'Dokument'
@@ -178,6 +182,12 @@ begin
     else if S = 'Theme' then Result := 'Design'
     else if S = 'Language' then Result := 'Sprache / Language'
     else if S = 'Information' then Result := 'Information'
+    else if S = 'Options' then Result := 'Optionen'
+    else if S = 'Start with Windows' then Result := 'Mit Windows starten'
+    else if S = 'Start minimized' then Result := 'Beim Start minimieren'
+    else if S = 'Minimize to notification area on close' then Result := 'Beim Schließen in den Infobereich'
+    else if S = 'Associate PDFs ...' then Result := 'PDFs verknüpfen ...'
+    else if S = 'Associate PDF files with FreePDF64 Viewer ...' then Result := 'PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...'
     else if S = 'Workspaces' then Result := 'Arbeitsbereiche'
     else if S = 'Search' then Result := 'Suche'
     else if S = 'Save / Export' then Result := 'Speichern / Export'
@@ -305,6 +315,7 @@ begin
     else if German = 'Ansicht' then Result := 'View'
     else if German = 'Bearbeiten' then Result := 'Edit'
     else if German = 'Objekte' then Result := 'Objects'
+    else if German = 'PDF-Objekte' then Result := 'PDF objects'
     else if German = 'Werkzeuge' then Result := 'Tools'
     else if German = 'Hilfe' then Result := 'Help'
     else if German = 'Anzeigen' then Result := 'Display'
@@ -411,6 +422,12 @@ begin
     else if German = 'Seiten als Text exportieren ...' then Result := 'Export pages as text ...'
     else if German = 'PDF-Bilder extrahieren ...' then Result := 'Extract PDF images ...'
     else if German = 'PDFs zusammenführen ...' then Result := 'Merge PDFs ...'
+    else if German = 'Optionen' then Result := 'Options'
+    else if German = 'Mit Windows starten' then Result := 'Start with Windows'
+    else if German = 'Beim Start minimieren' then Result := 'Start minimized'
+    else if German = 'Beim Schließen in den Infobereich' then Result := 'Minimize to notification area on close'
+    else if German = 'PDFs verknüpfen ...' then Result := 'Associate PDFs ...'
+    else if German = 'PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...' then Result := 'Associate PDF files with FreePDF64 Viewer ...'
     else if German = 'Beenden' then Result := 'Exit'
     else if German = 'Home' then Result := 'Home'
     else if German = 'Zur Einzelansicht wechseln' then Result := 'Switch to single-page view'
@@ -644,8 +661,7 @@ begin
   FillChar(FGroupScroll, SizeOf(FGroupScroll), 0);
   BuildRibbon;
   LayoutGroups;
-  // Datei links, danach Start/Ansicht/Bearbeiten/Objekte/Werkzeuge/Hilfe.
-  // Die internen Registerkartenindizes bleiben unverändert.
+  // Datei remains the sole file tab; options are a group inside it.
   if FTabPanels.Count = 7 then
   begin
     TPanel(FTabPanels[6]).Left := 4;
@@ -924,6 +940,7 @@ begin
       150: Result := 'About' + #13#10 + 'FreePDF64';
       223: Result := 'Check for' + #13#10 + 'updates';
       224: Result := 'Merge' + #13#10 + 'PDFs';
+      229: Result := 'Edit PDF' + #13#10 + 'objects';
     end;
     Exit;
   end;
@@ -962,6 +979,7 @@ begin
     150: Result := 'Über' + #13#10 + 'FreePDF64';
     223: Result := 'Nach Updates' + #13#10 + 'suchen';
     224: Result := 'PDFs' + #13#10 + 'zusammenführen';
+    229: Result := 'PDF-Objekte' + #13#10 + 'bearbeiten';
   end;
 end;
 
@@ -982,7 +1000,14 @@ begin
     218: CommandId := 210; // previous page arrow, embedded Tabler icon
     219: CommandId := 211; // next page arrow, embedded Tabler icon
     220: CommandId := 104; // save-as uses existing embedded save glyph
+    229: CommandId := 168; // Embedded monochrome drawing icon
     224: CommandId := 120; // use embedded PDF comparison glyph as fallback
+    // Reuse existing monochrome Tabler resources for the compact options.
+    // They are already embedded in the EXE; no runtime icon directory needed.
+    225: CommandId := 167; // Home / Windows startup
+    226: CommandId := 201; // Minimize / smaller
+    227: CommandId := 142; // Tray / attachments panel
+    228: CommandId := 135; // Link / PDF file association
   end;
   SizeCode := '_S';
   if Large then SizeCode := '_L';
@@ -1215,12 +1240,21 @@ begin
     end
     else
     begin
-      Col := Group.Tag div 3;
-      RowIndex := Group.Tag mod 3;
+      if (TabIndex = 6) and (GroupName = 'Optionen') then
+      begin
+        Col := 0;
+        RowIndex := Group.Tag;
+      end
+      else
+      begin
+        Col := Group.Tag div 3;
+        RowIndex := Group.Tag mod 3;
+      end;
       if TabIndex = 6 then
       begin
         if GroupName = 'Datei' then CellWidth := 315
         else if GroupName = 'Speichern / Export' then CellWidth := 252
+        else if GroupName = 'Optionen' then CellWidth := 260
         else if GroupName = 'Programm' then CellWidth := 135
         else CellWidth := 165;
       end
@@ -1231,7 +1265,10 @@ begin
       else CellWidth := 238;
       LeftPos := 6 + Col * CellWidth;
     end;
-    TopPos := 4 + RowIndex * 30;
+    if (TabIndex = 6) and (GroupName = 'Optionen') then
+      TopPos := 3 + RowIndex * 22
+    else
+      TopPos := 4 + RowIndex * 30;
     ButtonWidth := CellWidth - 8;
   end
   else
@@ -1245,6 +1282,7 @@ begin
       178,179,180: ButtonWidth := 96;
       123: ButtonWidth := 72;
       124: ButtonWidth := 100;
+      229: ButtonWidth := 112; // Wider object editing button
       126,127: ButtonWidth := 83;
       133,134,135,177: ButtonWidth := 83;
       137,138: ButtonWidth := 102;
@@ -1286,7 +1324,10 @@ begin
     Button := TRibbonSpeedButton.Create(Self);
     Button.Parent := Group;
     Button.Tag := CommandId;
-    Button.Hint := RibbonText(ACaption);
+    if CommandId = 228 then
+      Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
+    else
+      Button.Hint := RibbonText(ACaption);
     Button.ShowHint := True;
     Button.Flat := True;
     Button.Font.Name := 'Segoe UI';
@@ -1295,7 +1336,10 @@ begin
     Button.Layout := blGlyphLeft;
     Button.Margin := 3;
     Button.Spacing := 4;
-    Button.SetBounds(LeftPos, TopPos, ButtonWidth, 29);
+    if (TabIndex = 6) and (GroupName = 'Optionen') then
+      Button.SetBounds(LeftPos, TopPos, ButtonWidth, 21)
+    else
+      Button.SetBounds(LeftPos, TopPos, ButtonWidth, 29);
     Button.OnClick := CommandClick;
     LoadGlyph(Button, CommandId);
   end
@@ -1375,7 +1419,12 @@ begin
       // Place it in the third row, directly below Seite anpassen.
       Combo.SetBounds(6, 64, 140, 25)
     else
-      Combo.SetBounds(LeftPos + 92, TopPos, Max(60, ButtonWidth - 96), 26);
+      if (TabIndex = 2) and (GroupName = 'Schrift') and
+         (CommandId in [174, 175]) then
+        // Shift only the two font dropdowns 4 px right; retain right edge.
+        Combo.SetBounds(LeftPos + 96, TopPos, Max(60, ButtonWidth - 100), 26)
+      else
+        Combo.SetBounds(LeftPos + 92, TopPos, Max(60, ButtonWidth - 96), 26);
     Combo.OnChange := ComboChanged;
   end
   else
@@ -1388,6 +1437,8 @@ begin
     else if CommandId = 223 then
       if SameText(PDFLanguage, 'en') then Button.Hint := 'Check for updates now'
       else Button.Hint := 'Jetzt nach Updates suchen'
+    else if CommandId = 228 then
+      Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
     else
       Button.Hint := RibbonText(ACaption);
     Button.ShowHint := True;
@@ -1416,6 +1467,9 @@ begin
       Button.Layout := blGlyphLeft;
       Button.Margin := 3;
       Button.Spacing := 4;
+      if (TabIndex = 6) and (GroupName = 'Optionen') then
+      Button.SetBounds(LeftPos, TopPos, ButtonWidth, 21)
+    else
       Button.SetBounds(LeftPos, TopPos, ButtonWidth, 29);
     end
     else
@@ -1451,7 +1505,7 @@ begin
     Page := TPanel(FPages[TabIndex]);
     X := 4;
     for I := 0 to Page.ControlCount - 1 do
-      if Page.Controls[I] is TPanel then
+      if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
       begin
         Page.Controls[I].Left := X;
         Inc(X, Page.Controls[I].Width + 3);
@@ -1475,7 +1529,7 @@ begin
   Page := TPanel(FPages[FActiveTab]);
   TotalWidth := 4;
   for I := 0 to Page.ControlCount - 1 do
-    if Page.Controls[I] is TPanel then
+    if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
       Inc(TotalWidth, Page.Controls[I].Width + 3);
   NeedsScroll := TotalWidth > FContent.ClientWidth;
   ArrowWidth := 30;
@@ -1491,7 +1545,7 @@ begin
   FGroupScroll[FActiveTab] := Offset;
   X := 4 - Offset;
   for I := 0 to Page.ControlCount - 1 do
-    if Page.Controls[I] is TPanel then
+    if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
     begin
       Page.Controls[I].Left := X;
       Inc(X, Page.Controls[I].Width + 3);
@@ -1513,7 +1567,7 @@ procedure TFreePDFVCLRibbon.ScrollGroups(Sender: TObject);
 var
   Delta: Integer;
 begin
-  if (FActiveTab < 0) or (FActiveTab > 6) then Exit;
+  if (FActiveTab < 0) or (FActiveTab > 7) then Exit;
   Delta := 180;
   if FFourKGeometryApplied then Delta := 360;
   if Sender = FScrollBack then Delta := -Delta;
@@ -1715,6 +1769,55 @@ begin
   RefreshCommandIcons;
 end;
 
+procedure TFreePDFVCLRibbon.SetStandaloneOptionsVisible(Visible: Boolean);
+var
+  I, J: Integer;
+  P, G: TPanel;
+  C: TControl;
+begin
+  // Bei FreePDF64-Integration bleibt der Infobereich-Befehl (227) sichtbar.
+  if FPages.Count <= 6 then Exit;
+  P := TPanel(FPages[6]);
+  for I := 0 to P.ControlCount - 1 do
+    if P.Controls[I] is TPanel then
+    begin
+      G := TPanel(P.Controls[I]);
+      if RibbonGroupTitle(G) = 'Optionen' then
+      begin
+        for J := 0 to G.ControlCount - 1 do
+        begin
+          C := G.Controls[J];
+          if C.Tag in [225, 226, 228] then
+            C.Visible := Visible;
+        end;
+        G.Visible := True;
+        LayoutGroups;
+        UpdateGroupViewport;
+        Exit;
+      end;
+    end;
+end;
+
+procedure TFreePDFVCLRibbon.SetCommandChecked(CommandId: Integer; Checked: Boolean);
+var
+  C: TControl;
+  BaseText: string;
+begin
+  C := FindCommand(CommandId);
+  if not (C is TSpeedButton) then Exit;
+  case CommandId of
+    225: BaseText := 'Mit Windows starten';
+    226: BaseText := 'Beim Start minimieren';
+    227: BaseText := 'Beim Schließen in den Infobereich';
+  else
+    Exit;
+  end;
+  if Checked then
+    TSpeedButton(C).Caption := '✓ ' + RibbonText(BaseText)
+  else
+    TSpeedButton(C).Caption := RibbonText(BaseText);
+end;
+
 procedure TFreePDFVCLRibbon.SetCommandText(CommandId: Integer; const ACaption, AHint: string);
 var
   C: TControl;
@@ -1757,14 +1860,14 @@ begin
     for I := 0 to 6 do
     begin
       case I of
-        0: TP := TPanel(FTabPanels[6]); // File
+        0: TP := TPanel(FTabPanels[6]); // Datei
         1: TP := TPanel(FTabPanels[0]); // Start
-        2: TP := TPanel(FTabPanels[1]); // View
-        3: TP := TPanel(FTabPanels[2]); // Edit
-        4: TP := TPanel(FTabPanels[3]); // Objects
-        5: TP := TPanel(FTabPanels[4]); // Tools
+        2: TP := TPanel(FTabPanels[1]); // Ansicht
+        3: TP := TPanel(FTabPanels[2]); // Bearbeiten
+        4: TP := TPanel(FTabPanels[3]); // Objekte
+        5: TP := TPanel(FTabPanels[4]); // Werkzeuge
       else
-        TP := TPanel(FTabPanels[5]); // Help
+        TP := TPanel(FTabPanels[5]); // Hilfe
       end;
       TP.Left := W;
       Inc(W, TP.Width + 2);
@@ -1909,6 +2012,7 @@ begin
         begin
           C := Group.Controls[K];
           if ((C is TSpeedButton) or (C is TComboBox) or
+              (C is TCheckBox) or
               ((CommandId = 115) and ((C is TLabel) or (C is TImage)))) and
              (C.Tag = CommandId) then
           begin
@@ -2122,6 +2226,9 @@ begin
   AddCommand(1, 119, 'Ansicht teilen', false);
   AddCommand(1, 120, 'PDFs visuell vergleichen', false);
   AddTab('Bearbeiten');
+  // Keep object editing as the first group on the Edit tab.
+  AddGroup(2, 'PDF-Objekte');
+  AddCommand(2, 229, 'PDF-Objekte bearbeiten', false);
   AddGroup(2, 'Text');
   AddCommand(2, 123, 'Text einfügen', false);
   AddCommand(2, 124, 'Text hervorheben', false);
@@ -2220,6 +2327,12 @@ begin
   AddCommand(6, 167, 'Home', false);
   AddCommand(6, 103, 'PDFs und Bilder öffnen ...', false);
   AddCommand(6, 163, 'PDF neu laden (Änderungen verwerfen)', false);
+  // Compact options group directly after the Datei group in the Datei ribbon.
+  AddGroup(6, 'Optionen');
+  AddCommand(6, 225, 'Mit Windows starten', false);
+  AddCommand(6, 226, 'Beim Start minimieren', false);
+  AddCommand(6, 227, 'Beim Schließen in den Infobereich', false);
+  AddCommand(6, 228, 'PDFs verknüpfen ...', false);
   AddGroup(6, 'Speichern / Export');
   AddCommand(6, 220, 'PDF speichern unter ...', false);
   AddCommand(6, -191, 'Seiten als Bilder exportieren ...', false);

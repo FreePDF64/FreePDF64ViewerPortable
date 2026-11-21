@@ -3422,7 +3422,8 @@ begin
         + 'Choose Split view again or use a split button to return to the single-pane view. '
         + 'The split button is available when two tabs are selected or split view is active. '
         + 'In split view, S toggles synchronized scrolling from the left PDF to the right PDF; '
-        + 'Z toggles synchronized zoom. Both functions can be switched on or off independently.');
+        + 'Z toggles synchronized zoom. Both functions can be switched on or off independently. '
+        + 'Split view is a comparison-only mode: editing, saving, printing and document properties are disabled in the ribbon. Page navigation and zoom act on the active pane.');
       AddSection('Visual comparison of two PDFs',
         'Select two open PDF tabs and choose "Visually compare PDFs..." from the split-view menu. '
         + 'A separate comparison window displays both pages side by side with a centered divider. '
@@ -3511,6 +3512,15 @@ begin
         + 'Press Enter to insert the text or Esc to cancel. '
         + 'Choose the font, font size and text color in the ribbon. The font list contains the installed Windows fonts in alphabetical order. '
         + 'The text is inserted into the PDF page content; save changes with Save As.');
+      AddSection('Edit existing PDF objects: move, resize and rotate',
+        'Choose Edit > Edit PDF objects to enable the object editing mode. '
+        + 'Click existing text, an image or a vector path to select it. '
+        + 'Drag the selected object to move it; drag the lower-right selection handle to resize it. '
+        + 'Use the rotation handle above the selection to rotate the object with live preview and angle display; hold Shift to snap to 15-degree increments. The cursor shows a fixed left-right arrow. '
+        + 'The selection frame stays visible after a transformation. Use arrow keys for 1-pixel steps or Shift+arrow keys for 10-pixel steps. '
+        + 'Press Esc once to exit object editing. Use Undo and Redo for object transformations, '
+        + 'then save the PDF and reopen it to verify the changes. '
+        + 'Complex drawings may contain multiple independent PDF objects.');
       AddSection('Highlight text and rectangular areas',
         'In Edit mode, enable Highlight text and drag the left mouse button over the desired words or text passages. '
         + 'For selections across multiple lines, the highlighted areas follow the selected text. '
@@ -3667,13 +3677,16 @@ begin
       AddSection('Log file',
         'The viewer logs attachment-management actions in FreePDF64ViewerLog.txt. The file is stored beside the EXE and is created or appended as needed. The folder must be writable.');
       if not RunningAlongsideFreePDF64 then
-        AddSection('Windows startup and minimized startup',
-          'Use Options → Start with Windows to launch the viewer automatically when you sign in. A check mark indicates whether startup is enabled. This setting applies only to the current Windows user. '
-          + 'Options → Start minimized controls whether the viewer starts minimized when no PDF is open. If Minimize to tray on close is also enabled, it starts in the Windows notification area. '
-          + 'The minimized-start setting is stored in FreePDFViewer.ini. If you move the portable EXE, configure the startup path again.');
-      if not RunningAlongsideFreePDF64 then
-        AddSection('Portable settings',
-          'FreePDFViewer.ini is stored beside the EXE. Under Options, choose whether closing the viewer sends it to the notification area. File → Exit closes the viewer without a general confirmation; unsaved changes may still prompt you to save.');
+        AddSection('File > Options: standalone viewer',
+          'On the File ribbon tab, the Options group is located next to the File group. '
+          + 'Start with Windows launches the viewer when the current Windows user signs in; a check mark indicates the current state. '
+          + 'Start minimized starts the viewer minimized when no PDF is opened. If Minimize to notification area on close is also enabled, it starts in the Windows notification area. '
+          + 'The minimized-start setting is stored in FreePDFViewer.ini. If you move the portable EXE, configure the Windows startup path again. '
+          + 'Associate PDFs ... opens the Windows PDF file-association setup. Windows 10/11 require you to confirm the default PDF app yourself.');
+      AddSection('File > Options: notification area',
+        'Minimize to notification area on close is available both in standalone mode and when the viewer runs from the FreePDF64 folder. '
+        + 'When enabled, closing the window minimizes the viewer to the Windows notification area instead of exiting. '
+        + 'The setting is saved in FreePDFViewer.ini beside the EXE. File > Exit closes the viewer; unsaved changes may still trigger a save prompt.');
       AddSection('Project page and more information',
         'https://github.com/FreePDF64/FreePDF64ViewerPortable');
     end
@@ -3881,6 +3894,16 @@ begin
         + 'Mit Enter den Text einfügen oder mit Esc abbrechen. '
         + 'Im Ribbon Schriftart, Schriftgröße und Textfarbe auswählen. Die Schriftartenliste enthält die installierten Windows-Schriftarten in alphabetischer Reihenfolge. '
         + 'Der Text wird als PDF-Seiteninhalt eingefügt; Änderungen über „Speichern unter ...“ sichern.');
+      AddSection('Vorhandene PDF-Objekte verschieben, skalieren und drehen',
+        'Unter „Bearbeiten > PDF-Objekte bearbeiten“ den Objektmodus aktivieren. '
+        + 'Vorhandene Texte, Bilder oder Vektorpfade anklicken, um sie auszuwählen. '
+        + 'Das markierte Objekt mit gedrückter linker Maustaste verschieben oder '
+        + 'über den rechten unteren Eckgriff skalieren. '
+        + 'Mit dem Drehgriff oberhalb des Auswahlrahmens das Objekt bei sichtbarer Live-Vorschau und Winkelanzeige drehen. Umschalt rastet in 15°-Schritten ein. Der Mauszeiger zeigt einen festen Links-Rechts-Pfeil. '
+        + 'Der Auswahlrahmen bleibt nach einer Änderung sichtbar. Pfeiltasten verschieben um 1 Pixel, Umschalt+Pfeiltasten um 10 Pixel. '
+        + 'Einmal ESC beendet die Objektbearbeitung. Rückgängig/Wiederholen unterstützt Objekttransformationen. '
+        + 'Änderungen speichern und die PDF erneut öffnen. '
+        + 'Komplexe Zeichnungen können aus mehreren getrennten PDF-Objekten bestehen.');
       AddSection('Text und rechteckige Bereiche hervorheben',
         'Im Bearbeitungsmodus „Text hervorheben“ aktivieren und mit gedrückter linker Maustaste '
         + 'über einzelne Wörter oder Textabschnitte ziehen. Bei mehrzeiliger Auswahl folgen die Markierungen dem ausgewählten Text. '
@@ -4061,16 +4084,16 @@ begin
         'Sie liegt im selben Ordner wie die EXE und wird bei Bedarf angelegt oder ergänzt. ' +
         'Der Ordner muss dafür beschreibbar sein.');
       if not RunningAlongsideFreePDF64 then
-      AddSection('Windows-Autostart und minimierter Start',
-        'Unter „Optionen → Mit Windows starten“ können Sie den Viewer beim Anmelden an Windows automatisch starten lassen. ' +
-        'Ein Häkchen zeigt an, ob der Autostart aktiviert ist. Die Registrierung erfolgt nur für den aktuellen Windows-Benutzer. ' +
-        'Unter „Optionen → Beim Start minimieren“ legen Sie fest, ob der Viewer beim Start ohne geöffnetes PDF minimiert werden soll. ' +
-        'Ist zusätzlich „Beim Schließen in den Infobereich“ aktiviert, startet er im Windows-Infobereich. ' +
-        'Die Minimierungseinstellung wird in FreePDFViewer.ini gespeichert. ' +
-        'Wenn Sie die portable EXE verschieben, müssen Sie den Autostartpfad erneut einrichten.');
-      if not RunningAlongsideFreePDF64 then
-      AddSection('Portable Einstellungen',
-        'FreePDFViewer.ini liegt neben der EXE. Unter „Optionen“ können Sie festlegen, ob der Viewer beim Schließen in den Infobereich wechseln soll. „Datei → Exit“ beendet den Viewer ohne allgemeine Bestätigungsabfrage; bei ungespeicherten Änderungen kann eine Speicherabfrage erscheinen.');
+      AddSection('Datei > Optionen: Eigenständiger Viewer',
+        'In der Ribbon-Registerkarte „Datei“ befindet sich die Gruppe „Optionen“ direkt neben der Gruppe „Datei“. ' +
+        'Mit „Mit Windows starten“ wird der Viewer bei der Anmeldung des aktuellen Windows-Benutzers automatisch gestartet; ein Häkchen zeigt den Zustand an. ' +
+        '„Beim Start minimieren“ startet den Viewer ohne geöffnetes PDF minimiert. Ist zusätzlich „Beim Schließen in den Infobereich“ aktiviert, startet er im Windows-Infobereich. ' +
+        'Die Einstellung für den minimierten Start wird in FreePDFViewer.ini gespeichert. Nach dem Verschieben der portablen EXE muss der Autostartpfad erneut eingerichtet werden. ' +
+        '„PDFs verknüpfen …“ öffnet die Einrichtung der PDF-Dateizuordnung. Unter Windows 10/11 muss die Standard-App vom Benutzer selbst bestätigt werden.');
+      AddSection('Datei > Optionen: Infobereich',
+        '„Beim Schließen in den Infobereich“ ist sowohl beim eigenständigen Viewer als auch beim Betrieb aus dem FreePDF64-Verzeichnis verfügbar. ' +
+        'Ist die Option aktiviert, wird das Fenster beim Schließen in den Windows-Infobereich minimiert, statt das Programm zu beenden. ' +
+        'Die Einstellung wird in FreePDFViewer.ini neben der EXE gespeichert. „Datei → Exit“ beendet den Viewer; bei ungespeicherten Änderungen kann eine Speicherabfrage erscheinen.');
       AddSection('Projektseite und weitere Informationen',
         'https://github.com/FreePDF64/FreePDF64ViewerPortable');
     end;
@@ -4616,13 +4639,16 @@ end;
 procedure TPDFTabsForm.UpdateIntegratedOptionsVisibility;
 var
   I: Integer;
+  StandaloneViewer: Boolean;
 begin
   if FOptionsMenu = nil then Exit;
-  if RunningAlongsideFreePDF64 then
-    for I := 0 to FOptionsMenu.Count - 1 do
-      FOptionsMenu.Items[I].Visible :=
-        (FOptionsMenu.Items[I] = FLanguageMenu) or
-        (FOptionsMenu.Items[I] = FDesignMenu);
+  StandaloneViewer := not RunningAlongsideFreePDF64;
+  // Sichtbarkeit immer in beide Richtungen setzen: Ein zuvor ausgeblendeter
+  // Eintrag muss im eigenstaendigen Viewer wieder sichtbar werden.
+  for I := 0 to FOptionsMenu.Count - 1 do
+    FOptionsMenu.Items[I].Visible := StandaloneViewer or
+      (FOptionsMenu.Items[I] = FLanguageMenu) or
+      (FOptionsMenu.Items[I] = FDesignMenu);
 end;
 
 procedure TPDFTabsForm.DesignClick(Sender: TObject);
@@ -5045,8 +5071,8 @@ begin
   else Exit;
 
   if SameText(PDFLanguage, NewLanguage) then Exit;
-  // Bis nach der Speicherabfrage die bisherige Dialogsprache beibehalten.
-  // Die neue Sprache wird erst bei erfolgreichem Schliessen gespeichert.
+  // Alle Rueckfragen in der bisher aktiven Sprache anzeigen.
+  // Die neue Sprache wird erst nach der Abfrage gespeichert.
 
   // Windows Task Dialog: moderner, systemeigener Dialog mit nativer
   // High-DPI-/4K-Skalierung. Kein eigenes Formular mit festen Pixelmassen.
@@ -5056,7 +5082,7 @@ begin
     MainIcon := tdiInformation;
     CommonButtons := [tcbYes, tcbNo];
     DefaultButton := tcbYes;
-    if NewLanguage = 'en' then
+    if SameText(PDFLanguage, 'en') then
     begin
       Title := 'Language change saved';
       Text := 'The new language will be applied after restarting the viewer.' +
@@ -5077,7 +5103,7 @@ begin
         Answer := mrNo;
     except
       // Fallback fuer Umgebungen ohne TaskDialog-Unterstuetzung.
-      if NewLanguage = 'en' then
+      if SameText(PDFLanguage, 'en') then
         Answer := MessageDlg('Restart now to apply the new language?',
           mtConfirmation, [mbYes, mbNo], 0)
       else
@@ -6527,6 +6553,18 @@ begin
   ActiveBrowser := nil;
   if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
     ActiveBrowser := PDFInTab(FTabs.ActivePage);
+  if FSplitHost <> nil then
+  begin
+    if FSplitActiveRight then
+      ActiveBrowser := PDFInTab(FSplitRightTab)
+    else
+      ActiveBrowser := PDFInTab(FSplitLeftTab);
+  end;
+  // Geteilte Ansicht: Ribbon-Befehle sind auf Vergleich und Navigation
+  // beschraenkt. Auch direkte Command-Aufrufe duerfen dies nicht umgehen.
+  if (FSplitHost <> nil) and not (CommandId in
+     [103, 166, 165, 116, 117, 119, 120, 210, 211]) then
+    Exit;
   case CommandId of
     103: OpenPDFClick(Self);
     166: OpenPDFClick(Self);
@@ -6575,11 +6613,11 @@ begin
     127: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
            ActiveBrowser.ShowCommentOverview;
     115, 123, 124, 126, 129, 130, 133, 134, 135, 137, 138,
-    143, 145, 146, 168..184, 190, 193, 194, 214..217:
+    143, 145, 146, 168..184, 190, 193, 194, 214..217, 229:
       if ActiveBrowser <> nil then
       begin
         ActiveBrowser.ExecuteRibbonPDFCommand(CommandId);
-        if CommandId in [129, 130] then
+        if CommandId in [129, 130, 229] then
           SyncVCLRibbonCommands;
       end;
     142: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage and
@@ -6594,6 +6632,10 @@ begin
     149: ShowViewerHelp(Self);
     150: ShowModernInfo(True);
     223: UpdateManualClick(Self);
+    225: if not RunningAlongsideFreePDF64 then ToggleWindowsStart(Self);
+    226: if not RunningAlongsideFreePDF64 then ToggleStartMinimized(Self);
+    227: ToggleTrayMode(Self);
+    228: if not RunningAlongsideFreePDF64 then PDFVerknuepfungClick(Self);
     224: if (FMergePDFMenuItem <> nil) and FMergePDFMenuItem.Enabled then
            MergePDFClick(Self);
     222: begin
@@ -6631,6 +6673,16 @@ begin
   Browser := nil;
   if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
     Browser := PDFInTab(FTabs.ActivePage);
+  if FSplitHost <> nil then
+  begin
+    if FSplitActiveRight then Browser := PDFInTab(FSplitRightTab)
+    else Browser := PDFInTab(FSplitLeftTab);
+    if not (CommandId in [212, 213, 221]) then
+    begin
+      DispatchRibbonCommand(CommandId);
+      Exit;
+    end;
+  end;
   if CommandId = 213 then
   begin
     if (Browser <> nil) and not Browser.IsBasicImage then
@@ -6702,6 +6754,7 @@ begin
        137,138,141,142,143,145,146,163,168..184,190..194,214..217])) then Exit;
   if CommandId = 197 then
   begin
+    if FSplitHost <> nil then Exit;
     TabPreviewMenuClick(Self);
     FVCLRibbon.SetTabPreviewChecked(FTabPreviewEnabled);
     Exit;
@@ -6778,7 +6831,9 @@ begin
       FUnsavedRibbonTabs.Add(FTabs.ActivePage);
     Dirty := Dirty or (FUnsavedRibbonTabs.IndexOf(FTabs.ActivePage) >= 0);
   end;
+  FVCLRibbon.SetCommandOrange(229, ToolId = 229);
   FVCLRibbon.SetCommandOrange(104, Dirty);
+  FVCLRibbon.SetCommandOrange(220, Dirty);
   FLastOrangeSave := Dirty;
   if (FLastOrangeTool <> 0) and (FLastOrangeTool <> ToolId) then
     FVCLRibbon.SetCommandOrange(FLastOrangeTool, False);
@@ -6802,16 +6857,94 @@ begin
   Browser := nil;
   if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
     Browser := PDFInTab(FTabs.ActivePage);
+  if FSplitHost <> nil then
+  begin
+    if FSplitActiveRight then Browser := PDFInTab(FSplitRightTab)
+    else Browser := PDFInTab(FSplitLeftTab);
+  end;
   HasDocument := Browser <> nil;
   HasPDF := HasDocument and not Browser.IsBasicImage;
+  // Im Vergleichsmodus direkt den ENDGUELTIGEN Ribbon-Zustand setzen.
+  // Kein vorheriges Aktivieren und anschliessendes Deaktivieren: verhindert Flackern.
+  if FSplitHost <> nil then
+  begin
+    for I := Low(PDFCommands) to High(PDFCommands) do
+      FVCLRibbon.SetCommandEnabled(PDFCommands[I], False);
+    for I := 168 to 194 do FVCLRibbon.SetCommandEnabled(I, False);
+    for I := 201 to 209 do FVCLRibbon.SetCommandEnabled(I, False);
+    for I := 214 to 229 do FVCLRibbon.SetCommandEnabled(I, False);
+    for I := 129 to 130 do FVCLRibbon.SetCommandEnabled(I, False);
+    FVCLRibbon.SetCommandEnabled(104, False);
+    FVCLRibbon.SetCommandEnabled(105, False);
+    FVCLRibbon.SetCommandEnabled(141, False);
+    FVCLRibbon.SetCommandEnabled(142, False);
+    FVCLRibbon.SetCommandEnabled(163, False);
+    FVCLRibbon.SetCommandEnabled(220, False);
+    FVCLRibbon.SetCommandEnabled(224, False);
+    // Im reinen Vergleichsmodus sind diese globalen Ribbon-Optionen gesperrt.
+    // Nicht ausblenden: Die Registerkartenanordnung bleibt stabil.
+    FVCLRibbon.SetCommandEnabled(197, False); // Registerkartenvorschau
+    for I := 153 to 157 do FVCLRibbon.SetCommandEnabled(I, False); // Design
+    FVCLRibbon.SetCommandEnabled(159, False); // Deutsch
+    FVCLRibbon.SetCommandEnabled(160, False); // English
+    FVCLRibbon.SetCommandEnabled(149, False); // Funktionsübersicht
+    FVCLRibbon.SetCommandEnabled(150, False); // Information
+    FVCLRibbon.SetCommandEnabled(-191, False);
+    FVCLRibbon.SetCommandEnabled(-192, False);
+    FVCLRibbon.SetCommandEnabled(116, HasPDF);
+    FVCLRibbon.SetCommandEnabled(117, HasPDF);
+    FVCLRibbon.SetCommandEnabled(119, True);
+    FVCLRibbon.SetCommandEnabled(120, HasPDF and
+      (FVisualCompareMenuItem <> nil) and FVisualCompareMenuItem.Enabled);
+    FVCLRibbon.SetCommandEnabled(210, HasPDF and (Browser.WorkspacePage > 1));
+    FVCLRibbon.SetCommandEnabled(211, HasPDF and
+      (Browser.WorkspacePage < Browser.GlobalPageCount));
+    if HasPDF then
+    begin
+      FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
+    end
+    else
+    begin
+      FVCLRibbon.SetPageStatus(0, 0);
+      FVCLRibbon.SetZoomPercent(0, False);
+    end;
+    FVCLRibbon.SetCommandOrange(104, False);
+    FVCLRibbon.SetCommandOrange(220, False);
+    FVCLRibbon.SetCommandOrange(229, False);
+    Exit;
+  end;
+  // Beim Verlassen der geteilten Ansicht alle gesperrten globalen
+  // Optionen wieder freigeben (ohne Neuanlegen der Ribbon-Controls).
+  FVCLRibbon.SetCommandEnabled(197, True);
+  for I := 153 to 157 do FVCLRibbon.SetCommandEnabled(I, True);
+  FVCLRibbon.SetCommandEnabled(159, True);
+  FVCLRibbon.SetCommandEnabled(160, True);
+  FVCLRibbon.SetCommandEnabled(149, True);
+  FVCLRibbon.SetCommandEnabled(150, True);
+  // Update-Register: im Vergleichsmodus deaktiviert (IDs 222/223),
+  // nach dem Verlassen unabhaengig vom Dokumentstatus wieder freigeben.
+  FVCLRibbon.SetCommandEnabled(222, True); // Woechentliche Updatepruefung
+  FVCLRibbon.SetCommandEnabled(223, True); // Nach Updates suchen
   for I := Low(PDFCommands) to High(PDFCommands) do
     FVCLRibbon.SetCommandEnabled(PDFCommands[I], HasPDF);
   FVCLRibbon.SetCommandEnabled(-191, HasPDF); // Seiten als Bilder exportieren
   FVCLRibbon.SetCommandEnabled(-192, HasPDF); // Seiten als Text exportieren
+  FVCLRibbon.SetCommandEnabled(229, HasPDF);
   FVCLRibbon.SetCommandEnabled(104, HasPDF); // Direkt speichern
   FVCLRibbon.SetCommandEnabled(220, HasPDF); // PDF speichern unter ...
   FVCLRibbon.SetCommandEnabled(224, HasPDF and (FTabs <> nil) and
     (FTabs.PageCount > 1) and (FSplitHost = nil)); // PDFs zusammenführen
+  FVCLRibbon.SetStandaloneOptionsVisible(not RunningAlongsideFreePDF64);
+  // Standalone-Optionen sind bei Integration in FreePDF64 deaktiviert.
+  for I := 225 to 228 do
+    FVCLRibbon.SetCommandEnabled(I, (I = 227) or not RunningAlongsideFreePDF64);
+  if not RunningAlongsideFreePDF64 then
+  begin
+    FVCLRibbon.SetCommandChecked(225, (FWindowsStartMenuItem <> nil) and FWindowsStartMenuItem.Checked);
+    FVCLRibbon.SetCommandChecked(226, FStartMinimized);
+  end;
+  FVCLRibbon.SetCommandChecked(227, FTrayEnabled);
   FVCLRibbon.SetCommandEnabled(105, HasDocument); // Drucken
   FVCLRibbon.SetCommandEnabled(218, HasDocument and not HasPDF and
     (Browser.TIFFRibbonPageCount > 1) and (Browser.TIFFRibbonPageIndex > 0));
@@ -6859,7 +6992,9 @@ begin
     FVCLRibbon.SetCommandEnabled(I, HasDocument and not HasPDF);
   // Refresh the orange save border AFTER enabled-state and ribbon updates.
   // A document tab owns its own dirty flag; do not reuse the previous tab's state.
-  FVCLRibbon.SetCommandOrange(104, HasPDF and
+  FVCLRibbon.SetCommandOrange(104, HasPDF and (FSplitHost = nil) and
+    (Browser <> nil) and Browser.HasUnsavedPDFChanges);
+  FVCLRibbon.SetCommandOrange(220, HasPDF and (FSplitHost = nil) and
     (Browser <> nil) and Browser.HasUnsavedPDFChanges);
 end;
 
@@ -7996,13 +8131,21 @@ begin
     // Auch Klicks auf die PDF-Kindcontrols aktivieren die entsprechende Seite.
     if (W = FSplitRight.Handle) or IsChild(FSplitRight.Handle, W) then
     begin
-      FSplitActiveRight := True;
-      UpdateSplitBorders;
+      if not FSplitActiveRight then
+      begin
+        FSplitActiveRight := True;
+        UpdateSplitBorders;
+        SyncVCLRibbonCommands;
+      end;
     end
     else if (W = FSplitLeft.Handle) or IsChild(FSplitLeft.Handle, W) then
     begin
-      FSplitActiveRight := False;
-      UpdateSplitBorders;
+      if FSplitActiveRight then
+      begin
+        FSplitActiveRight := False;
+        UpdateSplitBorders;
+        SyncVCLRibbonCommands;
+      end;
     end;
   end;
   FSplitMouseWasDown := DownNow;
@@ -8093,8 +8236,10 @@ end;
 
 procedure TPDFTabsForm.SplitPaneClick(Sender: TObject);
 begin
+  if FSplitActiveRight = (Sender = FSplitRight) then Exit;
   FSplitActiveRight := Sender = FSplitRight;
   UpdateSplitBorders;
+  SyncVCLRibbonCommands;
 end;
 
 procedure TPDFTabsForm.StopSplit;

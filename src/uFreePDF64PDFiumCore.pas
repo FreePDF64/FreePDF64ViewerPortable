@@ -196,6 +196,20 @@ type
     BeforeNote, AfterNote: TPDFNote;
     BeforeExists, AfterExists: Boolean;
   end;
+  // Bearbeitung vorhandener Seitenobjekte (PDF-Punktkoordinaten).
+  TPDFEditableObject = record
+    PageIndex: Integer;
+    ObjectIndex: Integer;
+    ObjectType: Integer; // 1 Text, 2 Pfad, 3 Bild
+    Left, Bottom, Right, Top: Single;
+  end;
+  TPDFObjectTransformAction = record
+    PageIndex, ObjectIndex: Integer;
+    AX, AY, BX, BY, CX, CY: Double; // affine Vorwaerts-Transformation
+    ObjectType: Integer;
+    BeforeLeft, BeforeBottom, BeforeRight, BeforeTop: Single;
+    AfterLeft, AfterBottom, AfterRight, AfterTop: Single;
+  end;
   TFreePDF64PDFiumCore = class
   private
     FDocument: Pointer;
@@ -217,6 +231,8 @@ type
     FReplayingHighlight: Boolean;
     FNoteActions: TList<TPDFNoteAction>;
     FNoteActionPos: Integer;
+    FObjectActions: TList<TPDFObjectTransformAction>;
+    FObjectActionPos: Integer;
     procedure RecalculateTest24;
     function ApplyNoteState(const N: TPDFNote; AExists: Boolean; AIndex: Integer): Boolean;
     procedure RecordNoteAction(const A: TPDFNoteAction);
@@ -286,6 +302,25 @@ type
     function RedoNote(out APageIndex: Integer): Boolean;
     function CanUndoNote: Boolean;
     function CanRedoNote: Boolean;
+    // Meilenstein: vorhandene PDF-Objekte erkennen, bewegen, skalieren.
+    function FindEditableObject(APageIndex: Integer; AX, AY: Double;
+      out AObject: TPDFEditableObject): Boolean;
+    function GetEditableObject(APageIndex, AObjectIndex: Integer;
+      out AObject: TPDFEditableObject): Boolean;
+    function TransformExistingObject(APageIndex, AObjectIndex: Integer;
+      A, B, C, D, E, F: Double): Boolean;
+    function MoveExistingObject(APageIndex, AObjectIndex: Integer;
+      ADX, ADY: Double): Boolean;
+    function RotateExistingObject(APageIndex, AObjectIndex: Integer;
+      AAngleRadians: Double): Boolean;
+    function PreviewRotateExistingObject(APageIndex, AObjectIndex: Integer;
+      ADeltaRadians, ACenterX, ACenterY: Double): Boolean;
+    function ScaleExistingObject(APageIndex, AObjectIndex: Integer;
+      AScaleX, AScaleY: Double): Boolean;
+    function UndoObjectTransform(out APageIndex: Integer): Boolean;
+    function RedoObjectTransform(out APageIndex: Integer): Boolean;
+    function CanUndoObjectTransform: Boolean;
+    function CanRedoObjectTransform: Boolean;
     procedure SaveAs(const AFileName: string);
     function GetMeasurementComments(APageIndex: Integer): TArray<string>;
     procedure SaveAsWithMeasurements(const AFileName: string;
@@ -2122,6 +2157,7 @@ begin
   FStrokePages := TList<Integer>.Create;
   FTextActions := TList<TPDFInsertedTextAction>.Create;
   FNoteActions := TList<TPDFNoteAction>.Create;
+  FObjectActions := TList<TPDFObjectTransformAction>.Create;
   if TInterlocked.Increment(LibraryUsers) = 1 then
     FPDF_InitLibrary;
 end;
@@ -2129,6 +2165,7 @@ end;
 destructor TFreePDF64PDFiumCore.Destroy;
 begin
   CloseFile;
+  FObjectActions.Free;
   FNoteActions.Free;
   FTextActions.Free;
   FStrokePages.Free;
@@ -2533,6 +2570,8 @@ end;
 
 procedure TFreePDF64PDFiumCore.CloseFile;
 begin
+  FObjectActions.Clear;
+  FObjectActionPos := 0;
   ClearTextActions;
   FNoteActions.Clear;
   FNoteActionPos := 0;
@@ -3419,6 +3458,266 @@ end;
 
 // Konservative, rein lesende Vorpruefung fuer die geplante sichere Schwaerzung.
 // Eine erfolgreiche Analyse bedeutet NICHT, dass die Seite sicher schwaerzbar ist.
+
+// Bearbeitung vorhandener PDF-Seitenobjekte. PDFium liefert PDF-Punktkoordinaten;
+// die Umrechnung aus Mauskoordinaten erfolgt im View mit DevicePointToPage.
+function TFreePDF64PDFiumCore.GetEditableObject(APageIndex, AObjectIndex: Integer;
+  out AObject: TPDFEditableObject): Boolean;
+var P, O: Pointer; L, B, R, T: Single; K: Integer;
+begin
+  Result := False;
+  FillChar(AObject, SizeOf(AObject), 0);
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    if (AObjectIndex < 0) or (AObjectIndex >= FPDFPage_CountObjects(P)) then Exit;
+    O := FPDFPage_GetObject(P, AObjectIndex);
+    if O = nil then Exit;
+    K := FPDFPageObj_GetType(O);
+    if not (K in [1, 2, 3]) then Exit;
+    if (FPDFPageObj_GetBounds(O, L, B, R, T) = 0) or (R <= L) or (T <= B) then Exit;
+    AObject.PageIndex := APageIndex;
+    AObject.ObjectIndex := AObjectIndex;
+    AObject.ObjectType := K;
+    AObject.Left := L; AObject.Bottom := B;
+    AObject.Right := R; AObject.Top := T;
+    Result := True;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.FindEditableObject(APageIndex: Integer;
+  AX, AY: Double; out AObject: TPDFEditableObject): Boolean;
+var P, O: Pointer; I, K: Integer; L, B, R, T: Single;
+begin
+  Result := False;
+  FillChar(AObject, SizeOf(AObject), 0);
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    // Rueckwaerts: oberstes Objekt zuerst. Bounds sind nur ein Hit-Test-Rechteck.
+    for I := FPDFPage_CountObjects(P) - 1 downto 0 do
+    begin
+      O := FPDFPage_GetObject(P, I);
+      if O = nil then Continue;
+      K := FPDFPageObj_GetType(O);
+      if not (K in [1, 2, 3]) then Continue;
+      if FPDFPageObj_GetBounds(O, L, B, R, T) = 0 then Continue;
+      if (AX < L) or (AX > R) or (AY < B) or (AY > T) then Continue;
+      AObject.PageIndex := APageIndex; AObject.ObjectIndex := I;
+      AObject.ObjectType := K;
+      AObject.Left := L; AObject.Bottom := B;
+      AObject.Right := R; AObject.Top := T;
+      Exit(True);
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.TransformExistingObject(APageIndex, AObjectIndex: Integer;
+  A, B, C, D, E, F: Double): Boolean;
+var P, O: Pointer; L, Bo, R, T: Single; Det: Double;
+  InvA, InvB, InvC, InvD, InvE, InvF: Double;
+  Act: TPDFObjectTransformAction;
+begin
+  Result := False;
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  if (Abs(A) + Abs(B) + Abs(C) + Abs(D) + Abs(E) + Abs(F) > 1.0E10) then Exit;
+  Det := A * D - B * C;
+  if Abs(Det) < 1.0E-10 then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    if (AObjectIndex < 0) or (AObjectIndex >= FPDFPage_CountObjects(P)) then Exit;
+    O := FPDFPage_GetObject(P, AObjectIndex);
+    if (O = nil) or not (FPDFPageObj_GetType(O) in [1, 2, 3]) or
+      (FPDFPageObj_GetBounds(O, L, Bo, R, T) = 0) then Exit;
+    InvA := D / Det; InvB := -B / Det;
+    InvC := -C / Det; InvD := A / Det;
+    InvE := -(InvA * E + InvC * F);
+    InvF := -(InvB * E + InvD * F);
+    FPDFPageObj_Transform(O, A, B, C, D, E, F);
+    if FPDFPage_GenerateContent(P) = 0 then
+    begin
+      FPDFPageObj_Transform(O, InvA, InvB, InvC, InvD, InvE, InvF);
+      FPDFPage_GenerateContent(P);
+      Exit;
+    end;
+    while FObjectActions.Count > FObjectActionPos do
+      FObjectActions.Delete(FObjectActions.Count - 1);
+    Act.PageIndex := APageIndex; Act.ObjectIndex := AObjectIndex;
+    Act.ObjectType := FPDFPageObj_GetType(O);
+    Act.BeforeLeft := L; Act.BeforeBottom := Bo;
+    Act.BeforeRight := R; Act.BeforeTop := T;
+    if FPDFPageObj_GetBounds(O, L, Bo, R, T) = 0 then Exit;
+    Act.AfterLeft := L; Act.AfterBottom := Bo;
+    Act.AfterRight := R; Act.AfterTop := T;
+    Act.AX := A; Act.AY := B; Act.BX := C;
+    Act.BY := D; Act.CX := E; Act.CY := F;
+    FObjectActions.Add(Act);
+    Inc(FObjectActionPos);
+    FModified := True;
+    InvalidateSearchCache;
+    Result := True;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.MoveExistingObject(APageIndex, AObjectIndex: Integer;
+  ADX, ADY: Double): Boolean;
+begin
+  Result := TransformExistingObject(APageIndex, AObjectIndex, 1, 0, 0, 1, ADX, ADY);
+end;
+
+function TFreePDF64PDFiumCore.ScaleExistingObject(APageIndex, AObjectIndex: Integer;
+  AScaleX, AScaleY: Double): Boolean;
+var O: TPDFEditableObject;
+begin
+  Result := False;
+  if (AScaleX <= 0) or (AScaleY <= 0) or
+    (AScaleX > 100) or (AScaleY > 100) then Exit;
+  if not GetEditableObject(APageIndex, AObjectIndex, O) then Exit;
+  // Untere linke Ecke bleibt als Anker fest.
+  Result := TransformExistingObject(APageIndex, AObjectIndex,
+    AScaleX, 0, 0, AScaleY,
+    O.Left * (1 - AScaleX), O.Bottom * (1 - AScaleY));
+end;
+
+function TFreePDF64PDFiumCore.RotateExistingObject(APageIndex, AObjectIndex: Integer;
+  AAngleRadians: Double): Boolean;
+var
+  O: TPDFEditableObject;
+  CX, CY, Co, Si: Double;
+begin
+  Result := False;
+  if not GetEditableObject(APageIndex, AObjectIndex, O) then Exit;
+  if Abs(AAngleRadians) < 0.000001 then Exit;
+  CX := (O.Left + O.Right) * 0.5;
+  CY := (O.Bottom + O.Top) * 0.5;
+  Co := Cos(AAngleRadians);
+  Si := Sin(AAngleRadians);
+  Result := TransformExistingObject(APageIndex, AObjectIndex,
+    Co, Si, -Si, Co,
+    CX * (1 - Co) + CY * Si,
+    CY * (1 - Co) - CX * Si);
+end;
+
+function TFreePDF64PDFiumCore.PreviewRotateExistingObject(APageIndex, AObjectIndex: Integer;
+  ADeltaRadians, ACenterX, ACenterY: Double): Boolean;
+var
+  P, O: Pointer;
+  Co, Si: Double;
+begin
+  Result := False;
+  if Abs(ADeltaRadians) < 0.0000001 then Exit(True);
+  if (FDocument = nil) or (APageIndex < 0) or (APageIndex >= FPageCount) then Exit;
+  P := FPDF_LoadPage(FDocument, PhysicalPage(APageIndex));
+  if P = nil then Exit;
+  try
+    if (AObjectIndex < 0) or (AObjectIndex >= FPDFPage_CountObjects(P)) then Exit;
+    O := FPDFPage_GetObject(P, AObjectIndex);
+    if (O = nil) or not (FPDFPageObj_GetType(O) in [1, 2, 3]) then Exit;
+    Co := Cos(ADeltaRadians);
+    Si := Sin(ADeltaRadians);
+    FPDFPageObj_Transform(O, Co, Si, -Si, Co,
+      ACenterX * (1 - Co) + ACenterY * Si,
+      ACenterY * (1 - Co) - ACenterX * Si);
+    if FPDFPage_GenerateContent(P) = 0 then
+    begin
+      FPDFPageObj_Transform(O, Co, -Si, Si, Co,
+        ACenterX * (1 - Co) - ACenterY * Si,
+        ACenterY * (1 - Co) + ACenterX * Si);
+      FPDFPage_GenerateContent(P);
+      Exit;
+    end;
+    Result := True;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.CanUndoObjectTransform: Boolean;
+begin
+  Result := FObjectActionPos > 0;
+end;
+
+function TFreePDF64PDFiumCore.CanRedoObjectTransform: Boolean;
+begin
+  Result := FObjectActionPos < FObjectActions.Count;
+end;
+
+function TFreePDF64PDFiumCore.UndoObjectTransform(out APageIndex: Integer): Boolean;
+var Act: TPDFObjectTransformAction; P, O: Pointer;
+  L, Bo, R, T: Single;
+  Det, A, B, C, D, E, F: Double;
+begin
+  Result := False; APageIndex := -1;
+  if not CanUndoObjectTransform or (FDocument = nil) then Exit;
+  Act := FObjectActions[FObjectActionPos - 1];
+  Det := Act.AX * Act.BY - Act.AY * Act.BX;
+  if Abs(Det) < 1.0E-10 then Exit;
+  A := Act.BY / Det; B := -Act.AY / Det;
+  C := -Act.BX / Det; D := Act.AX / Det;
+  E := -(A * Act.CX + C * Act.CY);
+  F := -(B * Act.CX + D * Act.CY);
+  P := FPDF_LoadPage(FDocument, PhysicalPage(Act.PageIndex));
+  if P = nil then Exit;
+  try
+    if (Act.ObjectIndex < 0) or (Act.ObjectIndex >= FPDFPage_CountObjects(P)) then Exit;
+    O := FPDFPage_GetObject(P, Act.ObjectIndex);
+    if (O = nil) or (FPDFPageObj_GetType(O) <> Act.ObjectType) or
+      (FPDFPageObj_GetBounds(O, L, Bo, R, T) = 0) then Exit;
+    // Keine Transformation auf ein inzwischen ersetztes/verschobenes Objekt.
+    if (Abs(L - Act.AfterLeft) > 0.1) or
+       (Abs(Bo - Act.AfterBottom) > 0.1) or
+       (Abs(R - Act.AfterRight) > 0.1) or
+       (Abs(T - Act.AfterTop) > 0.1) then Exit;
+    FPDFPageObj_Transform(O, A, B, C, D, E, F);
+    if FPDFPage_GenerateContent(P) = 0 then
+    begin
+      FPDFPageObj_Transform(O, Act.AX, Act.AY, Act.BX, Act.BY, Act.CX, Act.CY);
+      FPDFPage_GenerateContent(P);
+      Exit;
+    end;
+    Dec(FObjectActionPos); APageIndex := Act.PageIndex;
+    FModified := True; InvalidateSearchCache; Result := True;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
+function TFreePDF64PDFiumCore.RedoObjectTransform(out APageIndex: Integer): Boolean;
+var Act: TPDFObjectTransformAction; P, O: Pointer;
+  L, Bo, R, T: Single;
+begin
+  Result := False; APageIndex := -1;
+  if not CanRedoObjectTransform or (FDocument = nil) then Exit;
+  Act := FObjectActions[FObjectActionPos];
+  P := FPDF_LoadPage(FDocument, PhysicalPage(Act.PageIndex));
+  if P = nil then Exit;
+  try
+    if (Act.ObjectIndex < 0) or (Act.ObjectIndex >= FPDFPage_CountObjects(P)) then Exit;
+    O := FPDFPage_GetObject(P, Act.ObjectIndex);
+    if (O = nil) or (FPDFPageObj_GetType(O) <> Act.ObjectType) or
+      (FPDFPageObj_GetBounds(O, L, Bo, R, T) = 0) then Exit;
+    if (Abs(L - Act.BeforeLeft) > 0.1) or
+       (Abs(Bo - Act.BeforeBottom) > 0.1) or
+       (Abs(R - Act.BeforeRight) > 0.1) or
+       (Abs(T - Act.BeforeTop) > 0.1) then Exit;
+    FPDFPageObj_Transform(O, Act.AX, Act.AY, Act.BX, Act.BY, Act.CX, Act.CY);
+    if FPDFPage_GenerateContent(P) = 0 then Exit;
+    Inc(FObjectActionPos); APageIndex := Act.PageIndex;
+    FModified := True; InvalidateSearchCache; Result := True;
+  finally
+    FPDF_ClosePage(P);
+  end;
+end;
+
 function TFreePDF64PDFiumCore.AnalyzeRedactionRegion(APageIndex: Integer;
   const ARegion: TPDFInkRect;
   out AAnalysis: TPDFRedactionObjectAnalysis): Boolean;
