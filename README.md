@@ -40,7 +40,7 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **Improved editing feedback:** Newly placed PDF hyperlinks can show their target URL as a tooltip before the PDF is saved. Refined Ribbon hover states, button spacing, and tool selection.
 - **German/English and high-DPI layouts:** Updated bilingual labels, tooltips, and feature help; refined Ribbon presentation for 4K and WQHD displays.
 
-### Highlights from earlier releases (3.2.0–3.2.4)
+### Highlights from earlier releases (3.2.0–3.3.0)
 
 - Insert and edit images in PDF pages, including visual multipage TIFF selection.
 - Extract embedded PDF images, export complete pages, and view document fonts.
@@ -127,7 +127,7 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **Verbesserte Rückmeldungen bei der Bearbeitung:** Neu platzierte PDF-Hyperlinks können ihre Zieladresse bereits vor dem Speichern als Hinweis anzeigen. Überarbeitete Ribbon-Hover-Markierungen, Buttonabstände und Werkzeugauswahl.
 - **Deutsch/Englisch und hohe DPI-Auflösungen:** Aktualisierte zweisprachige Beschriftungen, Hinweise und Funktionsübersicht; optimierte Ribbon-Darstellung für 4K und WQHD.
 
-### Highlights früherer Versionen (3.2.0–3.2.4)
+### Highlights früherer Versionen (3.2.0–3.3.0)
 
 - Bilder in PDF-Seiten einfügen und bearbeiten, einschließlich visueller Auswahl mehrseitiger TIFF-Dateien.
 - Eingebettete PDF-Bilder extrahieren, ganze Seiten exportieren und PDF-Schriftarten anzeigen.
