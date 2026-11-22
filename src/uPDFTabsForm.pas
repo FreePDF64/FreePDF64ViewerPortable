@@ -3656,6 +3656,16 @@ begin
         'Save the completed PDF and reopen it to check the entered values and selections. '
         + 'Use Save As to preserve the original document when needed. Some forms may depend on PDF features not supported by this viewer.');
       AddSection('Document information and tools', '');
+      AddSection('Editing PDF metadata',
+        'Open Document Properties and choose Edit metadata. You can edit Title, Author, Subject, Keywords and Creator. '
+        + 'Select Save As and enter a destination filename. You can create a new PDF or confirm replacement of an existing destination PDF. '
+        + 'The viewer first writes a temporary PDF, checks the result with PDFium and only then publishes it. '
+        + 'If saving fails or you cancel the Save As dialog, your entries remain in the metadata editor. '
+        + 'The currently open source PDF cannot be overwritten directly; choose a different filename. '
+        + 'The writer supports selected classic, stream-based and hybrid cross-reference structures and selected XMP packets, including supported FlateDecode variants. '
+        + 'Some complex XMP structures, filters and PDF variants may still be rejected. '
+        + 'Encrypted and digitally signed PDFs are deliberately protected. '
+        + 'After saving, open the output PDF and check its document properties.');
       AddSection('Attachments and document properties',
         'PDF attachments are files embedded in a PDF, such as invoices, spreadsheets or supplementary documents. This lets related files be shared and archived together. A small asterisk (*) on the paperclip indicates that the currently displayed PDF contains embedded attachments. Without an asterisk, no embedded attachments have been detected. The tooltip always reads “Show PDF attachments” regardless of whether attachments are available. Click the paperclip to show or hide the attachment list and view or extract embedded files. Document properties provide information about the PDF and its security settings.');
       AddSection('Extract embedded PDF images',
@@ -4055,6 +4065,17 @@ begin
         'Speichern Sie die ausgefüllte PDF und öffnen Sie sie erneut, um Eingaben und Auswahlen zu kontrollieren. '
         + 'Mit „Speichern unter ...“ können Sie bei Bedarf das Original erhalten. Manche Formulare benötigen PDF-Funktionen, die dieser Viewer nicht unterstützt.');
       AddSection('Dokumentinformationen und Werkzeuge', '');
+      AddSection('PDF-Metadaten bearbeiten',
+        'Öffnen Sie die Dokumenteigenschaften und wählen Sie „Metadaten bearbeiten ...“. '
+        + 'Sie können Titel, Autor, Betreff, Schlüsselwörter und Ersteller ändern. '
+        + 'Wählen Sie „Speichern unter ...“ und geben Sie eine Zieldatei an. Sie können eine neue PDF erstellen oder das Überschreiben einer vorhandenen Zieldatei bestätigen. '
+        + 'Der Viewer schreibt zunächst eine temporäre PDF, prüft das Ergebnis mit PDFium und stellt die Datei erst danach bereit. '
+        + 'Wenn das Speichern fehlschlägt oder Sie den Speicherdialog abbrechen, bleiben Ihre Eingaben im Metadatenfenster erhalten. '
+        + 'Die aktuell geöffnete Quell-PDF kann nicht direkt überschrieben werden; wählen Sie einen anderen Dateinamen. '
+        + 'Unterstützt werden ausgewählte klassische, streambasierte und hybride Querverweisstrukturen sowie ausgewählte XMP-Pakete einschließlich unterstützter FlateDecode-Varianten. '
+        + 'Komplexe XMP-Strukturen, Filter und weitere PDF-Sonderfälle können weiterhin abgewiesen werden. '
+        + 'Verschlüsselte und digital signierte PDFs bleiben bewusst geschützt. '
+        + 'Öffnen Sie nach dem Speichern die Zieldatei und prüfen Sie ihre Dokumenteigenschaften.');
       AddSection('Anlagen und Dokumenteigenschaften',
         'PDF-Anlagen sind Dateien, die direkt in ein PDF eingebettet sind, zum Beispiel Rechnungen, Tabellen oder ergänzende Dokumente. ' +
         'So lassen sich zusammengehörige Unterlagen gemeinsam weitergeben und archivieren. ' +

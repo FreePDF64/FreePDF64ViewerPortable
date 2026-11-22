@@ -7,7 +7,7 @@ uses
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
   Vcl.Printers, Vcl.FileCtrl, Vcl.Clipbrd, Vcl.ComCtrls, Vcl.Menus, Vcl.AppEvnts, System.IniFiles, System.Generics.Collections, Math,
-  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, Winapi.GDIPAPI, Winapi.GDIPOBJ, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary;
+  System.NetEncoding, System.Character, Vcl.Imaging.jpeg, Vcl.Imaging.pngimage, Winapi.GDIPAPI, Winapi.GDIPOBJ, System.Types, uFreePDF64PDFiumCore, uPDFSignatureDialog, uPDFSignatureLibrary, uPDFMetadataEditor;
 
 const
   WM_PDF_FINISH_TEXT = WM_APP + $5A2;
@@ -514,6 +514,7 @@ type
     procedure InfoDialogMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure InfoCloseButtonClick(Sender: TObject);
+    procedure MetadataEditClick(Sender: TObject);
     function RequestPDFPassword(const AFileName: string; out APassword: string;
       AOwnerPermission: Boolean = False): Boolean;
     procedure SearchNext(ADirection: Integer);
@@ -10051,6 +10052,19 @@ begin
   InfoClick(Self);
 end;
 
+procedure TFreePDF64PDFiumView.MetadataEditClick(Sender: TObject);
+var Values: TPDFMetadataValues;
+begin
+  if (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  Values[0] := FCore.MetaText('Title');
+  Values[1] := FCore.MetaText('Author');
+  Values[2] := FCore.MetaText('Subject');
+  Values[3] := FCore.MetaText('Keywords');
+  Values[4] := FCore.MetaText('Creator');
+  EditPDFMetadata(Self, FCore.FileName, Values,
+    ToolbarHint('DE', 'EN') = 'EN', FEditToggle.FDesign);
+end;
+
 procedure TFreePDF64PDFiumView.InfoClick(Sender: TObject);
 var
   EncryptionText: string;
@@ -10058,7 +10072,7 @@ var
   EditRights: Boolean;
   Dlg: TForm;
   Header, SectionTitle, Lab, Val: TLabel;
-  CloseBtn: TButton;
+  CloseBtn, EditMetaBtn: TButton;
   ContentScroll, FontsScroll, ObjectsScroll: TScrollBox;
   PageSelect: TComboBox;
   DetailsContentH: Integer;
@@ -10196,12 +10210,16 @@ begin
     DialogH := P(610);
     if DialogH > Screen.WorkAreaHeight - P(70) then
       DialogH := Screen.WorkAreaHeight - P(70);
-    Dlg.Left := PDFWindow.Left + (PDFWindow.Width - DialogW) div 2;
-    Dlg.Top := PDFWindow.Top + (PDFWindow.Height - DialogH) div 2;
-    if Dlg.Left < Screen.WorkAreaLeft then Dlg.Left := Screen.WorkAreaLeft;
-    if Dlg.Top < Screen.WorkAreaTop then Dlg.Top := Screen.WorkAreaTop;
     Dlg.ClientWidth := DialogW;
     Dlg.ClientHeight := DialogH;
+    // Nach dem Festlegen der Clientgroesse anhand der echten Fenster-
+    // aussenmasse im Viewer zentrieren (auch bei 4K/DPI).
+    Dlg.Left := PDFWindow.Left + (PDFWindow.Width - Dlg.Width) div 2;
+    Dlg.Top := PDFWindow.Top + (PDFWindow.Height - Dlg.Height) div 2;
+    if Dlg.Left < PDFWindow.Monitor.WorkareaRect.Left then
+      Dlg.Left := PDFWindow.Monitor.WorkareaRect.Left;
+    if Dlg.Top < PDFWindow.Monitor.WorkareaRect.Top then
+      Dlg.Top := PDFWindow.Monitor.WorkareaRect.Top;
     Dlg.Font.Name := 'Segoe UI';
     Dlg.Font.Size := 9;
     // Die Schrift ist bereits durch VCL/Windows DPI-skaliert.
@@ -10245,7 +10263,7 @@ begin
     AddField('Dateigröße:', FormatFloat('#,##0', Bytes / 1024) + ' KB');
     AddField('Titel:', FCore.MetaText('Title'));
     AddField('Autor:', FCore.MetaText('Author'));
-    AddField('Antragsteller:', FCore.MetaText('Subject'));
+    AddField(ToolbarHint('Betreff:', 'Subject:'), FCore.MetaText('Subject'));
     AddField('Schlüsselwörter:', FCore.MetaText('Keywords'));
     AddField('Erstellt am:', PDFDate(FCore.MetaText('CreationDate')));
     AddField('Geändert am:', PDFDate(FCore.MetaText('ModDate')));
@@ -10301,6 +10319,15 @@ begin
     AddPermission('Formulare ausfüllen:', UInt64(256));
     AddPermission('Dokumentzusammenstellung:', UInt64(1024));
 
+    EditMetaBtn := TButton.Create(Dlg);
+    EditMetaBtn.Parent := Dlg;
+    EditMetaBtn.Caption := ToolbarHint('Metadaten bearbeiten ...', 'Edit metadata ...');
+    EditMetaBtn.OnClick := MetadataEditClick;
+    EditMetaBtn.SetBounds(P(26), DialogH - P(51), P(185), P(35));
+    EditMetaBtn.Hint := ToolbarHint(
+      'Titel, Autor, Betreff, Schlüsselwörter und Ersteller in einer neuen PDF speichern.',
+      'Edit title, author, subject, keywords and creator in a new PDF file.');
+    EditMetaBtn.ShowHint := True;
     CloseBtn := TButton.Create(Dlg);
     CloseBtn.Parent := Dlg;
     CloseBtn.Caption := Tr('Schließen');
