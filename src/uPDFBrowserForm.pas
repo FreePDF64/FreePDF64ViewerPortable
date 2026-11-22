@@ -189,6 +189,7 @@ type
     function WorkspaceSidebarVisible: Boolean;
     procedure SetWorkspaceLayout(AViewMode: Integer; ATwoPage, AContinuous, ASidebar: Boolean);
     function WorkspacePage: Integer;
+    function WorkspaceMeasureUnit: Integer;
     procedure RibbonShowPage(APage: Integer);
     function WorkspaceZoom: Double;
     function WorkspaceFit: Boolean;
@@ -695,6 +696,13 @@ begin
   Result := Max(1, FStartPage);
   if (FPDFiumView <> nil) and FNavigationSucceeded then
     Result := Max(1, FPDFiumView.PageIndex + 1);
+end;
+
+function TPDFBrowserForm.WorkspaceMeasureUnit: Integer;
+begin
+  Result := -1;
+  if (FPDFiumView <> nil) and FNavigationSucceeded and not IsBasicImage then
+    Result := FPDFiumView.WorkspaceMeasureUnit;
 end;
 
 procedure TPDFBrowserForm.RibbonShowPage(APage: Integer);

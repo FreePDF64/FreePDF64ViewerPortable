@@ -736,6 +736,13 @@ begin
   AddPair('128 Bit (PDF-Sicherheitsrevision 4)', '128-bit (PDF security revision 4)');
   AddPair('256-Bit AES', '256-bit AES');
   AddPair('Seitenbreite', 'Page width');
+  AddPair('Originalgröße (100 %)', 'Original size (100%)');
+  AddPair('Benutzerdefiniert', 'Custom');
+  AddPair('Gespeicherte Arbeitsbereiche verwalten', 'Manage saved workspaces: search, open, rename or delete collections of documents.');
+  AddPair('Blau: aktuelle Seite; Rot und Häkchen: ausgewählte Seiten', 'Blue: current page; red border and check mark: selected pages');
+  AddPair('Es sind keine gültigen Schwärzungsbereiche vorgemerkt.', 'No valid redaction areas have been marked.');
+  AddPair('Es wurden keine gültigen Schwärzungsrechtecke gefunden.', 'No valid redaction rectangles were found.');
+  AddPair('%d PDF-Datei(en) sind nicht erreichbar.', '%d PDF file(s) could not be accessed.');
   AddPair('Benutzerdefiniert', 'Custom');
   AddPair('Keine PDF-Lesezeichen vorhanden', 'No PDF bookmarks available');
   AddPair('PDF-Anlage extrahieren', 'Extract PDF attachment');

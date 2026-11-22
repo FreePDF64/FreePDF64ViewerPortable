@@ -17,6 +17,7 @@ type
   private
     FIcon: Vcl.Graphics.TBitmap;
     FOrangeActive: Boolean;
+    FUnitSelected: Boolean;
   protected
     procedure Paint; override;
   public
@@ -25,6 +26,7 @@ type
     procedure SetRibbonIcon(const AFileName: string);
     procedure SetViewModeIcon(AMode: Integer; AColor: TColor);
     procedure SetOrangeActive(Value: Boolean);
+    procedure SetUnitSelected(Value: Boolean);
   end;
 
   // DPI-aware, theme-aware collapse control; no external glyph resource.
@@ -112,6 +114,9 @@ type
     procedure SetCommandEnabled(CommandId: Integer; Enabled: Boolean);
     procedure SetCommandOrange(CommandId: Integer; Active: Boolean);
     procedure SetCommandChecked(CommandId: Integer; Checked: Boolean);
+    procedure SetMeasurementUnit(UnitIndex: Integer);
+    procedure SetSelectedDesign(DesignCommandId: Integer);
+    procedure SetCommandSelected(CommandId: Integer; Selected: Boolean);
     procedure SetStandaloneOptionsVisible(Visible: Boolean);
     procedure SetCommandText(CommandId: Integer; const ACaption, AHint: string);
     procedure RefreshLanguage;
@@ -164,6 +169,100 @@ begin
   end;
 end;
 
+
+function DetailedRibbonHint(CommandId: Integer): string;
+begin
+  Result := '';
+  case CommandId of
+    103: if SameText(PDFLanguage, 'en') then Result := 'Open PDF documents or supported images in a new tab.' else Result := 'Öffnet PDF-Dateien oder unterstützte Bilder in einer neuen Registerkarte.';
+    104: if SameText(PDFLanguage, 'en') then Result := 'Save changes to the open PDF document. Shortcut: Ctrl+S.' else Result := 'Speichert Änderungen am geöffneten PDF-Dokument. Tastenkürzel: Strg+S.';
+    105: if SameText(PDFLanguage, 'en') then Result := 'Print the current document or image using the Windows print dialog.' else Result := 'Druckt das aktuell geöffnete Dokument oder Bild über den Windows-Druckdialog.';
+    108: if SameText(PDFLanguage, 'en') then Result := 'Open the manager for saved workspaces. Search, load, rename or delete workspaces here.' else Result := 'Öffnet die Verwaltung gespeicherter Arbeitsbereiche. Hier können Sie Arbeitsbereiche suchen, laden, umbenennen und löschen.';
+    196: if SameText(PDFLanguage, 'en') then Result := 'Save the current set of open documents as a workspace.' else Result := 'Speichert die aktuelle Zusammenstellung geöffneter Dokumente als Arbeitsbereich.';
+    110: if SameText(PDFLanguage, 'en') then Result := 'Search for text in the current PDF and jump to matching results.' else Result := 'Sucht nach Text im aktuell geöffneten PDF und ermöglicht den Sprung zu Fundstellen.';
+    111: if SameText(PDFLanguage, 'en') then Result := 'Search for text across all open PDF documents and display matching results.' else Result := 'Durchsucht alle geöffneten PDF-Dokumente nach Text und zeigt die Fundstellen dokumentübergreifend an.';
+    114: if SameText(PDFLanguage, 'en') then Result := 'Show or hide page thumbnails for the current PDF document.' else Result := 'Blendet die Seitenminiaturen des aktuellen PDF-Dokuments ein oder aus.';
+    115: if SameText(PDFLanguage, 'en') then Result := 'Fit the PDF page to the available viewing area. Use the dropdown below to choose a zoom mode.' else Result := 'Passt die PDF-Seite an den verfügbaren Anzeigebereich an. Im Auswahlfeld darunter können Sie den Zoommodus ändern.';
+    116: if SameText(PDFLanguage, 'en') then Result := 'Increase the zoom level of the current document.' else Result := 'Vergrößert die Ansicht des aktuellen Dokuments schrittweise.';
+    117: if SameText(PDFLanguage, 'en') then Result := 'Decrease the zoom level of the current document.' else Result := 'Verkleinert die Ansicht des aktuellen Dokuments schrittweise.';
+    214: if SameText(PDFLanguage, 'en') then Result := 'Reset the document zoom to 100 percent.' else Result := 'Setzt die Dokumentansicht auf 100 Prozent Vergrößerung.';
+    215: if SameText(PDFLanguage, 'en') then Result := 'Display PDF pages in a two-page view.' else Result := 'Zeigt PDF-Seiten in einer doppelseitigen Ansicht an.';
+    216: if SameText(PDFLanguage, 'en') then Result := 'Switch the document display to page-by-page viewing.' else Result := 'Wechselt die Seitenanzeige in den seitenweisen Modus.';
+    217: if SameText(PDFLanguage, 'en') then Result := 'Activate the hand tool to pan around a zoomed page with the mouse.' else Result := 'Aktiviert das Hand-Werkzeug, um die vergrößerte Seite mit der Maus zu verschieben.';
+    210: if SameText(PDFLanguage, 'en') then Result := 'Go to the previous page of the current PDF document.' else Result := 'Wechselt zur vorherigen Seite des aktuellen PDF-Dokuments.';
+    211: if SameText(PDFLanguage, 'en') then Result := 'Go to the next page of the current PDF document.' else Result := 'Wechselt zur nächsten Seite des aktuellen PDF-Dokuments.';
+    212: if SameText(PDFLanguage, 'en') then Result := 'Enter a page number and press Enter to jump directly to that page.' else Result := 'Geben Sie eine Seitennummer ein und drücken Sie Enter, um direkt zu dieser Seite zu springen.';
+    201: if SameText(PDFLanguage, 'en') then Result := 'Zoom out of the open image.' else Result := 'Verkleinert die Ansicht des geöffneten Bildes.';
+    202: if SameText(PDFLanguage, 'en') then Result := 'Zoom in on the open image.' else Result := 'Vergrößert die Ansicht des geöffneten Bildes.';
+    203: if SameText(PDFLanguage, 'en') then Result := 'Rotate the open image 90 degrees counterclockwise.' else Result := 'Dreht das geöffnete Bild um 90 Grad nach links.';
+    204: if SameText(PDFLanguage, 'en') then Result := 'Rotate the open image 90 degrees clockwise.' else Result := 'Dreht das geöffnete Bild um 90 Grad nach rechts.';
+    205: if SameText(PDFLanguage, 'en') then Result := 'Fit the entire image within the available window.' else Result := 'Zeigt das gesamte Bild passend im verfügbaren Fenster an.';
+    206: if SameText(PDFLanguage, 'en') then Result := 'Fit the image to the width of the window.' else Result := 'Passt die Bildanzeige an die Breite des Fensters an.';
+    207: if SameText(PDFLanguage, 'en') then Result := 'Display the image at its original size.' else Result := 'Zeigt das Bild in seiner Originalgröße an.';
+    208: if SameText(PDFLanguage, 'en') then Result := 'Save the currently displayed image.' else Result := 'Speichert das aktuell angezeigte Bild.';
+    209: if SameText(PDFLanguage, 'en') then Result := 'Open the print dialog for the currently displayed image.' else Result := 'Öffnet den Druckdialog für das aktuell angezeigte Bild.';
+    218: if SameText(PDFLanguage, 'en') then Result := 'Display the previous page of a multipage TIFF file.' else Result := 'Zeigt die vorherige Seite einer mehrseitigen TIFF-Datei.';
+    219: if SameText(PDFLanguage, 'en') then Result := 'Display the next page of a multipage TIFF file.' else Result := 'Zeigt die nächste Seite einer mehrseitigen TIFF-Datei.';
+    119: if SameText(PDFLanguage, 'en') then Result := 'Split the document view to display two PDF views side by side.' else Result := 'Teilt die Dokumentansicht, um zwei PDF-Ansichten nebeneinander zu verwenden.';
+    120: if SameText(PDFLanguage, 'en') then Result := 'Open a visual comparison of two PDF views to identify differences.' else Result := 'Öffnet den visuellen Vergleich zweier PDF-Ansichten, um Unterschiede zu erkennen.';
+    229: if SameText(PDFLanguage, 'en') then Result := 'Enable editing of existing PDF objects in the current document.' else Result := 'Aktiviert die Bearbeitung vorhandener PDF-Objekte im aktuellen Dokument.';
+    123: if SameText(PDFLanguage, 'en') then Result := 'Insert new text at a chosen position on the PDF page.' else Result := 'Fügt einen neuen Text an einer ausgewählten Position auf der PDF-Seite ein.';
+    124: if SameText(PDFLanguage, 'en') then Result := 'Highlight selected text on the PDF page.' else Result := 'Markiert ausgewählten Text auf der PDF-Seite farbig.';
+    126: if SameText(PDFLanguage, 'en') then Result := 'Add a comment at a chosen position on the PDF page.' else Result := 'Fügt an einer ausgewählten Stelle der PDF-Seite einen Kommentar hinzu.';
+    127: if SameText(PDFLanguage, 'en') then Result := 'Open the list for viewing and managing comments in the PDF.' else Result := 'Öffnet die Übersicht zum Anzeigen und Verwalten der Kommentare im PDF.';
+    129: if SameText(PDFLanguage, 'en') then Result := 'Undo the last supported editing action.' else Result := 'Macht die letzte unterstützte Bearbeitung rückgängig.';
+    130: if SameText(PDFLanguage, 'en') then Result := 'Redo the last undone editing action.' else Result := 'Stellt die zuletzt rückgängig gemachte Bearbeitung wieder her.';
+    168: if SameText(PDFLanguage, 'en') then Result := 'Draw a freehand annotation on the PDF page.' else Result := 'Zeichnet eine Freihandmarkierung auf der PDF-Seite.';
+    169: if SameText(PDFLanguage, 'en') then Result := 'Draw a straight line on the PDF page.' else Result := 'Zeichnet eine gerade Linie auf der PDF-Seite.';
+    170: if SameText(PDFLanguage, 'en') then Result := 'Draw a rectangular annotation on the PDF page.' else Result := 'Zeichnet eine rechteckige Markierung auf der PDF-Seite.';
+    171: if SameText(PDFLanguage, 'en') then Result := 'Draw an elliptical annotation on the PDF page.' else Result := 'Zeichnet eine elliptische Markierung auf der PDF-Seite.';
+    172: if SameText(PDFLanguage, 'en') then Result := 'Choose the line thickness for drawn annotations.' else Result := 'Wählt die Strichstärke für Linien und gezeichnete Markierungen.';
+    173: if SameText(PDFLanguage, 'en') then Result := 'Choose the color for lines and drawn annotations.' else Result := 'Wählt die Farbe für Linien und gezeichnete Markierungen.';
+    174: if SameText(PDFLanguage, 'en') then Result := 'Choose the font family for newly inserted text.' else Result := 'Wählt die Schriftart für neu eingefügten Text.';
+    175: if SameText(PDFLanguage, 'en') then Result := 'Choose the font size for newly inserted text.' else Result := 'Wählt die Schriftgröße für neu eingefügten Text.';
+    176: if SameText(PDFLanguage, 'en') then Result := 'Choose the text color for newly inserted text.' else Result := 'Wählt die Textfarbe für neu eingefügten Text.';
+    184: if SameText(PDFLanguage, 'en') then Result := 'Preview a visual redaction. The underlying text is not permanently removed at this stage.' else Result := 'Zeigt eine optische Schwärzung als Vorschau. Der zugrunde liegende Text ist damit noch nicht endgültig entfernt.';
+    133: if SameText(PDFLanguage, 'en') then Result := 'Insert an image at a chosen position on the PDF page.' else Result := 'Fügt ein Bild an einer ausgewählten Position auf der PDF-Seite ein.';
+    134: if SameText(PDFLanguage, 'en') then Result := 'Insert a handwritten or saved signature on the PDF page.' else Result := 'Fügt eine handschriftliche oder gespeicherte Unterschrift auf der PDF-Seite ein.';
+    135: if SameText(PDFLanguage, 'en') then Result := 'Create a clickable hyperlink at a chosen position on the PDF page.' else Result := 'Erstellt einen anklickbaren Hyperlink an einer ausgewählten Stelle der PDF-Seite.';
+    177: if SameText(PDFLanguage, 'en') then Result := 'Display existing PDF hyperlinks and manage them.' else Result := 'Zeigt vorhandene PDF-Hyperlinks an und ermöglicht ihre Verwaltung.';
+    137: if SameText(PDFLanguage, 'en') then Result := 'Add a text watermark to the PDF document.' else Result := 'Fügt ein Textwasserzeichen in das PDF-Dokument ein.';
+    138: if SameText(PDFLanguage, 'en') then Result := 'Add an image watermark to the PDF document.' else Result := 'Fügt ein Bild als Wasserzeichen in das PDF-Dokument ein.';
+    141: if SameText(PDFLanguage, 'en') then Result := 'Display document properties and technical information about the open PDF.' else Result := 'Zeigt Dokumenteigenschaften und technische Informationen zum geöffneten PDF.';
+    142: if SameText(PDFLanguage, 'en') then Result := 'Display embedded PDF attachments and tools to manage them.' else Result := 'Zeigt eingebettete PDF-Anlagen an und bietet Funktionen zu ihrer Verwaltung.';
+    145: if SameText(PDFLanguage, 'en') then Result := 'Activate the measuring tool to measure distances on the PDF page.' else Result := 'Aktiviert das Messwerkzeug, um Abstände auf der PDF-Seite zu messen.';
+    178: if SameText(PDFLanguage, 'en') then Result := 'Set the scale used for measurements on PDF pages.' else Result := 'Legt den Maßstab für Messungen auf PDF-Seiten fest.';
+    179: if SameText(PDFLanguage, 'en') then Result := 'Choose the display color for measurement annotations.' else Result := 'Wählt die Darstellungsfarbe für Messmarkierungen.';
+    180: if SameText(PDFLanguage, 'en') then Result := 'Generate a report of measurements, including CSV output.' else Result := 'Erstellt einen Bericht über die Messungen, einschließlich CSV-Ausgabe.';
+    146: if SameText(PDFLanguage, 'en') then Result := 'Mark areas on the PDF page for redaction.' else Result := 'Markiert Bereiche auf der PDF-Seite für die Schwärzung.';
+    194: if SameText(PDFLanguage, 'en') then Result := 'Permanently apply prepared redactions. Review the marked areas before proceeding.' else Result := 'Wendet die vorbereiteten Schwärzungen endgültig an. Prüfen Sie die markierten Bereiche vor dem Ausführen.';
+    181: if SameText(PDFLanguage, 'en') then Result := 'Use millimeters as the measurement unit.' else Result := 'Verwendet Millimeter als Einheit für Messungen.';
+    182: if SameText(PDFLanguage, 'en') then Result := 'Use centimeters as the measurement unit.' else Result := 'Verwendet Zentimeter als Einheit für Messungen.';
+    183: if SameText(PDFLanguage, 'en') then Result := 'Use inches as the measurement unit.' else Result := 'Verwendet Zoll als Einheit für Messungen.';
+    153: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface to the standard theme.' else Result := 'Wechselt zum Standarddesign der Benutzeroberfläche.';
+    154: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface to the modern light theme.' else Result := 'Wechselt zum hellen, modernen Design der Benutzeroberfläche.';
+    155: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface to the classic gray theme.' else Result := 'Wechselt zum klassisch grauen Design der Benutzeroberfläche.';
+    156: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface to the classic blue theme.' else Result := 'Wechselt zum klassisch blauen Design der Benutzeroberfläche.';
+    157: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface to the ice-gray theme.' else Result := 'Wechselt zum eisgrauen Design der Benutzeroberfläche.';
+    159: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface language to German.' else Result := 'Stellt die Benutzeroberfläche auf Deutsch um.';
+    160: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface language to English.' else Result := 'Stellt die Benutzeroberfläche auf Englisch um.';
+    223: if SameText(PDFLanguage, 'en') then Result := 'Check now whether a newer version of FreePDF64 Viewer is available.' else Result := 'Prüft jetzt, ob eine neuere Version des FreePDF64-Viewers verfügbar ist.';
+    149: if SameText(PDFLanguage, 'en') then Result := 'Open the feature guide with explanations of available tools and commands. Press F1.' else Result := 'Öffnet die Funktionsübersicht mit Beschreibungen der verfügbaren Werkzeuge und Befehle. Taste F1.';
+    150: if SameText(PDFLanguage, 'en') then Result := 'Show version information and other details about FreePDF64 Viewer Portable.' else Result := 'Zeigt Versionsinformationen und weitere Angaben zu FreePDF64-Viewer Portable.';
+    167: if SameText(PDFLanguage, 'en') then Result := 'Return to the home page with recent files and workspaces.' else Result := 'Wechselt zur Startseite mit zuletzt geöffneten Dateien und Arbeitsbereichen.';
+    163: if SameText(PDFLanguage, 'en') then Result := 'Reload the current PDF from disk and discard unsaved changes.' else Result := 'Lädt das aktuelle PDF erneut von der Festplatte und verwirft ungespeicherte Änderungen.';
+    225: if SameText(PDFLanguage, 'en') then Result := 'Choose whether the viewer starts automatically with Windows.' else Result := 'Legt fest, ob der Viewer zusammen mit Windows gestartet werden soll.';
+    226: if SameText(PDFLanguage, 'en') then Result := 'Choose whether the viewer starts minimized.' else Result := 'Legt fest, ob der Viewer beim Programmstart minimiert geöffnet wird.';
+    227: if SameText(PDFLanguage, 'en') then Result := 'Choose whether the viewer stays in the Windows notification area when closed.' else Result := 'Legt fest, ob der Viewer beim Schließen im Windows-Infobereich weiterläuft.';
+    228: if SameText(PDFLanguage, 'en') then Result := 'Open settings for associating PDF files with FreePDF64 Viewer.' else Result := 'Öffnet die Einstellungen zum Verknüpfen von PDF-Dateien mit FreePDF64-Viewer.';
+    220: if SameText(PDFLanguage, 'en') then Result := 'Save the current PDF under a new filename or location.' else Result := 'Speichert das aktuelle PDF unter einem neuen Dateinamen oder Speicherort.';
+    -191: if SameText(PDFLanguage, 'en') then Result := 'Export PDF pages as image files, such as PNG, JPEG or TIFF.' else Result := 'Exportiert PDF-Seiten als Bilddateien, beispielsweise PNG, JPEG oder TIFF.';
+    -192: if SameText(PDFLanguage, 'en') then Result := 'Export text from PDF pages to a text file.' else Result := 'Exportiert den Text aus PDF-Seiten in eine Textdatei.';
+    143: if SameText(PDFLanguage, 'en') then Result := 'Extract images embedded in PDF pages into separate files.' else Result := 'Extrahiert in PDF-Seiten eingebettete Bilder in separate Dateien.';
+    224: if SameText(PDFLanguage, 'en') then Result := 'Merge multiple PDF files into a new PDF document.' else Result := 'Führt mehrere PDF-Dateien zu einem neuen PDF-Dokument zusammen.';
+    165: if SameText(PDFLanguage, 'en') then Result := 'Exit FreePDF64 Viewer Portable.' else Result := 'Beendet FreePDF64-Viewer Portable.';
+  end;
+end;
 
 function RibbonGermanText(const S: string): string;
 begin
@@ -549,11 +648,26 @@ begin
   Invalidate;
 end;
 
+procedure TRibbonSpeedButton.SetUnitSelected(Value: Boolean);
+begin
+  if FUnitSelected = Value then Exit;
+  FUnitSelected := Value;
+  Invalidate;
+end;
+
 procedure TRibbonSpeedButton.Paint;
 var
   X, Y, IconW, IconH, MaxIcon, AvailableH, PPI: Integer;
 begin
   inherited Paint;
+  if FUnitSelected and Enabled then
+  begin
+    Canvas.Pen.Color := RGB(35, 112, 190);
+    Canvas.Pen.Width := 2;
+    Canvas.Brush.Style := bsClear;
+    Canvas.RoundRect(1, 1, Width - 1, Height - 1, 6, 6);
+    Canvas.Brush.Style := bsSolid;
+  end;
   if FOrangeActive and Enabled then
   begin
     Canvas.Pen.Color := RGB(240, 129, 20);
@@ -760,7 +874,7 @@ begin
   ShowTab(0);
   FCollapseButton.BringToFront;
   FPageStatusTimer := TTimer.Create(Self);
-  FPageStatusTimer.Interval := 500;
+  FPageStatusTimer.Interval := 150;
   FPageStatusTimer.OnTimer := PageStatusTick;
   FLayoutReady := True;
   UpdateGroupViewport;
@@ -1412,6 +1526,8 @@ begin
       Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
     else
       Button.Hint := RibbonText(ACaption);
+    if DetailedRibbonHint(CommandId) <> '' then
+      Button.Hint := DetailedRibbonHint(CommandId);
     Button.ShowHint := True;
     Button.Flat := True;
     Button.Font.Name := 'Segoe UI';
@@ -1438,6 +1554,7 @@ begin
     FPageEdit.Text := 'Seite – von –';
     FPageEdit.Enabled := False;
     FPageEdit.Hint := RibbonText('Seitennummer eingeben und Enter drücken');
+    FPageEdit.Hint := DetailedRibbonHint(212);
     FPageEdit.ShowHint := True;
     FPageEdit.OnKeyDown := PageEditKeyDown;
   end
@@ -1462,7 +1579,7 @@ begin
       IconControl.Transparent := True;
       IconControl.Stretch := False;
       IconControl.ShowHint := True;
-      IconControl.Hint := ACaption;
+      IconControl.Hint := DetailedRibbonHint(CommandId);
       if CommandId = 115 then
       begin
         IconControl.Cursor := crHandPoint;
@@ -1486,9 +1603,33 @@ begin
     if CommandId = 115 then
     begin
       LabelControl.Cursor := crHandPoint;
+      LabelControl.Font.Style := [];
+      LabelControl.Hint := DetailedRibbonHint(115);
+      LabelControl.ShowHint := True;
       LabelControl.OnClick := FitPageClick;
     end;
     LabelControl.Transparent := True;
+    if CommandId = 115 then
+    begin
+      // Genuine VCL speed button: native hover/pressed feedback, no underline.
+      if IconControl <> nil then IconControl.Visible := False;
+      LabelControl.Visible := False;
+      Button := TRibbonSpeedButton.Create(Self);
+      Button.Parent := Group;
+      Button.Tag := 115;
+      Button.Caption := RibbonText('Seite anpassen');
+      Button.Flat := True;
+      Button.Layout := blGlyphLeft;
+      Button.Margin := 3;
+      Button.Spacing := 3;
+      Button.Font.Name := 'Segoe UI';
+      Button.Font.Size := 8;
+      Button.SetBounds(LeftPos + 1, TopPos, 127, 26);
+      DrawFitPageIcon(Button.Glyph, FThemeBackground);
+      Button.Hint := DetailedRibbonHint(115);
+      Button.ShowHint := True;
+      Button.OnClick := FitPageClick;
+    end;
     Combo := TComboBox.Create(Self);
     Combo.Parent := Group;
     Combo.Tag := CommandId;
@@ -1497,6 +1638,8 @@ begin
     Combo.Font.Size := 8;
     if CommandId = 115 then Combo.Hint := RibbonText('Zoommodus auswählen')
     else Combo.Hint := RibbonText(ACaption);
+    if DetailedRibbonHint(CommandId) <> '' then
+      Combo.Hint := DetailedRibbonHint(CommandId);
     Combo.ShowHint := True;
     if CommandId = 115 then
       // Zoom mode is independent from the fit-page action.
@@ -1523,10 +1666,26 @@ begin
       else Button.Hint := 'Jetzt nach Updates suchen'
     else if CommandId = 228 then
       Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
+    else if CommandId = 108 then
+    begin
+      if SameText(PDFLanguage, 'en') then
+        Button.Hint := 'Open the workspace manager to search, load, rename or delete saved workspaces.'
+      else
+        Button.Hint := 'Arbeitsbereiche öffnen, suchen, laden, umbenennen oder löschen.';
+    end
+    else if CommandId = 229 then
+    begin
+      if SameText(PDFLanguage, 'en') then
+        Button.Hint := 'Edit existing PDF objects in the current document.'
+      else
+        Button.Hint := 'Vorhandene PDF-Objekte im aktuellen Dokument bearbeiten.';
+    end
     else if CommandId = 149 then
       Button.Hint := RibbonText('Funktionsübersicht (F1)')
     else
       Button.Hint := RibbonText(ACaption);
+    if DetailedRibbonHint(CommandId) <> '' then
+      Button.Hint := DetailedRibbonHint(CommandId);
     Button.ShowHint := True;
     Button.Flat := True;
     // Tab headings keep their inherited font.
@@ -1621,19 +1780,27 @@ begin
   ArrowWidth := 30;
   if FFourKGeometryApplied then ArrowWidth := 48;
   // Windowed buttons remain above the windowed page panels.
-  FScrollBack.Visible := NeedsScroll and not FCollapsed;
-  FScrollForward.Visible := NeedsScroll and not FCollapsed;
+  if FScrollBack.Visible <> (NeedsScroll and not FCollapsed) then
+    FScrollBack.Visible := NeedsScroll and not FCollapsed;
+  if FScrollForward.Visible <> (NeedsScroll and not FCollapsed) then
+    FScrollForward.Visible := NeedsScroll and not FCollapsed;
   ViewWidth := FContent.ClientWidth;
   if NeedsScroll then Dec(ViewWidth, ArrowWidth * 2);
   ViewWidth := Max(1, ViewWidth);
   MaxOffset := Max(0, TotalWidth - ViewWidth);
   Offset := EnsureRange(FGroupScroll[FActiveTab], 0, MaxOffset);
   FGroupScroll[FActiveTab] := Offset;
+  // Reposition the groups without forcing a full Ribbon repaint on each click.
+  // In particular, avoid redundant Left assignments (which invalidate child
+  // windows) and the repeated BringToFront calls on every scroll step.
   X := 4 - Offset;
   for I := 0 to Page.ControlCount - 1 do
     if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
     begin
-      Page.Controls[I].Left := X;
+      if Page.Controls[I].Left <> X then
+      begin
+        Page.Controls[I].Left := X;
+      end;
       Inc(X, Page.Controls[I].Width + 3);
     end;
   if NeedsScroll then
@@ -1644,8 +1811,8 @@ begin
       ArrowWidth, FContent.ClientHeight);
     FScrollBack.Enabled := Offset > 0;
     FScrollForward.Enabled := Offset < MaxOffset;
-    FScrollBack.BringToFront;
-    FScrollForward.BringToFront;
+    // The arrow buttons are already topmost after the initial layout.
+    // Reordering their HWNDs on every click causes visible flashing.
   end;
 end;
 
@@ -1799,7 +1966,10 @@ begin
         for K := 0 to Group.ControlCount - 1 do
         begin
           C := Group.Controls[K];
-          if ((C is TSpeedButton) or (C is TComboBox)) and
+          if (CommandId = 115) and (C is TComboBox) and
+             (C.Tag = CommandId) then Exit(C);
+          if (CommandId <> 115) and
+             ((C is TSpeedButton) or (C is TComboBox)) and
              (C.Tag = CommandId) then Exit(C);
         end;
       end;
@@ -1882,6 +2052,75 @@ begin
         Exit;
       end;
     end;
+end;
+
+procedure TFreePDFVCLRibbon.SetMeasurementUnit(UnitIndex: Integer);
+var
+  I, J, K: Integer;
+  Page, Group: TPanel;
+  C: TControl;
+begin
+  for I := 0 to FPages.Count - 1 do
+  begin
+    Page := TPanel(FPages[I]);
+    for J := 0 to Page.ControlCount - 1 do
+      if Page.Controls[J] is TPanel then
+      begin
+        Group := TPanel(Page.Controls[J]);
+        for K := 0 to Group.ControlCount - 1 do
+        begin
+          C := Group.Controls[K];
+          if (C is TRibbonSpeedButton) and (C.Tag in [181,182,183]) then
+            TRibbonSpeedButton(C).SetUnitSelected(C.Tag = 181 + UnitIndex);
+        end;
+      end;
+  end;
+end;
+
+procedure TFreePDFVCLRibbon.SetSelectedDesign(DesignCommandId: Integer);
+var
+  I, J, K: Integer;
+  Page, Group: TPanel;
+  C: TControl;
+begin
+  for I := 0 to FPages.Count - 1 do
+  begin
+    Page := TPanel(FPages[I]);
+    for J := 0 to Page.ControlCount - 1 do
+      if Page.Controls[J] is TPanel then
+      begin
+        Group := TPanel(Page.Controls[J]);
+        for K := 0 to Group.ControlCount - 1 do
+        begin
+          C := Group.Controls[K];
+          if (C is TRibbonSpeedButton) and (C.Tag in [153,154,155,156,157]) then
+            TRibbonSpeedButton(C).SetUnitSelected(C.Tag = DesignCommandId);
+        end;
+      end;
+  end;
+end;
+
+procedure TFreePDFVCLRibbon.SetCommandSelected(CommandId: Integer; Selected: Boolean);
+var
+  I, J, K: Integer;
+  Page, Group: TPanel;
+  C: TControl;
+begin
+  for I := 0 to FPages.Count - 1 do
+  begin
+    Page := TPanel(FPages[I]);
+    for J := 0 to Page.ControlCount - 1 do
+      if Page.Controls[J] is TPanel then
+      begin
+        Group := TPanel(Page.Controls[J]);
+        for K := 0 to Group.ControlCount - 1 do
+        begin
+          C := Group.Controls[K];
+          if (C.Tag = CommandId) and (C is TRibbonSpeedButton) then
+            TRibbonSpeedButton(C).SetUnitSelected(Selected);
+        end;
+      end;
+  end;
 end;
 
 procedure TFreePDFVCLRibbon.SetCommandChecked(CommandId: Integer; Checked: Boolean);
@@ -2010,16 +2249,32 @@ begin
                 TSpeedButton(C).Hint := 'Check for updates now'
               else TSpeedButton(C).Hint := 'Jetzt nach Updates suchen';
             end
+            else if TSpeedButton(C).Tag = 108 then
+            begin
+              if SameText(PDFLanguage, 'en') then
+                TSpeedButton(C).Hint := 'Open the workspace manager to search, load, rename or delete saved workspaces.'
+              else
+                TSpeedButton(C).Hint := 'Arbeitsbereiche öffnen, suchen, laden, umbenennen oder löschen.';
+            end
+            else if TSpeedButton(C).Tag = 229 then
+            begin
+              if SameText(PDFLanguage, 'en') then
+                TSpeedButton(C).Hint := 'Edit existing PDF objects in the current document.'
+              else
+                TSpeedButton(C).Hint := 'Vorhandene PDF-Objekte im aktuellen Dokument bearbeiten.';
+            end
             else if TSpeedButton(C).Tag = 149 then
               TSpeedButton(C).Hint := RibbonText('Funktionsübersicht (F1)')
             else
               TSpeedButton(C).Hint := RibbonText(RibbonGermanText(TSpeedButton(C).Hint));
+            if DetailedRibbonHint(TSpeedButton(C).Tag) <> '' then
+              TSpeedButton(C).Hint := DetailedRibbonHint(TSpeedButton(C).Tag);
           end
           else if C is TComboBox then
           begin
             if TComboBox(C).Tag = 115 then
             begin
-              TComboBox(C).Hint := RibbonText('Zoommodus auswählen');
+              TComboBox(C).Hint := DetailedRibbonHint(115);
               for W := 0 to TComboBox(C).Items.Count - 1 do
                 TComboBox(C).Items[W] := RibbonText(RibbonGermanText(TComboBox(C).Items[W]));
             end;
@@ -2043,7 +2298,11 @@ begin
   if FTabPreviewCheck <> nil then
   begin
     FTabPreviewCheck.Caption := RibbonText('Registerkartenvorschau anzeigen');
-    FTabPreviewCheck.Hint := RibbonText('Vorschau beim Überfahren einer PDF-Registerkarte');
+    if SameText(PDFLanguage, 'en') then
+    FTabPreviewCheck.Hint := 'Show a preview when you move the pointer over a PDF tab.'
+  else
+    FTabPreviewCheck.Hint := 'Zeigt eine Vorschau, wenn Sie mit der Maus über eine PDF-Registerkarte fahren.';
+  FTabPreviewCheck.ShowHint := True;
   end;
   FCollapseButton.Hint := RibbonText('Ribbon ein-/ausklappen');
   FScrollBack.Hint := RibbonText('Ribbon-Gruppen nach links');
@@ -2133,7 +2392,7 @@ begin
     Combo.ItemIndex := Combo.Items.IndexOf(Value);
     if (CommandId = 115) and (Combo.ItemIndex < 0) and
        SameText(Value, 'Seite anpassen') then
-      Combo.ItemIndex := Combo.Items.IndexOf('Ganze Seite');
+      Combo.ItemIndex := Combo.Items.IndexOf(RibbonText('Ganze Seite'));
   finally
     FUpdatingCombos := False;
   end;
@@ -2375,7 +2634,11 @@ begin
   FTabPreviewCheck.Font.Size := 8;
   FTabPreviewCheck.SetBounds(9, 12, 222, 28);
   FTabPreviewCheck.OnClick := TabPreviewCheckClick;
-  FTabPreviewCheck.Hint := RibbonText('Vorschau beim Überfahren einer PDF-Registerkarte');
+  if SameText(PDFLanguage, 'en') then
+    FTabPreviewCheck.Hint := 'Show a preview when you move the pointer over a PDF tab.'
+  else
+    FTabPreviewCheck.Hint := 'Zeigt eine Vorschau, wenn Sie mit der Maus über eine PDF-Registerkarte fahren.';
+  FTabPreviewCheck.ShowHint := True;
   TPanel(FTabPreviewCheck.Parent).Width := 243;
   AddTab('Hilfe');
   AddGroup(5, 'Design');

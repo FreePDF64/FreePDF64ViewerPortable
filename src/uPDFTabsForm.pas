@@ -2120,7 +2120,7 @@ begin
       MessageDlg('Fehler beim Laden des Arbeitsbereichs:' + sLineBreak +
         LoadErrors.Text, mtError, [mbOK], 0);
     if MissingCount > 0 then
-      WorkspaceDialog(Self, 'Hinweis', IntToStr(MissingCount) + ' PDF-Datei(en) sind nicht erreichbar.', False, False, S, FDesignIndex);
+      WorkspaceDialog(Self, Tr('Hinweis'), Format(Tr('%d PDF-Datei(en) sind nicht erreichbar.'), [MissingCount]), False, False, S, FDesignIndex);
   finally
     LoadErrors.Free;
     OpenFiles.Free;
@@ -4670,6 +4670,14 @@ begin
     Free;
   end;
   ApplyViewerDesign;
+  if FVCLRibbon <> nil then
+    case FDesignIndex of
+      0: FVCLRibbon.SetSelectedDesign(153);
+      1: FVCLRibbon.SetSelectedDesign(154);
+      3: FVCLRibbon.SetSelectedDesign(155);
+      5: FVCLRibbon.SetSelectedDesign(156);
+      6: FVCLRibbon.SetSelectedDesign(157);
+    end;
 end;
 
 procedure TPDFTabsForm.ApplyViewerDesign;
@@ -5048,7 +5056,10 @@ begin
     FWelcomeOpenButton.Hint := Tr('Eine oder mehrere PDFs und Bilder öffnen (Strg+O)');
   end;
   if FWelcomeWorkspaceButton <> nil then
+  begin
     FWelcomeWorkspaceButton.Caption := Tr('Arbeitsbereiche verwalten ...');
+    FWelcomeWorkspaceButton.Hint := Tr('Gespeicherte Arbeitsbereiche verwalten');
+  end;
 
   // Hilfe bleibt rechts, unabhängig von der gewählten Sprache.
   AlignHelpMenuRight;
@@ -5845,14 +5856,15 @@ begin
   // Die Startseite beginnt bei jedem Programmstart mit eingeklappter Ribbon,
   // unabhängig von der zuletzt gespeicherten Einstellung.
   FVCLRibbon.Collapsed := True;
-  FVCLRibbon.SetComboItems(115, ['Seitenbreite', 'Ganze Seite',
-    'Originalgröße (100 %)', 'Benutzerdefiniert']);
+  FVCLRibbon.SetComboItems(115, [Tr('Seitenbreite'), Tr('Ganze Seite'),
+    Tr('Originalgröße (100 %)'), Tr('Benutzerdefiniert')]);
   FVCLRibbon.SetComboItems(172, ['1 pt', '2 pt', '3 pt', '5 pt',
     '8 pt', '12 pt']);
   FillRibbonFonts;
   FVCLRibbon.SetComboItems(175, ['8','10','12','14','16','18','20',
     '24','28','32','36','48','72']);
-  FVCLRibbon.SetComboValue(115, 'Ganze Seite');
+  FVCLRibbon.SetComboValue(115, Tr('Ganze Seite'));
+  FVCLRibbon.SetMeasurementUnit(0);
   FVCLRibbon.SetComboValue(172, '5 pt');
   FVCLRibbon.SetComboValue(174, 'Arial');
   FVCLRibbon.SetComboValue(175, '12');
@@ -6617,6 +6629,13 @@ begin
       if ActiveBrowser <> nil then
       begin
         ActiveBrowser.ExecuteRibbonPDFCommand(CommandId);
+        if (FVCLRibbon <> nil) then
+        begin
+          if CommandId = 146 then
+            FVCLRibbon.SetCommandSelected(146, ActiveBrowser.RibbonActiveToolCommand = 146);
+          if CommandId in [181, 182, 183] then
+            FVCLRibbon.SetMeasurementUnit(ActiveBrowser.WorkspaceMeasureUnit);
+        end;
         if CommandId in [129, 130, 229] then
           SyncVCLRibbonCommands;
       end;
@@ -6680,6 +6699,8 @@ begin
     if not (CommandId in [212, 213, 221]) then
     begin
       DispatchRibbonCommand(CommandId);
+      if (CommandId in [181, 182, 183]) and (FVCLRibbon <> nil) then
+        FVCLRibbon.SetMeasurementUnit(CommandId - 181);
       Exit;
     end;
   end;
@@ -6727,10 +6748,10 @@ begin
     Index := -1;
     // The PDFium handler consumes the selected text and the list index.
     case CommandId of
-      115: if SameText(Value, 'Seitenbreite') then Index := 0
-           else if SameText(Value, 'Ganze Seite') then Index := 1
-           else if SameText(Value, 'Originalgröße (100 %)') then Index := 2
-           else if SameText(Value, 'Benutzerdefiniert') then Index := 3;
+      115: if SameText(Value, Tr('Seitenbreite')) or SameText(Value, 'Seitenbreite') then Index := 0
+           else if SameText(Value, Tr('Ganze Seite')) or SameText(Value, 'Ganze Seite') then Index := 1
+           else if SameText(Value, Tr('Originalgröße (100 %)')) or SameText(Value, 'Originalgröße (100 %)') then Index := 2
+           else if SameText(Value, Tr('Benutzerdefiniert')) or SameText(Value, 'Benutzerdefiniert') then Index := 3;
       172: if SameText(Value, '1 pt') then Index := 0
            else if SameText(Value, '2 pt') then Index := 1
            else if SameText(Value, '3 pt') then Index := 2
@@ -6760,6 +6781,15 @@ begin
     Exit;
   end;
   DispatchRibbonCommand(CommandId);
+  // Werkzeugauswahl sofort nach dem Klick darstellen, ohne auf den
+  // naechsten Status-/Timerdurchlauf zu warten.
+  if (FVCLRibbon <> nil) and (Browser <> nil) and not Browser.IsBasicImage then
+  begin
+    if CommandId = 146 then
+      FVCLRibbon.SetCommandSelected(146, Browser.RibbonActiveToolCommand = 146);
+    if CommandId in [181, 182, 183] then
+      FVCLRibbon.SetMeasurementUnit(Browser.WorkspaceMeasureUnit);
+  end;
   SyncVCLRibbonCommands;
 end;
 
@@ -6831,13 +6861,16 @@ begin
       FUnsavedRibbonTabs.Add(FTabs.ActivePage);
     Dirty := Dirty or (FUnsavedRibbonTabs.IndexOf(FTabs.ActivePage) >= 0);
   end;
+  FVCLRibbon.SetCommandOrange(146, False);
+  FVCLRibbon.SetCommandSelected(146, ToolId = 146);
   FVCLRibbon.SetCommandOrange(229, ToolId = 229);
   FVCLRibbon.SetCommandOrange(104, Dirty);
   FVCLRibbon.SetCommandOrange(220, Dirty);
   FLastOrangeSave := Dirty;
   if (FLastOrangeTool <> 0) and (FLastOrangeTool <> ToolId) then
     FVCLRibbon.SetCommandOrange(FLastOrangeTool, False);
-  if ToolId <> 0 then FVCLRibbon.SetCommandOrange(ToolId, True);
+  if (ToolId <> 0) and (ToolId <> 146) then
+    FVCLRibbon.SetCommandOrange(ToolId, True);
   FLastOrangeTool := ToolId;
 
 end;
@@ -6916,6 +6949,13 @@ begin
   end;
   // Beim Verlassen der geteilten Ansicht alle gesperrten globalen
   // Optionen wieder freigeben (ohne Neuanlegen der Ribbon-Controls).
+  case FDesignIndex of
+    0: FVCLRibbon.SetSelectedDesign(153);
+    1: FVCLRibbon.SetSelectedDesign(154);
+    3: FVCLRibbon.SetSelectedDesign(155);
+    5: FVCLRibbon.SetSelectedDesign(156);
+    6: FVCLRibbon.SetSelectedDesign(157);
+  end;
   FVCLRibbon.SetCommandEnabled(197, True);
   for I := 153 to 157 do FVCLRibbon.SetCommandEnabled(I, True);
   FVCLRibbon.SetCommandEnabled(159, True);
@@ -6960,6 +7000,8 @@ begin
   else FVCLRibbon.SetPageStatus(0, 0);
   if HasPDF then FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True)
   else FVCLRibbon.SetZoomPercent(0, False);
+  if HasPDF then FVCLRibbon.SetMeasurementUnit(Browser.WorkspaceMeasureUnit)
+  else FVCLRibbon.SetMeasurementUnit(-1);
   for I := 214 to 217 do
     FVCLRibbon.SetCommandEnabled(I, HasPDF);
   if HasPDF then

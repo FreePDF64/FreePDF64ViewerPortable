@@ -695,6 +695,7 @@ type
     procedure RestoreWorkspaceLayout(AViewMode: Integer; ATwoPage, AContinuous, ASidebar: Boolean);
     property WorkspaceZoom: Double read FZoom;
     property WorkspaceFitMode: Boolean read FFitMode;
+    property WorkspaceMeasureUnit: Integer read FMeasureUnit;
     procedure RestoreWorkspaceView(AZoom: Double; AFit: Boolean; AX, AY: Integer);
     function WorkspaceScrollX: Integer;
     function WorkspaceScrollY: Integer;
@@ -5511,10 +5512,17 @@ begin
         MeasureUnitChange(FMeasureUnitSelect);
       end;
     146: begin
+      // Den tatsächlich aktiven Modus VOR dem Umschalten der Bearbeiten-Leiste
+      // ermitteln. Eine gespeicherte Shape-Auswahl darf den ersten Klick
+      // aus dem Messmodus nicht fälschlich als Deaktivierung interpretieren.
+      N := ActiveRibbonToolCommand;
       if not FEditVisible then ToggleEditBar(nil);
       if FShapeSelect <> nil then
       begin
-        FShapeSelect.ItemIndex := 6;
+        if N = 146 then
+          FShapeSelect.ItemIndex := 0
+        else
+          FShapeSelect.ItemIndex := 6;
         ShapeSelectChange(FShapeSelect);
       end;
     end;
