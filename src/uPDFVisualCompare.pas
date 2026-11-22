@@ -48,6 +48,7 @@ type
     procedure CompareCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure ShowProgress(AValue: Integer);
     procedure StartComparison;
+    function FindCachedPageIndex: Integer;
     procedure ApplyCachedPage;
     procedure SelectDifference(Sender: TObject);
     procedure ToggleMarks(Sender: TObject);
@@ -583,23 +584,33 @@ begin
   end;
 end;
 
+function TCompareForm.FindCachedPageIndex: Integer;
+var
+  CacheIndex: Integer;
+begin
+  Result := -1;
+  for CacheIndex := 0 to 2 do
+    if FCachePages[CacheIndex] = FPage then
+    begin
+      Result := CacheIndex;
+      Exit;
+    end;
+end;
+
 procedure TCompareForm.ApplyCachedPage;
 var
   CacheIndex: Integer;
 begin
-  for CacheIndex := 0 to 2 do
-    if FCachePages[CacheIndex] = FPage then
-    begin
-      FBaseLeft.Assign(FCacheLeft[CacheIndex]);
-      FBaseRight.Assign(FCacheRight[CacheIndex]);
-      FRegions := Copy(FCacheRegions[CacheIndex], 0, Length(FCacheRegions[CacheIndex]));
-      Inc(FStamp);
-      FCacheStamp[CacheIndex] := FStamp;
-      FSelectedRegion := -1;
-      if Length(FRegions) > 0 then FSelectedRegion := 0;
-      PaintMarks;
-      Exit;
-    end;
+  CacheIndex := FindCachedPageIndex;
+  if CacheIndex < 0 then Exit;
+  FBaseLeft.Assign(FCacheLeft[CacheIndex]);
+  FBaseRight.Assign(FCacheRight[CacheIndex]);
+  FRegions := Copy(FCacheRegions[CacheIndex], 0, Length(FCacheRegions[CacheIndex]));
+  Inc(FStamp);
+  FCacheStamp[CacheIndex] := FStamp;
+  FSelectedRegion := -1;
+  if Length(FRegions) > 0 then FSelectedRegion := 0;
+  PaintMarks;
 end;
 
 procedure TCompareForm.StartComparison;
@@ -619,7 +630,7 @@ end;
 
 procedure TCompareForm.Render;
 var
-  Pages, CacheIndex: Integer;
+  Pages: Integer;
 begin
   if FWorker <> nil then Exit;
   Pages := Max(FLeftCore.PageCount, FRightCore.PageCount);
@@ -627,12 +638,11 @@ begin
   FPage := EnsureRange(FPage, 0, Pages - 1);
   FPrev.Enabled := FPage > 0;
   FNext.Enabled := FPage < Pages - 1;
-  for CacheIndex := 0 to 2 do
-    if FCachePages[CacheIndex] = FPage then
-    begin
-      ApplyCachedPage;
-      Exit;
-    end;
+  if FindCachedPageIndex >= 0 then
+  begin
+    ApplyCachedPage;
+    Exit;
+  end;
   StartComparison;
 end;
 

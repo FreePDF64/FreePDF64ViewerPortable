@@ -29,15 +29,20 @@ begin
     TempFiles.Delete(I);
 end;
 
+procedure CleanupPDFAttachmentTemps;
 var
   I: Integer;
+begin
+  // Andere Anwendungen können Anlagen noch geöffnet halten.
+  // In diesem Fall schlägt DeleteFile fehl, ohne sie zu beschädigen.
+  for I := TempFiles.Count - 1 downto 0 do
+    SysUtils.DeleteFile(TempFiles[I]);
+  TempFiles.Free;
+end;
+
 initialization
   TempFiles := TStringList.Create;
   TempFiles.CaseSensitive := False;
 finalization
-  // Andere Anwendungen koennen Anlagen noch geoeffnet halten.
-  // In diesem Fall schlaegt DeleteFile fehl, ohne sie zu beschaedigen.
-  for I := TempFiles.Count - 1 downto 0 do
-    SysUtils.DeleteFile(TempFiles[I]);
-  TempFiles.Free;
+  CleanupPDFAttachmentTemps;
 end.

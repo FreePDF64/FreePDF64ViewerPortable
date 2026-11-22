@@ -101,7 +101,7 @@ var Src, Dst: TFileStream; Tail: TBytes; S, Trailer, Root, IDPart: string;
     TempFile, XRefHeader: string;
     IsXRefStream: Boolean;
     MetaObj, MetaPos, XmpLength: Int64; XmpSource, XmpUpdated: string;
-    XmpBytes: TBytes; M: TMatch; ObjHead, XmpText: string;
+    XmpBytes: TBytes; M: TMatch; ObjHead: string;
     EncodedXmp: TBytes; DecodedXmp: TMemoryStream;
     ZStream: TDecompressionStream; EncodedStream: TBytesStream;
     IsFlate: Boolean;
@@ -135,17 +135,18 @@ var Src, Dst: TFileStream; Tail: TBytes; S, Trailer, Root, IDPart: string;
     Result := Copy(XML, 1, Match.Index-1) + Replacement +
       Copy(XML, Match.Index+Match.Length, MaxInt);
   end;
-  procedure WriteUTF8(const Text: string);
-  var B: TBytes;
+  // One byte-writing path for all text encodings. The PDF syntax remains ASCII.
+  procedure WriteEncoded(const Text: string; Encoding: TEncoding);
+  var
+    B: TBytes;
   begin
-    B := TEncoding.UTF8.GetBytes(Text);
-    if Length(B)>0 then Dst.WriteBuffer(B[0], Length(B));
+    B := Encoding.GetBytes(Text);
+    if Length(B) > 0 then
+      Dst.WriteBuffer(B[0], Length(B));
   end;
   procedure WriteASCII(const Text: string);
-  var B: TBytes;
   begin
-    B := TEncoding.ASCII.GetBytes(Text);
-    if Length(B)>0 then Dst.WriteBuffer(B[0], Length(B));
+    WriteEncoded(Text, TEncoding.ASCII);
   end;
 begin
   if SameText(ExpandFileName(SourceFile), ExpandFileName(DestFile)) then

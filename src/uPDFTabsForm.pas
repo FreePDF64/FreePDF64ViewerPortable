@@ -944,7 +944,6 @@ begin
 end;
 
 
-
 const
   LOCAL_TAB_SEARCH_HOTKEY_ID = $5A71;
   LOCAL_TEXT_SEARCH_HOTKEY_ID = $5A72;
@@ -1106,6 +1105,19 @@ begin
   Result := Result and (Reply = 1);
 end;
 
+// Einheitliche Dateityppruefung fuer Explorer, Verlauf und Drag & Drop.
+// Die bisher akzeptierten Erweiterungen bleiben unveraendert.
+function IsSupportedViewerFile(const AFileName: string): Boolean;
+var
+  Ext: string;
+begin
+  Ext := ExtractFileExt(AFileName);
+  Result := SameText(Ext, '.pdf') or SameText(Ext, '.jpg') or
+    SameText(Ext, '.jpeg') or SameText(Ext, '.png') or
+    SameText(Ext, '.bmp') or SameText(Ext, '.tif') or
+    SameText(Ext, '.tiff');
+end;
+
 procedure TPDFTabsForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
@@ -1189,13 +1201,7 @@ begin
      (Msg.CopyDataStruct^.cbData mod SizeOf(Char) <> 0) then Exit;
   SetString(FileName, PChar(Msg.CopyDataStruct^.lpData),
     Msg.CopyDataStruct^.cbData div SizeOf(Char) - 1);
-  if not (SameText(ExtractFileExt(FileName), '.pdf') or
-          SameText(ExtractFileExt(FileName), '.jpg') or
-          SameText(ExtractFileExt(FileName), '.jpeg') or
-          SameText(ExtractFileExt(FileName), '.png') or
-          SameText(ExtractFileExt(FileName), '.bmp') or
-          SameText(ExtractFileExt(FileName), '.tif') or
-          SameText(ExtractFileExt(FileName), '.tiff')) or
+  if not (IsSupportedViewerFile(FileName)) or
      not FileExists(FileName) then Exit;
   // Niemals im synchronen WM_COPYDATA-Handler PDFium-Forms erstellen.
   FPendingExplorerFiles.Add(FileName);
@@ -3457,7 +3463,7 @@ begin
         + 'Search (Ctrl+F) finds text in the current PDF; Search PDFs (Ctrl+Shift+F) searches across all open PDFs. '
         + 'Click inside the PDF page to clear temporary search highlights.');
       AddSection('Search text',
-        'Find text searches the current PDF. Press F3 for the next match and Shift+F3 for the previous one. Search all PDFs or press Ctrl+Shift+F to search all open PDF tabs. The button is available directly after opening PDFs from FreePDF64 without switching tabs. The search handler is also assigned to all tabs when PDFs are opened directly. Selecting a result displays the relevant page and closes the global search window.');
+        'Find text searches the current PDF. Press F3 for the next match and Shift+F3 for the previous one. Search all PDFs or press Ctrl+Shift+F to search all open PDF tabs. The button is available directly after opening PDFs from FreePDF64 without switching tabs. The search handler is also assigned to all tabs when PDFs are opened directly. Selecting a result displays the relevant PDF and match. The global search window is hidden so the PDF can be viewed. Click Search all PDFs again to bring the search window back without starting a new search.');
       AddSection('Editing and combining PDFs', '');
       AddSection('Thumbnails and editing PDF pages',
         'Click the thumbnail icon at the top left to open the PDF file’s thumbnail view. A normal left-click clears previous selections, selects only the clicked thumbnail and displays that page. Use Ctrl+Click to add or remove individual pages from the selection and Shift+Click to select a range. A blue border indicates the currently displayed page; a red border indicates a selected thumbnail. If the current page is also selected, both borders appear (blue outside, red inside). Press Esc to clear the thumbnail selection without closing the thumbnail view. Right-click to delete or rotate selected pages together, use Extract page(s)… to save them as a separate PDF, or choose Insert PDF before page… / Insert PDF after page… to insert all pages of another PDF at the selected position. '
@@ -3837,7 +3843,7 @@ begin
       AddSection('Text suchen',
         '„Text suchen“ durchsucht die aktuelle PDF. Mit F3 springen Sie zum nächsten Treffer, mit Umschalt+F3 zum vorherigen Treffer. ' +
         '„Alle PDFs durchsuchen“ oder Strg+Umschalt+F durchsucht alle geöffneten PDF-Registerkarten. Die Schaltfläche ist direkt nach dem Öffnen der PDFs aus FreePDF64 verfügbar, ohne Registerwechsel. Auch beim direkten Start mit PDF-Dateien wird der Such-Handler für alle Registerkarten gesetzt. ' +
-        'Auswahl eines Treffers zeigt die betreffende Seite und schließt das globale Suchfenster.');
+        'Beim Anklicken eines Treffers wird die entsprechende PDF mit der Fundstelle angezeigt. Das globale Suchfenster wird dabei ausgeblendet. Über „Alle PDFs durchsuchen“ lässt es sich wieder in den Vordergrund holen, ohne die Suche erneut auszuführen.');
       AddSection('PDFs bearbeiten und zusammenführen', '');
       AddSection('Miniaturansicht und PDF-Seiten bearbeiten',
         'Über Klick auf das Miniaturansicht-Symbol links oben öffnen Sie die Miniaturansicht der PDF-Datei. Ein einfacher Linksklick hebt bisherige Markierungen auf, markiert nur die angeklickte Miniatur und zeigt die entsprechende Seite an. Mit Strg+Klick fügen Sie einzelne Seiten zur Auswahl hinzu oder entfernen sie daraus; mit Umschalt+Klick wählen Sie einen zusammenhängenden Seitenbereich aus. Ein blauer Rahmen kennzeichnet die aktuell angezeigte Seite, ein roter Rahmen eine markierte Miniatur. Ist die aktuelle Seite zugleich markiert, erscheinen beide Rahmen (blau außen, rot innen). Mit Esc heben Sie die Markierung auf, ohne die Miniaturansicht zu schließen. ' +
@@ -5993,13 +5999,7 @@ var
 begin
   S := Trim(AFileName);
   if (S = '') or IsFreePDFTempAttachment(S) or
-     not (SameText(ExtractFileExt(S), '.pdf') or
-          SameText(ExtractFileExt(S), '.jpg') or
-          SameText(ExtractFileExt(S), '.jpeg') or
-          SameText(ExtractFileExt(S), '.png') or
-          SameText(ExtractFileExt(S), '.bmp') or
-          SameText(ExtractFileExt(S), '.tif') or
-          SameText(ExtractFileExt(S), '.tiff')) then Exit;
+     not (IsSupportedViewerFile(S)) then Exit;
   S := ExpandFileName(S);
   for I := FRecentPDFs.Count - 1 downto 0 do
     if SameText(FRecentPDFs[I], S) then FRecentPDFs.Delete(I);
@@ -7117,13 +7117,7 @@ begin
       if Len > 0 then
         DragQueryFile(Msg.Drop, I, PChar(FileName), Len + 1);
       SetLength(FileName, Len);
-      if (SameText(ExtractFileExt(FileName), '.pdf') or
-          SameText(ExtractFileExt(FileName), '.jpg') or
-          SameText(ExtractFileExt(FileName), '.jpeg') or
-          SameText(ExtractFileExt(FileName), '.png') or
-          SameText(ExtractFileExt(FileName), '.bmp') or
-          SameText(ExtractFileExt(FileName), '.tif') or
-          SameText(ExtractFileExt(FileName), '.tiff')) and FileExists(FileName) then
+      if (IsSupportedViewerFile(FileName)) and FileExists(FileName) then
       begin
         PDF := TPDFBrowserForm.Create(nil);
       PDF.OnGlobalSearch := GlobalSearchClick;
@@ -8665,7 +8659,7 @@ end;
 
 procedure TPDFTabsForm.UpdateSplitMenuState;
 begin
-  
+
   if FSplitViewMenuItem = nil then Exit;
 
   // In der Zweifensteransicht nur die beiden relevanten Hauptmenues anzeigen.
@@ -8715,12 +8709,12 @@ begin
   begin
     if False then
     begin
-      
+
       FLeftPDFOverlay.Parent := FTabs.ActivePage;
-      
+
       // Unterhalb der PDF-Werkzeugleisten im grauen Dokumentbereich.
-      
-      
+
+
       FLeftPDFOverlay.SetBounds(MulDiv(4, CurrentPPI, 96),
         MulDiv(85, CurrentPPI, 96), 2 + 2 * MulDiv(25, CurrentPPI, 96),
         2 + MulDiv(22, CurrentPPI, 96));
@@ -8729,12 +8723,12 @@ begin
       FTabTextSearchButton.SetBounds(1 + MulDiv(25, CurrentPPI, 96), 1,
         MulDiv(25, CurrentPPI, 96), MulDiv(22, CurrentPPI, 96));
     end;
-    
+
     if (FSplitHost = nil) and (FLeftPDFOverlay.Parent = FTabs.ActivePage) then
       FLeftPDFOverlay.Top := MulDiv(85, CurrentPPI, 96);
-    
+
     FLeftPDFOverlay.Visible := FSplitHost <> nil;
-    
+
     if FLeftPDFOverlay.Visible then FLeftPDFOverlay.BringToFront;
   end;
   // Teilungsbutton nur bei zwei markierten Registerkarten in der
@@ -8760,7 +8754,7 @@ begin
     end
     else if PDFInTab(FTabs.ActivePage) <> nil then
     begin
-      
+
       PDFInTab(FTabs.ActivePage).PlaceSplitButton(FTabSplitButton,
         (FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) and
         (FSplitAnchorTab <> FSplitSelectedTab) and
@@ -8768,11 +8762,11 @@ begin
         (FSplitSelectedTab.PageControl = FTabs) and
         IsSplitPDFTab(FSplitAnchorTab) and
         IsSplitPDFTab(FSplitSelectedTab));
-      
+
     end;
   end;
   // Eine bereits offene Teilansicht muss immer wieder schliessbar sein.
-  
+
   if FTabSplitButton <> nil then
   begin
     FTabSplitButton.Enabled := (FSplitHost <> nil) or
@@ -8781,7 +8775,7 @@ begin
        (FSplitAnchorTab.PageControl = FTabs) and
        (FSplitSelectedTab.PageControl = FTabs));
   end;
-  
+
   FSplitViewMenuItem.Enabled := (FSplitHost <> nil) or
     ((FSplitAnchorTab <> nil) and (FSplitSelectedTab <> nil) and
      (FSplitAnchorTab <> FSplitSelectedTab) and
@@ -9095,11 +9089,11 @@ begin
         end
         else
         begin
-          
+
           TPDFBrowserForm(Tab.Controls[J]).RefreshActiveTabPDF;
-          
+
           TPDFBrowserForm(Tab.Controls[J]).UpdateAttachmentWindowPosition;
-          
+
         end;
       end;
   end;
@@ -9213,7 +9207,7 @@ end;
 procedure TPDFTabsForm.TabMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
-  
+
   if Button = mbLeft then
   begin
     if (ssShift in Shift) and (FSplitShiftTab >= 0) then
@@ -10229,8 +10223,8 @@ end;
 
 procedure TPDFTabsForm.TabsChanging(Sender: TObject; var AllowChange: Boolean);
 begin
-  
-  
+
+
 end;
 
 procedure TPDFTabsForm.TabFitTimerTick(Sender: TObject);
@@ -10284,7 +10278,7 @@ begin
   // Technischer Registerwechsel beim Schliessen: keine Initialisierung
   // oder Anzeige eines bislang ungeladenen PDF-Viewers.
   if FAddingPDF then Exit;
-  
+
   // Bildregister sind eigenstaendige Bildansichten. Beim Wechsel keine
   // PDF-spezifischen Aktualisierungen, Ladeauftraege oder Refit-Timer ausfuehren.
   // Die vorhandene TImage-Instanz bleibt dabei im jeweiligen Tab erhalten.
@@ -10379,22 +10373,22 @@ begin
     if FTabs.ActivePage <> nil then
     begin
       // Overlay direkt im aktiven PDF-Inhaltsbereich, nicht auf der Toolbar.
-      
+
       FLeftPDFOverlay.Parent := FTabs.ActivePage;
-      
+
       // Unter den beiden PDF-Werkzeugleisten, nicht auf deren Buttons.
       FLeftPDFOverlay.SetBounds(MulDiv(4, CurrentPPI, 96),
         MulDiv(85, CurrentPPI, 96), MulDiv(79, CurrentPPI, 96),
         MulDiv(24, CurrentPPI, 96));
-      
-      
+
+
       FLeftPDFOverlay.BringToFront;
-      
+
     end
     else
       FLeftPDFOverlay.Visible := False;
   end;
-  
+
   UpdateSplitMenuState;
 
   // Beim Mehrfachimport wurden inaktive Tabs absichtlich noch nicht
@@ -11105,14 +11099,14 @@ begin
     Exit;
   end;
   if FPendingPDFDisposals.Count = 0 then Exit;
-  
+
   PDF := TPDFBrowserForm(FPendingPDFDisposals[0]);
   FPendingPDFDisposals.Delete(0);
   TempPDFFile := PDF.PDFFileName;
 
   try
-    
-    
+
+
     // Der gemeinsame Split-Button darf nicht mit der Toolbar des
     // zu zerstoerenden PDF-Formulars freigegeben werden.
     if (FTabSplitButton <> nil) and (FLeftPDFOverlay <> nil) then
@@ -11120,17 +11114,17 @@ begin
       ButtonAncestor := FTabSplitButton.Parent;
       while (ButtonAncestor <> nil) and (ButtonAncestor <> PDF) do
         ButtonAncestor := ButtonAncestor.Parent;
-      
+
       if ButtonAncestor = PDF then
       begin
-        
+
         FTabSplitButton.Parent := FLeftPDFOverlay;
-        
+
       end;
     end;
     PDF.Free;
-    
-    
+
+
     if IsFreePDFTempAttachment(TempPDFFile) then
       ReleasePDFAttachmentTemp(TempPDFFile);
   finally
@@ -11192,7 +11186,7 @@ begin
       FTabs.ActivePage := FCloseRestoreTab;
     Exit;
   end;
-  
+
   // Beim Schliessen per X auf einem inaktiven Tab die zuvor sichtbare
   // PDF erhalten. Beim Schliessen des aktiven Tabs bleibt die Nachbarwahl.
   if (FTabs.ActivePage <> Tab) then
@@ -11219,14 +11213,14 @@ begin
     begin
 
       UpdateClosedPDFHistory(PDF.PDFFileName, True);
-      
+
     end;
     // Vor dem Entfernen des Parent unsichtbar machen. Sonst wird
     // das eingebettete Formular kurz ein eigenstaendiges Fenster
     // und kann das Registerkartenfenster nach hinten verdraengen.
 
     PDF.Hide;
-    
+
     // Das sichtbare Register sofort entfernen; PDFium wird erst nach
     // Rueckkehr zur Windows-Nachrichtenschleife auf dem UI-Thread freigegeben.
     // Niemals VCL/PDFium-Controls in einem Worker-Thread zerstoeren.
@@ -11234,7 +11228,7 @@ begin
     // ohne übergeordnetes Fenster bleiben (VCL: InvalidOperation).
     // Verstecktes PDF-Formular vom Parent loesen.
     // Bei einer VCL-Ausnahme auf das bisherige Verhalten zurueckfallen.
-    
+
     // Eingebettete, noch nie aktivierte PDF-Formulare nicht parentlos machen:
     // Parent := nil kann einen Handle-Wechsel und VCL-Nachrichten ausloesen,
     // waehrend die PDF-Ansicht noch nicht initialisiert wurde.
@@ -11244,7 +11238,7 @@ begin
     if FPendingPDFDisposals.IndexOf(PDF) < 0 then
       FPendingPDFDisposals.Add(PDF);
     FPDFDisposalTimer.Enabled := True;
-    
+
     // Temporaere Anlagen erst beim tatsaechlichen Freigeben bereinigen.
 
   end;
@@ -11254,10 +11248,10 @@ begin
   // Vor dem Freigeben an das langlebige PageControl umhaengen.
   if (FLeftPDFOverlay <> nil) and (FLeftPDFOverlay.Parent = Tab) then
   begin
-    
+
     FLeftPDFOverlay.Visible := False;
     FLeftPDFOverlay.Parent := FTabs;
-    
+
   end;
   // Zielseite aktivieren, solange die zu schliessende Seite noch lebt.
   // FAddingPDF verhindert die normale, hier unerwuenschte Wechsel-Nacharbeit.
@@ -11269,55 +11263,55 @@ begin
       NextIndex := ClosedIndex + 1
     else
       NextIndex := ClosedIndex - 1;
-    
+
     FAddingPDF := True;
     try
       FTabs.ActivePageIndex := NextIndex;
     finally
       FAddingPDF := False;
     end;
-    
+
   end;
   // Lebensdauer-Fix: vor Tab.Free alle gespeicherten
   // TTabSheet-Zeiger auf die zu zerstoerende Seite entfernen.
   // Nur Zeiger vergleichen; keine potenziell toten Objekte dereferenzieren.
-  
+
   if FSplitLeftTab = Tab then
   begin
     FSplitLeftTab := nil;
-    
+
   end;
   if FSplitRightTab = Tab then
   begin
     FSplitRightTab := nil;
-    
+
   end;
   if FSplitAnchorTab = Tab then
   begin
     FSplitAnchorTab := nil;
-    
+
   end;
   if FSplitSelectedTab = Tab then
   begin
     FSplitSelectedTab := nil;
-    
+
   end;
   if FSplitLastSelectedTab = Tab then
   begin
     FSplitLastSelectedTab := nil;
-    
+
   end;
   if FFullScreenPDFTab = Tab then
   begin
     FFullScreenPDFTab := nil;
-    
+
   end;
-  
-  
+
+
   Tab.Free;
 
   UpdateTabCount;
-  
+
   if FTabs.PageCount > 0 then
   begin
     // Rechten Nachbarn bevorzugen. Nach Tab.Free rueckt er auf
@@ -11348,9 +11342,9 @@ begin
     // Die normale Aktivierungsnachricht richtet die PDF-Ansicht ein.
     PostMessage(Handle, WM_APP + 193, 0, 0);
     // Nach dem Schliessen die verbleibende PDF wieder aktivieren.
-    
+
     RefreshAttachmentPositions;
-    
+
     // Beim Schliessen eines inaktiven Tabs keinen Fokus erzwingen.
     if (KeepTab = nil) and Visible and HandleAllocated then
     begin
@@ -11373,7 +11367,7 @@ begin
     else
       Hide;
   end;
-  
+
   finally
     FTabCloseInProgress := False;
   end;
@@ -11398,7 +11392,7 @@ procedure TPDFTabsForm.TabMouseDown(Sender: TObject; Button: TMouseButton;
 var
   I: Integer;
 begin
-  
+
   if Button = mbLeft then
   begin
     FSplitShiftTab := -1;

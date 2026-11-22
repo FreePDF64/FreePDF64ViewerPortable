@@ -58,31 +58,26 @@ begin
   if not CreateProcess(nil, PChar(FileName), nil, nil, False,
     CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, StartupInfo,
     ProcessInfo) then
-    Exit
-  else
-  begin
+    Exit;
+
+  // Beide Handles werden auf jedem Ausführungspfad freigegeben.
+  // Das Verhalten für asynchronen Start und Rückgabewerte bleibt erhalten.
+  try
     if not wait then
     begin
-      if ProcID <> NIL then
+      if ProcID <> nil then
         ProcID^ := ProcessInfo.dwProcessId;
-      // Handles werden auch bei asynchronem Start sofort geschlossen.
-      // Der Prozess selbst läuft unabhängig davon weiter.
-      CloseHandle(ProcessInfo.hProcess);
-      CloseHandle(ProcessInfo.hThread);
-      ProcessInfo.hProcess := 0;
-      ProcessInfo.hThread := 0;
-      Result := WAIT_FAILED;
       Exit;
     end;
     WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
     GetExitCodeProcess(ProcessInfo.hProcess, Result);
+  finally
+    if ProcessInfo.hProcess <> 0 then
+      CloseHandle(ProcessInfo.hProcess);
+    if ProcessInfo.hThread <> 0 then
+      CloseHandle(ProcessInfo.hThread);
   end;
-  if ProcessInfo.hProcess <> 0 then
-    CloseHandle(ProcessInfo.hProcess);
-  if ProcessInfo.hThread <> 0 then
-    CloseHandle(ProcessInfo.hThread);
 end;
-
 
 function FPDF_LoadDocument(FileName, Password: PAnsiChar): Pointer; stdcall; external 'pdfium.dll';
 procedure FPDF_CloseDocument(Doc: Pointer); stdcall; external 'pdfium.dll';

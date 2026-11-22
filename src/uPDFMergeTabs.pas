@@ -251,7 +251,7 @@ end;
 function NormalizePages(const Input: string; MaxPage: Integer): AnsiString;
 var
   Parts: TStringList;
-  I, K, A, B, P, Dash: Integer;
+  I, A, B, P, Dash: Integer;
   Token, OutText: string;
 begin
   Token := Trim(Input);
@@ -284,7 +284,8 @@ begin
           [MaxPage, Token]);
       for P := A to B do
       begin
-        if OutText <> '' then OutText := OutText + ',';
+        if OutText <> '' then
+          OutText := OutText + ',';
         OutText := OutText + IntToStr(P);
       end;
     end;

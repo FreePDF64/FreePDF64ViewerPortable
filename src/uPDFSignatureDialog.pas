@@ -63,6 +63,32 @@ type
     procedure KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   end;
 
+// Gemeinsame Dialogpalette fuer Quellwahl und Unterschriften-Zeichenfeld.
+// Die bisherigen Farbwerte bleiben fuer jedes Design unveraendert.
+procedure GetSignatureDialogPalette(ADesign: Integer;
+  out BackColor, TextColor, ButtonColor, AccentColor: TColor);
+begin
+  case ADesign of
+    1: begin BackColor := RGB(225,232,241); TextColor := RGB(35,48,65); ButtonColor := RGB(245,247,250); AccentColor := RGB(57,103,166); end;
+    2: begin BackColor := RGB(54,58,65); TextColor := clWhite; ButtonColor := RGB(65,70,79); AccentColor := RGB(103,161,225); end;
+    3: begin BackColor := RGB(192,192,192); TextColor := clBlack; ButtonColor := RGB(220,220,220); AccentColor := RGB(55,90,145); end;
+    6: begin BackColor := RGB(231,234,237); TextColor := clBlack; ButtonColor := RGB(216,221,225); AccentColor := RGB(55,90,145); end;
+    4: begin BackColor := RGB(34,36,40); TextColor := clWhite; ButtonColor := RGB(45,48,54); AccentColor := RGB(105,164,228); end;
+    5: begin BackColor := RGB(190,214,237); TextColor := RGB(24,55,88); ButtonColor := RGB(205,225,245); AccentColor := RGB(30,91,157); end;
+  else
+    begin BackColor := clBtnFace; TextColor := clWindowText; ButtonColor := clBtnFace; AccentColor := clHighlight; end;
+  end;
+end;
+
+function SignatureDialogDPI(AOwner: TComponent): Integer;
+begin
+  if AOwner is TControl then
+    Result := TControl(AOwner).CurrentPPI
+  else
+    Result := Screen.PixelsPerInch;
+  if Result < 96 then Result := 96;
+end;
+
 procedure TSignatureSourceActions.ButtonClick(Sender: TObject);
 begin
   Form.ModalResult := TControl(Sender).Tag;
@@ -221,8 +247,9 @@ var
   HeaderLabel, HelpLabel: TLabel;
   DrawButton, ImportButton, SavedButton, CancelButton: TPanel;
   Actions: TSignatureSourceActions;
-  BackColor, ForeColor, ButtonColor: TColor;
+  BackColor, ForeColor, ButtonColor, UnusedAccent: TColor;
   DPI: Integer;
+  IsGerman: Boolean;
   function S(V: Integer): Integer;
   begin Result := MulDiv(V, DPI, 96); end;
   function NewButton(const Caption: string; X, Y, W, H, Modal: Integer): TPanel;
@@ -257,11 +284,8 @@ begin
     // DPI vor dem Erstellen der Steuerelemente festlegen.
     // Keine zweite automatische VCL-Skalierung der bereits skalierten Bounds.
     D.Scaled := False;
-    if AOwner is TControl then
-      DPI := TControl(AOwner).CurrentPPI
-    else
-      DPI := Screen.PixelsPerInch;
-    if DPI < 96 then DPI := 96;
+    DPI := SignatureDialogDPI(AOwner);
+    IsGerman := Pos('Unterschrift', ATitle) > 0;
     D.Caption := ATitle;
     D.Position := poScreenCenter;
     D.BorderStyle := bsDialog;
@@ -269,16 +293,8 @@ begin
     D.ClientHeight := S(300);
     D.Font.Name := 'Segoe UI';
     D.Font.Size := 10;
-    case ADesign of
-      1: begin BackColor := RGB(225,232,241); ForeColor := RGB(35,48,65); ButtonColor := RGB(245,247,250); end;
-      2: begin BackColor := RGB(54,58,65); ForeColor := clWhite; ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack; ButtonColor := RGB(220,220,220); end;
-      6: begin BackColor := RGB(231,234,237); ForeColor := clBlack; ButtonColor := RGB(216,221,225); end;
-      4: begin BackColor := RGB(34,36,40); ForeColor := clWhite; ButtonColor := RGB(45,48,54); end;
-      5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88); ButtonColor := RGB(205,225,245); end;
-    else
-      begin BackColor := clBtnFace; ForeColor := clWindowText; ButtonColor := clBtnFace; end;
-    end;
+    GetSignatureDialogPalette(ADesign, BackColor, ForeColor,
+      ButtonColor, UnusedAccent);
     D.Color := BackColor;
     D.Font.Color := ForeColor;
     HeaderLabel := TLabel.Create(D);
@@ -294,14 +310,14 @@ begin
     HelpLabel.ParentFont := False;
     HelpLabel.Font.Assign(D.Font);
     HelpLabel.Font.Color := ForeColor;
-    if Pos('Unterschrift', ATitle) > 0 then
+    if IsGerman then
       HelpLabel.Caption := 'Wählen Sie, wie Sie Ihre Unterschrift hinzufügen möchten.'
     else
       HelpLabel.Caption := 'Choose how to add your signature.';
     HelpLabel.SetBounds(S(20), S(60), S(550), S(30));
     DrawButton := NewButton(ACreateText, 20, 108, 267, 52, mrYes);
     ImportButton := NewButton(AImportText, 303, 108, 267, 52, mrNo);
-    if Pos('Unterschrift', ATitle) > 0 then
+    if IsGerman then
       SavedButton := NewButton('Gespeicherte Unterschrift auswählen ...',
         20, 172, 550, 44, mrRetry)
     else
@@ -375,11 +391,7 @@ begin
     // DPI vor dem Erstellen der Steuerelemente festlegen.
     // Keine zweite automatische VCL-Skalierung der bereits skalierten Bounds.
     D.Scaled := False;
-    if AOwner is TControl then
-      DPI := TControl(AOwner).CurrentPPI
-    else
-      DPI := Screen.PixelsPerInch;
-    if DPI < 96 then DPI := 96;
+    DPI := SignatureDialogDPI(AOwner);
     D.Caption := ATitle;
     D.Position := poScreenCenter;
     D.BorderStyle := bsDialog;
@@ -388,16 +400,8 @@ begin
     D.Font.Name := 'Segoe UI';
     D.Font.Size := 10;
     IsGerman := Pos('Unterschrift', ATitle) > 0;
-    case ADesign of
-      1: begin BackColor := RGB(225,232,241); TextColor := RGB(35,48,65); ButtonColor := RGB(245,247,250); AccentColor := RGB(57,103,166); end;
-      2: begin BackColor := RGB(54,58,65); TextColor := clWhite; ButtonColor := RGB(65,70,79); AccentColor := RGB(103,161,225); end;
-      3: begin BackColor := RGB(192,192,192); TextColor := clBlack; ButtonColor := RGB(220,220,220); AccentColor := RGB(55,90,145); end;
-      6: begin BackColor := RGB(231,234,237); TextColor := clBlack; ButtonColor := RGB(216,221,225); AccentColor := RGB(55,90,145); end;
-      4: begin BackColor := RGB(34,36,40); TextColor := clWhite; ButtonColor := RGB(45,48,54); AccentColor := RGB(105,164,228); end;
-      5: begin BackColor := RGB(190,214,237); TextColor := RGB(24,55,88); ButtonColor := RGB(205,225,245); AccentColor := RGB(30,91,157); end;
-    else
-      begin BackColor := clBtnFace; TextColor := clWindowText; ButtonColor := clBtnFace; AccentColor := clHighlight; end;
-    end;
+    GetSignatureDialogPalette(ADesign, BackColor, TextColor,
+      ButtonColor, AccentColor);
     D.Color := BackColor;
     D.Font.Color := TextColor;
     HintLabel := TLabel.Create(D);

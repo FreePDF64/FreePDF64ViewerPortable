@@ -55,26 +55,19 @@ begin
   FCriticalSection.Acquire;
   try
     try
+      // Datei-Modus einmal bestimmen; der Schreib- und Freigabepfad
+      // ist fuer neue und bereits vorhandene Logdateien identisch.
       if FileExists(FLogFileName) then
-      begin
         Stream := TFileStream.Create(FLogFileName,
-          fmOpenReadWrite or fmShareDenyNone);
-        try
-          Stream.Seek(0, soEnd);
-          Stream.WriteBuffer(Bytes[0], Length(Bytes));
-        finally
-          Stream.Free;
-        end;
-      end
+          fmOpenReadWrite or fmShareDenyNone)
       else
-      begin
         Stream := TFileStream.Create(FLogFileName,
           fmCreate or fmShareDenyNone);
-        try
-          Stream.WriteBuffer(Bytes[0], Length(Bytes));
-        finally
-          Stream.Free;
-        end;
+      try
+        Stream.Seek(0, soEnd);
+        Stream.WriteBuffer(Bytes[0], Length(Bytes));
+      finally
+        Stream.Free;
       end;
     except
       // Ein Fehler beim Protokollieren darf niemals einen zweiten

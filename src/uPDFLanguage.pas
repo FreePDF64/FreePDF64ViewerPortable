@@ -354,7 +354,8 @@ begin
   AddPair('Möchten Sie den Verlauf der zuletzt geöffneten Dateien löschen?', 'Clear the recently opened file history?');
   AddPair('Verlauf löschen', 'Clear history');
   AddPair('Alle geöffneten PDFs durchsuchen', 'Search all open PDFs');
-  AddPair('Fundstellen mit Doppelklick öffnen – das Suchfenster schließt sich automatisch.', 'Double-click a result to open it; the search window will close automatically.');
+  AddPair('Doppelklick öffnet die Fundstelle. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.',
+    'Double-click to open a match. Click “Search All PDFs” to show the search window again.');
   AddPair('Suchen', 'Search');
   AddPair('Suchbegriff eingeben und Enter drücken.', 'Enter a search term and press Enter.');
   AddPair('Das Dokument wurde inzwischen geschlossen.', 'The document has been closed.');
@@ -887,16 +888,14 @@ begin
     if C is TComboBox then
     begin
       Combo := TComboBox(C);
-      begin
-        SavedIndex := Combo.ItemIndex;
-        SavedText := Combo.Text;
-        for J := 0 to Combo.Items.Count - 1 do
-          Combo.Items[J] := Tr(Combo.Items[J]);
-        if Combo.Style = csDropDownList then
-          Combo.ItemIndex := SavedIndex
-        else if SavedText <> '' then
-          Combo.Text := Tr(SavedText);
-      end;
+      SavedIndex := Combo.ItemIndex;
+      SavedText := Combo.Text;
+      for J := 0 to Combo.Items.Count - 1 do
+        Combo.Items[J] := Tr(Combo.Items[J]);
+      if Combo.Style = csDropDownList then
+        Combo.ItemIndex := SavedIndex
+      else if SavedText <> '' then
+        Combo.Text := Tr(SavedText);
     end;
     if C is TListView then
     begin

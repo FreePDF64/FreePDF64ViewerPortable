@@ -110,7 +110,7 @@ var
   ObjMatch, M: TMatch;
   HeaderMatches: TMatchCollection;
   HeaderPattern: string;
-  HeaderPos, HeaderEnd, EndObjPos: Integer;
+  HeaderPos, EndObjPos: Integer;
   ObjStart, StreamStart, StreamEnd, PrevXRef, NewXRef: Int64;
   N, I, Updated: Integer;
   Doc: IXMLDocument;
@@ -161,7 +161,6 @@ begin
     if Pos('/Encrypt', All)>0 then
       raise Exception.Create('XFA-Synchronisation: verschluesselte PDFs nicht unterstuetzt.');
     // Read the last classic trailer and its preceding xref position.
-    I := LastDelimiter(#10, All); // no semantic reliance; below uses regex
     M := TRegEx.Match(All, 'startxref\s*(\d+)\s*%%EOF\s*$', [roSingleLine]);
     if not M.Success then raise Exception.Create('XFA: startxref fehlt.');
     PrevXRef := StrToInt64(M.Groups[1].Value);

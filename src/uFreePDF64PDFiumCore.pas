@@ -6642,55 +6642,85 @@ begin
 end;
 
 function TFreePDF64PDFiumCore.TextCharCount(APage: Integer): Integer;
-var P, TP: Pointer;
+var
+  P, TP: Pointer;
 begin
   Result := 0;
-  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then Exit;
+  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then
+    Exit;
   P := FPDF_LoadPage(FDocument, PhysicalPage(APage));
-  if P = nil then Exit;
+  if P = nil then
+    Exit;
   try
     TP := FPDFText_LoadPage(P);
-    if TP = nil then Exit;
-    try Result := Max(0, FPDFText_CountChars(TP));
-    finally FPDFText_ClosePage(TP); end;
-  finally FPDF_ClosePage(P); end;
+    if TP = nil then
+      Exit;
+    try
+      Result := Max(0, FPDFText_CountChars(TP));
+    finally
+      FPDFText_ClosePage(TP);
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
 end;
 
 function TFreePDF64PDFiumCore.TextCharAt(APage: Integer; AX, AY: Double): Integer;
-var P, TP: Pointer;
+var
+  P, TP: Pointer;
 begin
   Result := -1;
-  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then Exit;
+  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then
+    Exit;
   P := FPDF_LoadPage(FDocument, PhysicalPage(APage));
-  if P = nil then Exit;
+  if P = nil then
+    Exit;
   try
     TP := FPDFText_LoadPage(P);
-    if TP = nil then Exit;
-    try Result := FPDFText_GetCharIndexAtPos(TP, AX, AY, 12, 12);
-    finally FPDFText_ClosePage(TP); end;
-  finally FPDF_ClosePage(P); end;
+    if TP = nil then
+      Exit;
+    try
+      Result := FPDFText_GetCharIndexAtPos(TP, AX, AY, 12, 12);
+    finally
+      FPDFText_ClosePage(TP);
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
 end;
 
 function TFreePDF64PDFiumCore.TextRange(APage, AStart, ACount: Integer): string;
-var P, TP: Pointer; Buf: TArray<WideChar>; N, Total: Integer;
+var
+  P, TP: Pointer;
+  Buf: TArray<WideChar>;
+  N, Total: Integer;
 begin
   Result := '';
-  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then Exit;
+  if (FDocument = nil) or (APage < 0) or (APage >= FPageCount) then
+    Exit;
   P := FPDF_LoadPage(FDocument, PhysicalPage(APage));
-  if P = nil then Exit;
+  if P = nil then
+    Exit;
   try
     TP := FPDFText_LoadPage(P);
-    if TP = nil then Exit;
+    if TP = nil then
+      Exit;
     try
       Total := FPDFText_CountChars(TP);
       AStart := Max(0, Min(AStart, Total));
       ACount := Max(0, Min(ACount, Total - AStart));
-      if ACount = 0 then Exit;
+      if ACount = 0 then
+        Exit;
       SetLength(Buf, ACount + 1);
       N := FPDFText_GetText(TP, AStart, ACount, @Buf[0]);
-      if N > 1 then SetString(Result, PWideChar(@Buf[0]), N - 1);
-    finally FPDFText_ClosePage(TP); end;
-  finally FPDF_ClosePage(P); end;
+      if N > 1 then
+        SetString(Result, PWideChar(@Buf[0]), N - 1);
+    finally
+      FPDFText_ClosePage(TP);
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
 end;
 
 function TFreePDF64PDFiumCore.FindTextMatchesOnPage(
@@ -6724,9 +6754,15 @@ begin
           SetLength(Result, N + 1);
           Result[N] := M;
         end;
-      finally FPDFText_FindClose(H); end;
-    finally FPDFText_ClosePage(TP); end;
-  finally FPDF_ClosePage(P); end;
+      finally
+        FPDFText_FindClose(H);
+      end;
+    finally
+      FPDFText_ClosePage(TP);
+    end;
+  finally
+    FPDF_ClosePage(P);
+  end;
 end;
 
 function TFreePDF64PDFiumCore.FindAllTextMatches(

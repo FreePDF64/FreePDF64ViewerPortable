@@ -143,26 +143,55 @@ begin
   else if (Key = VK_RETURN) and (FList.Selected <> nil) then ModalResult := mrOk;
 end;
 
-procedure TSignatureLibraryForm.ApplyLibraryDesign;
-var
-  BackColor, ForeColor, ButtonColor: TColor;
-  Buttons: array[0..3] of TPanel;
-  I: Integer;
+// Einheitliche Designpaletten fuer die Signaturdialoge. Die Dialogpaletten
+// unterscheiden sich bewusst von der Bibliotheks-/Breitenauswahlpalette.
+procedure SignatureLibraryColors(ADesign: Integer;
+  out BackColor, ForeColor, ButtonColor: TColor);
 begin
-  case FDesign of
+  case ADesign of
     1: begin BackColor := RGB(248,250,253); ForeColor := RGB(35,48,65);
       ButtonColor := RGB(225,232,241); end;
     2,4: begin BackColor := RGB(55,59,66); ForeColor := clWhite;
       ButtonColor := RGB(65,70,79); end;
     3: begin BackColor := clBtnFace; ForeColor := clWindowText;
       ButtonColor := RGB(205,205,205); end;
-      6: begin BackColor := RGB(231,234,237); ForeColor := RGB(49,57,65);
+    6: begin BackColor := RGB(231,234,237); ForeColor := RGB(49,57,65);
       ButtonColor := RGB(205,205,205); end;
     5: begin BackColor := RGB(232,242,253); ForeColor := RGB(24,55,88);
       ButtonColor := RGB(190,214,237); end;
-  else begin BackColor := clBtnFace; ForeColor := clWindowText;
-    ButtonColor := clBtnFace; end;
+  else
+    begin BackColor := clBtnFace; ForeColor := clWindowText;
+      ButtonColor := clBtnFace; end;
   end;
+end;
+
+procedure SignatureDialogColors(ADesign: Integer;
+  out BackColor, ForeColor, ButtonColor: TColor);
+begin
+  case ADesign of
+    1: begin BackColor := RGB(225,232,241); ForeColor := RGB(35,48,65);
+      ButtonColor := RGB(245,247,250); end;
+    2,4: begin BackColor := RGB(54,58,65); ForeColor := clWhite;
+      ButtonColor := RGB(65,70,79); end;
+    3: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
+      ButtonColor := RGB(220,220,220); end;
+    6: begin BackColor := RGB(231,234,237); ForeColor := clBlack;
+      ButtonColor := RGB(216,221,225); end;
+    5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88);
+      ButtonColor := RGB(205,225,245); end;
+  else
+    begin BackColor := clBtnFace; ForeColor := clWindowText;
+      ButtonColor := clBtnFace; end;
+  end;
+end;
+
+procedure TSignatureLibraryForm.ApplyLibraryDesign;
+var
+  BackColor, ForeColor, ButtonColor: TColor;
+  Buttons: array[0..3] of TPanel;
+  I: Integer;
+begin
+  SignatureLibraryColors(FDesign, BackColor, ForeColor, ButtonColor);
   Color := BackColor;
   Font.Color := ForeColor;
   FList.Color := BackColor;
@@ -320,6 +349,32 @@ begin
     (Mode.dmPelsWidth >= 3200) and (Mode.dmPelsHeight >= 1800);
 end;
 
+// Beide Dialoge verwenden dieselbe Aktionsbutton-Geometrie und -Optik.
+function AddSignatureDialogAction(AForm: TForm; const AText: string;
+  X, AModalResult, AMargin, AButtonWidth, AButtonHeight, AGap,
+  ADesign: Integer; AButtonColor, AForeColor: TColor;
+  AOnClick: TNotifyEvent): TPanel;
+begin
+  Result := TPanel.Create(AForm);
+  Result.Parent := AForm;
+  Result.SetBounds(AForm.ClientWidth - AMargin -
+    (2-X) * (AButtonWidth+AGap) - AButtonWidth,
+    AForm.ClientHeight - AMargin - AButtonHeight,
+    AButtonWidth, AButtonHeight);
+  Result.Anchors := [akRight, akBottom];
+  Result.Caption := AText;
+  Result.BevelOuter := bvRaised;
+  Result.Color := AButtonColor;
+  Result.Font.Color := AForeColor;
+  Result.Alignment := taCenter;
+  Result.VerticalAlignment := taVerticalCenter;
+  if ADesign = 0 then Result.Font.Style := []
+  else Result.Font.Style := [fsBold];
+  Result.Cursor := crHandPoint;
+  Result.Tag := AModalResult;
+  Result.OnClick := AOnClick;
+end;
+
 type
   TSignatureConfirmActions = class
     Form: TForm;
@@ -346,24 +401,9 @@ var
   end;
   function AddAction(const AText: string; X, Modal: Integer): TPanel;
   begin
-    Result := TPanel.Create(D);
-    Result.Parent := D;
-    Result.SetBounds(D.ClientWidth - Margin - (2-X) * (ButtonWidth+Gap) - ButtonWidth,
-      D.ClientHeight - Margin - ButtonHeight, ButtonWidth, ButtonHeight);
-    Result.Anchors := [akRight, akBottom];
-    Result.Caption := AText;
-    Result.BevelOuter := bvRaised;
-    Result.Color := ButtonColor;
-    Result.Font.Color := ForeColor;
-    Result.Alignment := taCenter;
-    Result.VerticalAlignment := taVerticalCenter;
-    if ADesign = 0 then
-      Result.Font.Style := []
-    else
-      Result.Font.Style := [fsBold];
-    Result.Cursor := crHandPoint;
-    Result.Tag := Modal;
-    Result.OnClick := Actions.Click;
+    Result := AddSignatureDialogAction(D, AText, X, Modal,
+      Margin, ButtonWidth, ButtonHeight, Gap, ADesign,
+      ButtonColor, ForeColor, Actions.Click);
   end;
 begin
   D := TForm.CreateNew(AOwner);
@@ -380,20 +420,7 @@ begin
     // Die Maße werden nach der Schriftmetrik bestimmt, nicht nur nach DPI.
     D.ClientWidth := S(445);
     D.ClientHeight := S(150);
-    case ADesign of
-      1: begin BackColor := RGB(225,232,241); ForeColor := RGB(35,48,65);
-        ButtonColor := RGB(245,247,250); end;
-      2,4: begin BackColor := RGB(54,58,65); ForeColor := clWhite;
-        ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
-        ButtonColor := RGB(220,220,220); end;
-      6: begin BackColor := RGB(231,234,237); ForeColor := clBlack;
-        ButtonColor := RGB(216,221,225); end;
-      5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88);
-        ButtonColor := RGB(205,225,245); end;
-    else begin BackColor := clBtnFace; ForeColor := clWindowText;
-      ButtonColor := clBtnFace; end;
-    end;
+    SignatureDialogColors(ADesign, BackColor, ForeColor, ButtonColor);
     D.Color := BackColor;
     D.Font.Color := ForeColor;
     D.Canvas.Font.Assign(D.Font);
@@ -491,22 +518,9 @@ var
   end;
   function AddButton(const AText: string; X, AResult: Integer): TPanel;
   begin
-    Result := TPanel.Create(D);
-    Result.Parent := D;
-    Result.SetBounds(D.ClientWidth - Margin - (2-X) * (ButtonWidth+Gap) - ButtonWidth,
-      D.ClientHeight - Margin - ButtonHeight, ButtonWidth, ButtonHeight);
-    Result.Anchors := [akRight, akBottom];
-    Result.Caption := AText;
-    Result.BevelOuter := bvRaised;
-    Result.Color := ButtonColor;
-    Result.Font.Color := ForeColor;
-    Result.Alignment := taCenter;
-    Result.VerticalAlignment := taVerticalCenter;
-    if ADesign = 0 then Result.Font.Style := []
-    else Result.Font.Style := [fsBold];
-    Result.Cursor := crHandPoint;
-    Result.Tag := AResult;
-    Result.OnClick := Actions.Click;
+    Result := AddSignatureDialogAction(D, AText, X, AResult,
+      Margin, ButtonWidth, ButtonHeight, Gap, ADesign,
+      ButtonColor, ForeColor, Actions.Click);
   end;
 begin
   D := TForm.CreateNew(AOwner);
@@ -522,20 +536,7 @@ begin
     D.Font.Size := 10;
     D.ClientWidth := S(480);
     D.ClientHeight := S(112);
-    case ADesign of
-      1: begin BackColor := RGB(225,232,241); ForeColor := RGB(35,48,65);
-        ButtonColor := RGB(245,247,250); end;
-      2,4: begin BackColor := RGB(54,58,65); ForeColor := clWhite;
-        ButtonColor := RGB(65,70,79); end;
-      3: begin BackColor := RGB(192,192,192); ForeColor := clBlack;
-        ButtonColor := RGB(220,220,220); end;
-      6: begin BackColor := RGB(231,234,237); ForeColor := clBlack;
-        ButtonColor := RGB(216,221,225); end;
-      5: begin BackColor := RGB(190,214,237); ForeColor := RGB(24,55,88);
-        ButtonColor := RGB(205,225,245); end;
-    else begin BackColor := clBtnFace; ForeColor := clWindowText;
-      ButtonColor := clBtnFace; end;
-    end;
+    SignatureDialogColors(ADesign, BackColor, ForeColor, ButtonColor);
     D.Color := BackColor;
     D.Font.Color := ForeColor;
     D.Canvas.Font.Assign(D.Font);
@@ -644,20 +645,7 @@ begin
   FWidth.OnChange := TrackChanged;
   FEdit.OnChange := EditChanged;
   // Farbige Panels statt TButton: VCL-TButton.Color ist nicht frei setzbar.
-  case ADesign of
-    1: begin BackColor := RGB(248,250,253); ForeColor := RGB(35,48,65);
-      ButtonColor := RGB(225,232,241); end;
-    2,4: begin BackColor := RGB(55,59,66); ForeColor := clWhite;
-      ButtonColor := RGB(65,70,79); end;
-    3: begin BackColor := clBtnFace; ForeColor := clWindowText;
-      ButtonColor := RGB(205,205,205); end;
-      6: begin BackColor := RGB(231,234,237); ForeColor := RGB(49,57,65);
-      ButtonColor := RGB(205,205,205); end;
-    5: begin BackColor := RGB(232,242,253); ForeColor := RGB(24,55,88);
-      ButtonColor := RGB(190,214,237); end;
-  else begin BackColor := clBtnFace; ForeColor := clWindowText;
-    ButtonColor := clBtnFace; end;
-  end;
+  SignatureLibraryColors(ADesign, BackColor, ForeColor, ButtonColor);
   Color := BackColor;
   Font.Color := ForeColor;
   L.Font.Color := ForeColor;

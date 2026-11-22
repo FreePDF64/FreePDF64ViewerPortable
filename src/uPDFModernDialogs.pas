@@ -83,6 +83,7 @@ var
   BodyTop, BodyHeight, BodyBottomGap: Integer;
   WorkArea: TRect;
   MaxDialogW, MaxDialogH, NaturalDialogH: Integer;
+  UseEnglish, IsSignatureNotice: Boolean;
 
   function WrapLongTokens(const S: string; MaxChars: Integer): string;
   var
@@ -150,7 +151,8 @@ begin
     BtnH := MulDiv(38, Scale, 96);
     BtnW := MulDiv(126, Scale, 96);
     Count := 0;
-    if ForceEnglish or SameText(PDFLanguage, 'en') then
+    UseEnglish := ForceEnglish or SameText(PDFLanguage, 'en');
+    if UseEnglish then
     begin
       AddChoice(mbYes, mrYes, 'Yes');
       AddChoice(mbNo, mrNo, 'No');
@@ -213,10 +215,12 @@ begin
     end;
 
     // Signaturwarnung: klarer Titel statt generischem 'Hinweis'.
-    if (Pos('Dieses PDF enthält Signaturfelder.', DisplayMsg) = 1) or
-       (Pos('This PDF contains signature fields.', DisplayMsg) = 1) then
+    IsSignatureNotice :=
+      (Pos('Dieses PDF enthält Signaturfelder.', DisplayMsg) = 1) or
+      (Pos('This PDF contains signature fields.', DisplayMsg) = 1);
+    if IsSignatureNotice then
     begin
-      if ForceEnglish or SameText(PDFLanguage, 'en') then
+      if UseEnglish then
         TitleText := 'Digital signatures'
       else
         TitleText := 'Digitale Signaturen';
@@ -225,8 +229,7 @@ begin
 
     // Sehr lange Pfade oder Dateinamen enthalten oft keine Leerzeichen. Solche
     // Textteile werden für die Anzeige umgebrochen, damit nichts rechts abgeschnitten wird.
-    if (Pos('Dieses PDF enthält Signaturfelder.', DisplayMsg) <> 1) and
-       (Pos('This PDF contains signature fields.', DisplayMsg) <> 1) and
+    if (not IsSignatureNotice) and
        (Pos('Anlage(n) wurden hinzugefügt:', DisplayMsg) = 0) and
        (Pos('PDF mit entfernten Anlagen gespeichert:', DisplayMsg) = 0) and
        (Pos('attachment(s) added:', LowerCase(DisplayMsg)) = 0) then

@@ -84,6 +84,7 @@ type
     FWorkspacesButton: TButton;
     FGlobalFindButton: TBitBtn;
     FSearchCountLabel: TLabel;
+    FSearchRibbonCountPanel: TPanel;
     FToolbarDesignIndex: Integer;
     FToolbarDesignApplied: Boolean;
     FGlobalSearchActive: Boolean;
@@ -1616,6 +1617,18 @@ begin
       'Text suchen – aktuelle PDF: ' + IntToStr(FPDFiumView.SearchMatchCount) + ' Treffer',
       'Text search – current PDF: ' + IntToStr(FPDFiumView.SearchMatchCount) + ' matches');
   FSearchCountLabel.ShowHint := True;
+  // Die alte Navigationsleiste ist im Ribbon-Modus ausgeblendet.
+  // Daher die Trefferzahl zusaetzlich als kleine, eigenstaendige Anzeige
+  // ueber der PDF darstellen, ohne die PDFium-Suchlogik zu veraendern.
+  if FSearchRibbonCountPanel <> nil then
+  begin
+    FSearchRibbonCountPanel.Caption := FSearchCountLabel.Caption;
+    FSearchRibbonCountPanel.Hint := FSearchCountLabel.Hint;
+    FSearchRibbonCountPanel.Visible := FTabbedPDFMode and
+      (FPDFiumView <> nil) and FPDFiumView.HasSearchHighlights;
+    if FSearchRibbonCountPanel.Visible then
+      FSearchRibbonCountPanel.BringToFront;
+  end;
 end;
 
 procedure TPDFBrowserForm.FindTermClick(Sender: TObject);
@@ -2527,6 +2540,20 @@ begin
     FPDFiumView.Align := alClient;
     FPDFiumView.OnSearchCountChanged := UpdateSearchCount;
     FPDFiumView.OnPDFPageClick := PDFPageClickClearSearch;
+    // TPanel ist ein Fenster-Control und bleibt auch ueber dem
+    // PDFium-Fenster sichtbar (anders als ein TLabel).
+    FSearchRibbonCountPanel := TPanel.Create(Self);
+    FSearchRibbonCountPanel.Parent := Self;
+    FSearchRibbonCountPanel.BevelOuter := bvLowered;
+    FSearchRibbonCountPanel.ParentFont := True;
+    FSearchRibbonCountPanel.Font.Style := [fsBold];
+    FSearchRibbonCountPanel.ShowHint := True;
+    FSearchRibbonCountPanel.Anchors := [akTop, akRight];
+    FSearchRibbonCountPanel.SetBounds(
+      Max(0, ClientWidth - MulDiv(194, CurrentPPI, 96)),
+      MulDiv(8, CurrentPPI, 96),
+      MulDiv(186, CurrentPPI, 96), MulDiv(26, CurrentPPI, 96));
+    FSearchRibbonCountPanel.Visible := False;
     UpdateSearchCount(FPDFiumView);
     FPDFiumView.BringToFront;
     FPDFiumView.PlaceEditButton(FToolbar,
@@ -3409,6 +3436,8 @@ begin
   UpdateUnifiedToolbar;
   ReflowNavigationToolbar;
   ApplyRibbonNavigationLayout;
+  if (FSearchRibbonCountPanel <> nil) and FSearchRibbonCountPanel.Visible then
+    FSearchRibbonCountPanel.BringToFront;
   UpdateAttachmentWindowPosition;
 end;
 

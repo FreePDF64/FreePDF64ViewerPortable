@@ -46,6 +46,7 @@ type
     FPendingLoadRequested: Boolean;
     FPendingLoadStarted: UInt64;
     procedure ReleaseOfflineCore;
+    procedure AdvanceToNextTab;
     procedure FinishHitNavigation;
     procedure FlushResults;
     function FindPDF(ATab: TTabSheet): TPDFBrowserForm;
@@ -90,7 +91,7 @@ begin
   FHits := TObjectList<TGlobalSearchHit>.Create(True);
   FPendingResults := TStringList.Create;
   Caption := Tr('Globale PDF-Suche');
-  Position := poScreenCenter;
+  Position := poDesigned;
   Scaled := False;
   PixelsPerInch := D;
   Width := Px(900);
@@ -132,7 +133,7 @@ begin
   FSubtitle.Top := Px(66);
   FSubtitle.AutoSize := False;
   FSubtitle.WordWrap := True;
-  FSubtitle.Caption := Tr('Fundstellen mit Doppelklick öffnen – das Suchfenster schließt sich automatisch.');
+  FSubtitle.Caption := Tr('Doppelklick öffnet die Fundstelle. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.');
   FTitle.SetBounds(Px(20), Px(12), Px(860), Px(58));
   FSubtitle.SetBounds(Px(21), Px(78), Px(858), Px(42));
   Header.Height := Px(142);
@@ -302,6 +303,16 @@ begin
   FOfflineTab := -1;
 end;
 
+// Wechsel zum naechsten Dokument: alle drei bisherigen Aufrufstellen
+// verwenden dieselbe Freigabe- und Fortschrittsreihenfolge.
+procedure TPDFGlobalSearchForm.AdvanceToNextTab;
+begin
+  ReleaseOfflineCore;
+  Inc(FTabIndex);
+  FPageIndex := 0;
+  FTimer.Enabled := True;
+end;
+
 procedure TPDFGlobalSearchForm.FinishHitNavigation;
 begin
   if FPendingHit = nil then Exit;
@@ -339,7 +350,17 @@ begin
 end;
 
 procedure TPDFGlobalSearchForm.ShowSearch;
+var
+  Viewer: TCustomForm;
 begin
+  // Bei jedem Öffnen über dem aktuellen Viewer zentrieren.
+  // Die Bildschirmmitte ist bei mehreren Monitoren nicht geeignet.
+  if Owner is TCustomForm then
+  begin
+    Viewer := TCustomForm(Owner);
+    Left := Viewer.Left + (Viewer.Width - Width) div 2;
+    Top := Viewer.Top + (Viewer.Height - Height) div 2;
+  end;
   Show;
   BringToFront;
   FTerm.SetFocus;
@@ -487,10 +508,7 @@ begin
   PDF := FindPDF(FTabs.Pages[FTabIndex]);
   if PDF = nil then
   begin
-    ReleaseOfflineCore;
-    Inc(FTabIndex);
-    FPageIndex := 0;
-    FTimer.Enabled := True;
+    AdvanceToNextTab;
     Exit;
   end;
   // Noch nicht angezeigte Tabs sind absichtlich nicht geladen.
@@ -509,11 +527,8 @@ begin
       except
         on E: Exception do
         begin
-          ReleaseOfflineCore;
           FStatus.Caption := Tr('PDF nicht durchsuchbar: ') + ExtractFileName(PDF.PDFFileName);
-          Inc(FTabIndex);
-          FPageIndex := 0;
-          FTimer.Enabled := True;
+          AdvanceToNextTab;
           Exit;
         end;
       end;
@@ -524,10 +539,7 @@ begin
   if ((FOfflineCore <> nil) and (FPageIndex >= FOfflineCore.PageCount)) or
      ((FOfflineCore = nil) and (FPageIndex >= PDF.GlobalPageCount)) then
   begin
-    ReleaseOfflineCore;
-    Inc(FTabIndex);
-    FPageIndex := 0;
-    FTimer.Enabled := True;
+    AdvanceToNextTab;
     Exit;
   end;
   try
@@ -536,9 +548,8 @@ begin
     else
       Matches := PDF.GlobalFindOnPage(FTermValue, FPageIndex);
     Inc(FScannedPages);
+    for M in Matches do
     begin
-      for M in Matches do
-      begin
         if FHits.Count >= 3000 then
         begin
           FRunning := False;
@@ -560,7 +571,6 @@ begin
         FHits.Add(Hit);
         FPendingResults.Add(Format('%s  |  Seite %d  |  %s',
           [ExtractFileName(Hit.FileName), M.PageIndex + 1, TextSnippet]));
-      end;
     end;
     Inc(FPageIndex);
   except
