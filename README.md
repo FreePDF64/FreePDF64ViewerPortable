@@ -28,7 +28,7 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 
 ## New in version 3.4.0
 
-- **Edit existing PDF objects:** Select, move, resize and rotate text, images and vector objects with a persistent selection outline, live rotation preview, angle display, 15° snapping (Shift), Undo/Redo and one-key Esc exit.
+- **Edit existing PDF objects:** Select, move, resize and rotate existing text, image and vector objects (where supported), with a persistent selection outline, live rotation preview, angle display, 15° snapping (Shift), Undo/Redo and one-key Esc exit. Unlike simply adding annotations, this changes existing page objects. A safety check blocks object transformations on pages containing unsupported PDFium object types, helping prevent content loss when saving.
 - **Comparison-only split view:** Compare two PDFs side by side, with navigation and zoom targeting the active pane. Editing and ambiguous document actions are disabled; ribbon state and update controls are restored after leaving split view.
 
 
@@ -54,7 +54,7 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 - **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
 - **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
 - **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
-- **PDF editing:** Insert images, text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
+- **PDF editing:** Move, resize and rotate supported existing text, image and vector objects; insert images, text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
 - **PDF forms:** Edit AcroForm and supported static XFA forms; run supported V8 JavaScript actions and calculations.
 - **Images:** Open, zoom, rotate, and save JPG/JPEG, PNG, BMP, and single- or multipage TIFF files; preview and extract embedded PDF images.
 - **More:** View PDF font information, manage attachments, export PDF pages as images or text, use bookmarks, switch between German and English, and choose interface themes.
@@ -91,7 +91,7 @@ See the **Workspaces** screenshot below for the management interface.
 
 **Upgrade note:** The `Xpdf` and `qpdf` folders from older viewer versions are no longer needed by FreePDF64-Viewer Portable and can be deleted from the viewer installation.
 
-**Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported.
+**Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported. Existing-object editing is limited to supported page objects; pages containing unsupported object types are protected from object transformations.
 
 ## Portable use and license
 
@@ -115,7 +115,7 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 
 ## Neu in Version 3.4.0
 
-- **Vorhandene PDF-Objekte bearbeiten:** Text-, Bild- und Vektorobjekte auswählen, verschieben, skalieren und drehen. Dauerhafter Auswahlrahmen, Live-Drehvorschau, Winkelanzeige, 15°-Raster (Umschalt), Rückgängig/Wiederholen und Beenden mit einmal ESC.
+- **Vorhandene PDF-Objekte bearbeiten:** Vorhandene Text-, Bild- und Vektorobjekte (soweit unterstützt) auswählen, verschieben, skalieren und drehen. Anders als beim bloßen Hinzufügen von Anmerkungen werden bestehende Seitenobjekte verändert. Mit dauerhaftem Auswahlrahmen, Live-Drehvorschau, Winkelanzeige, 15°-Raster (Umschalt), Rückgängig/Wiederholen und Beenden mit einmal ESC. Eine Sicherheitsprüfung verhindert Objekttransformationen auf Seiten mit nicht unterstützten PDFium-Objekttypen und schützt so vor möglichen Inhaltsverlusten beim Speichern.
 - **Geteilte Ansicht als Vergleichsmodus:** Zwei PDFs nebeneinander vergleichen; Navigation und Zoom steuern die aktive Teilansicht. Bearbeitung und mehrdeutige Dokumentbefehle sind deaktiviert; Ribbon-Zustände einschließlich Update werden beim Beenden wiederhergestellt.
 
 
@@ -141,7 +141,7 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 - **PDF-Vergleich:** Zwei PDFs nebeneinander anzeigen; **S** synchronisiert das Scrollen, **Z** den Zoom (jeweils links → rechts).
 - **Suche:** Einzelne PDFs durchsuchen oder alle geöffneten PDFs gemeinsam mit **Strg+Umschalt+F**.
 - **Seitenverwaltung:** Vergrößerbare Miniaturen; Seiten per Drag & Drop verschieben, drehen, löschen oder extrahieren.
-- **PDF-Bearbeitung:** Bilder, Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
+- **PDF-Bearbeitung:** Unterstützte vorhandene Text-, Bild- und Vektorobjekte verschieben, skalieren und drehen; Bilder, Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
 - **PDF-Formulare:** AcroForm und unterstützte statische XFA-Formulare bearbeiten; unterstützte JavaScript-V8-Aktionen und Berechnungen ausführen.
 - **Bilder:** JPG/JPEG, PNG, BMP sowie ein- und mehrseitige TIFF-Dateien öffnen, zoomen, drehen und speichern; eingebettete PDF-Bilder anzeigen und extrahieren.
 - **Weitere Funktionen:** PDF-Schriftarten anzeigen, PDF-Anlagen verwalten, PDF-Seiten als Bilder oder Text exportieren, Inhaltsverzeichnis, DE/EN-Oberfläche und verschiedene Designs.
@@ -178,7 +178,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 
 **Hinweis zum Update:** Die Verzeichnisse `Xpdf` und `qpdf` aus älteren Viewer-Versionen werden von FreePDF64-Viewer Portable nicht mehr benötigt und können aus der Viewer-Installation gelöscht werden.
 
-**Hinweise:** Messwerte hängen vom Maßstab und der PDF-Vorlage ab. Die **optische Schwärzung** verdeckt Inhalte nur und entfernt sie nicht sicher. PDF-JavaScript und XFA werden nicht in allen Varianten unterstützt.
+**Hinweise:** Messwerte hängen vom Maßstab und der PDF-Vorlage ab. Die **optische Schwärzung** verdeckt Inhalte nur und entfernt sie nicht sicher. PDF-JavaScript und XFA werden nicht in allen Varianten unterstützt. Die Bearbeitung vorhandener Objekte ist auf unterstützte Seitenobjekte begrenzt; Seiten mit nicht unterstützten Objekttypen sind vor Objekttransformationen geschützt.
 
 ## Portabilität und Lizenz
 
