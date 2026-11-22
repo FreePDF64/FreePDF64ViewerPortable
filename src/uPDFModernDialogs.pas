@@ -9,7 +9,7 @@ uses
 
 function PDFModernMessageDlg(const Msg: string; DlgType: TMsgDlgType;
   Buttons: TMsgDlgButtons; HelpCtx: Longint;
-  EscapeClosesOK: Boolean = False): Integer;
+  EscapeClosesOK: Boolean = False; ForceEnglish: Boolean = False): Integer;
 
 implementation
 
@@ -63,7 +63,7 @@ end;
 
 function PDFModernMessageDlg(const Msg: string; DlgType: TMsgDlgType;
   Buttons: TMsgDlgButtons; HelpCtx: Longint;
-  EscapeClosesOK: Boolean): Integer;
+  EscapeClosesOK: Boolean; ForceEnglish: Boolean): Integer;
 const
   Ink = $00433425;
   Accent = $00C47A20;
@@ -150,7 +150,7 @@ begin
     BtnH := MulDiv(38, Scale, 96);
     BtnW := MulDiv(126, Scale, 96);
     Count := 0;
-    if PDFLanguage = 'en' then
+    if ForceEnglish or SameText(PDFLanguage, 'en') then
     begin
       AddChoice(mbYes, mrYes, 'Yes');
       AddChoice(mbNo, mrNo, 'No');
@@ -212,9 +212,22 @@ begin
       DisplayMsg := Trim(DisplayMsg);
     end;
 
+    // Signaturwarnung: klarer Titel statt generischem 'Hinweis'.
+    if (Pos('Dieses PDF enthält Signaturfelder.', DisplayMsg) = 1) or
+       (Pos('This PDF contains signature fields.', DisplayMsg) = 1) then
+    begin
+      if ForceEnglish or SameText(PDFLanguage, 'en') then
+        TitleText := 'Digital signatures'
+      else
+        TitleText := 'Digitale Signaturen';
+      D.Caption := TitleText + ' – FreePDF64-Viewer';
+    end;
+
     // Sehr lange Pfade oder Dateinamen enthalten oft keine Leerzeichen. Solche
     // Textteile werden für die Anzeige umgebrochen, damit nichts rechts abgeschnitten wird.
-    if (Pos('Anlage(n) wurden hinzugefügt:', DisplayMsg) = 0) and
+    if (Pos('Dieses PDF enthält Signaturfelder.', DisplayMsg) <> 1) and
+       (Pos('This PDF contains signature fields.', DisplayMsg) <> 1) and
+       (Pos('Anlage(n) wurden hinzugefügt:', DisplayMsg) = 0) and
        (Pos('PDF mit entfernten Anlagen gespeichert:', DisplayMsg) = 0) and
        (Pos('attachment(s) added:', LowerCase(DisplayMsg)) = 0) then
       DisplayMsg := WrapLongTokens(DisplayMsg, 58);

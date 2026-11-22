@@ -255,6 +255,7 @@ type
     FInfoContentScroll: TScrollBox;
     FInfoDetailsScroll: TScrollBox;
     FInfoFontsScroll: TScrollBox;
+    FInfoObjectsScroll: TScrollBox;
     FPageEdit: TEdit;
     FGoPage: TButton;
     FFind: TButton;
@@ -1983,6 +1984,37 @@ end;
 
 procedure TFreePDF64PDFiumView.ToggleObjectEditing;
 begin
+  // Vor Aktivierung die PDF-Aenderungsrechte kontrollieren. Die Pruefung
+  // betrifft ausschliesslich den Objektbearbeitungsmodus, nicht die Anzeige.
+  if (not FObjectEditMode) and (FCore <> nil) and
+     (FCore.SecurityRevision >= 0) and
+     ((FCore.SecurityPermissions and UInt64(8)) = UInt64(0)) then
+  begin
+    PDFModernMessageDlg(ToolbarHint(
+      'Die PDF erlaubt laut ihren Dokumentberechtigungen keine Änderungen am Inhalt.' +
+      sLineBreak + sLineBreak +
+      'Die PDF-Objektbearbeitung wird deshalb nicht aktiviert.',
+      'The PDF document permissions do not allow content modification.' +
+      sLineBreak + sLineBreak +
+      'PDF object editing will therefore remain disabled.'),
+      mtWarning, [mbOK], 0, False, SameText(PDFLanguage, 'en'));
+    Exit;
+  end;
+  // Vorsicht: Signaturfelder koennen auch leer sein; kein Beweis einer
+  // gueltigen Signatur. Keine Aenderung am Dokument vor der Rueckfrage.
+  if (not FObjectEditMode) and (FCore <> nil) and
+     (FCore.SignatureWidgetCount > 0) then
+    if PDFModernMessageDlg(ToolbarHint(
+      'Dieses PDF enthält Signaturfelder.' + sLineBreak + sLineBreak +
+      'Die Bearbeitung kann vorhandene digitale Signaturen ungültig machen. ' +
+      'Eine kryptografische Prüfung wurde nicht durchgeführt.' + sLineBreak + sLineBreak +
+      'Objektbearbeitung trotzdem aktivieren?',
+      'This PDF contains signature fields.' + sLineBreak + sLineBreak +
+      'Editing may invalidate existing digital signatures. ' +
+      'No cryptographic verification has been performed.' + sLineBreak + sLineBreak +
+      'Enable object editing anyway?'),
+      mtWarning, [mbYes, mbNo], 0, False,
+      SameText(PDFLanguage, 'en')) <> mrYes then Exit;
   CancelObjectRotationPreview;
   FObjectEditMode := not FObjectEditMode;
   FObjectSelectedPage := -1;
@@ -9955,24 +9987,29 @@ begin
   FInfoContentScroll := nil;
   FInfoDetailsScroll := nil;
   FInfoFontsScroll := nil;
+  FInfoObjectsScroll := nil;
   FInfoDialog := nil;
   if Assigned(FInfo) then FInfo.Font.Style := [];
 end;
 
 procedure TFreePDF64PDFiumView.InfoPageChange(Sender: TObject);
 var
-  ShowFonts: Boolean;
+  PageIndex: Integer;
 begin
   if not (Sender is TComboBox) then Exit;
-  ShowFonts := TComboBox(Sender).ItemIndex = 1;
+  PageIndex := TComboBox(Sender).ItemIndex;
   if Assigned(FInfoDetailsScroll) then
-    FInfoDetailsScroll.Visible := not ShowFonts;
+    FInfoDetailsScroll.Visible := PageIndex = 0;
   if Assigned(FInfoFontsScroll) then
-    FInfoFontsScroll.Visible := ShowFonts;
-  if ShowFonts then
-    FInfoContentScroll := FInfoFontsScroll
+    FInfoFontsScroll.Visible := PageIndex = 2;
+  if Assigned(FInfoObjectsScroll) then
+    FInfoObjectsScroll.Visible := PageIndex = 1;
+  case PageIndex of
+    1: FInfoContentScroll := FInfoObjectsScroll;
+    2: FInfoContentScroll := FInfoFontsScroll;
   else
     FInfoContentScroll := FInfoDetailsScroll;
+  end;
   if Assigned(FInfoContentScroll) then
     FInfoContentScroll.VertScrollBar.Position := 0;
 end;
@@ -10009,10 +10046,12 @@ end;
 procedure TFreePDF64PDFiumView.InfoClick(Sender: TObject);
 var
   EncryptionText: string;
+  ObjectSummary: TPDFObjectEditSummary;
+  EditRights: Boolean;
   Dlg: TForm;
   Header, SectionTitle, Lab, Val: TLabel;
   CloseBtn: TButton;
-  ContentScroll, FontsScroll: TScrollBox;
+  ContentScroll, FontsScroll, ObjectsScroll: TScrollBox;
   PageSelect: TComboBox;
   DetailsContentH: Integer;
   Stream: TFileStream;
@@ -10175,8 +10214,9 @@ begin
     PageSelect.ItemHeight := Max(PageSelect.Canvas.TextHeight('Ag') + P(8), P(20));
     PageSelect.SetBounds(P(26), P(69), DialogW - P(52),
       Max(P(30), PageSelect.ItemHeight + P(8)));
-    PageSelect.DropDownCount := 2;
+    PageSelect.DropDownCount := 3;
     PageSelect.Items.Add(Tr('Dokumentinformationen'));
+    PageSelect.Items.Add(ToolbarHint('PDF-Objektbearbeitung', 'PDF object editing'));
     PageSelect.Items.Add(Tr('Schriftartenübersicht'));
     PageSelect.ItemIndex := 0;
     PageSelect.OnChange := InfoPageChange;
@@ -10252,6 +10292,7 @@ begin
     AddPermission('Kommentieren:', UInt64(32));
     AddPermission('Formulare ausfüllen:', UInt64(256));
     AddPermission('Dokumentzusammenstellung:', UInt64(1024));
+
     CloseBtn := TButton.Create(Dlg);
     CloseBtn.Parent := Dlg;
     CloseBtn.Caption := Tr('Schließen');
@@ -10295,6 +10336,62 @@ begin
     ContentH := RowY + P(15);
     FontsScroll.VertScrollBar.Range := ContentH;
     FontsScroll.VertScrollBar.Position := 0;
+    // Dritte Dropdown-Seite: Objektbearbeitung getrennt von Dokumentinformationen.
+    ObjectsScroll := TScrollBox.Create(Dlg);
+    ObjectsScroll.Parent := Dlg;
+    FInfoObjectsScroll := ObjectsScroll;
+    ObjectsScroll.OnMouseWheel := InfoDialogMouseWheel;
+    ObjectsScroll.BorderStyle := bsNone;
+    ObjectsScroll.HorzScrollBar.Visible := False;
+    ObjectsScroll.VertScrollBar.Tracking := True;
+    ObjectsScroll.SetBounds(P(8), P(107), DialogW - P(16),
+      DialogH - P(107) - P(65));
+    ObjectsScroll.Visible := False;
+    ContentScroll := ObjectsScroll;
+    RowY := P(15);
+    // Auswertung erst beim Aufruf der Eigenschaften, nie beim Rendern.
+    AddSection(ToolbarHint('PDF-Objektbearbeitung', 'PDF object editing'));
+    EditRights := (FCore.SecurityRevision < 0) or
+      ((FCore.SecurityPermissions and UInt64(8)) = UInt64(8));
+    if EditRights then
+      AddField(ToolbarHint('Änderungsrecht:', 'Modification permission:'),
+        ToolbarHint('Erlaubt', 'Allowed'))
+    else
+      AddField(ToolbarHint('Änderungsrecht:', 'Modification permission:'),
+        ToolbarHint('Nicht erlaubt', 'Not allowed'));
+    AddField(ToolbarHint('Signaturfelder:', 'Signature fields:'),
+      IntToStr(FCore.SignatureWidgetCount));
+    AddField(ToolbarHint('Signaturprüfung:', 'Signature validation:'),
+      ToolbarHint('Nicht durchgeführt', 'Not performed'));
+    if not EditRights then
+      AddField(ToolbarHint('Objektbearbeitung:', 'Object editing:'),
+        ToolbarHint('Durch Dokumentberechtigungen gesperrt',
+          'Blocked by document permissions'))
+    else
+      AddField(ToolbarHint('Objektbearbeitung:', 'Object editing:'),
+        ToolbarHint('Technische Prüfung erforderlich',
+          'Technical validation required'));
+    ObjectSummary := FCore.ObjectEditSummary;
+    AddField(ToolbarHint('Textobjekte:', 'Text objects:'), IntToStr(ObjectSummary.TextCount));
+    AddField(ToolbarHint('Vektorobjekte:', 'Vector objects:'), IntToStr(ObjectSummary.PathCount));
+    AddField(ToolbarHint('Bildobjekte:', 'Image objects:'), IntToStr(ObjectSummary.ImageCount));
+    AddField(ToolbarHint('Weitere Objekte:', 'Other objects:'), IntToStr(ObjectSummary.OtherCount));
+    AddField(ToolbarHint('Technisch auswählbar:', 'Technically selectable:'),
+      IntToStr(ObjectSummary.EditableCount));
+    AddField(ToolbarHint('Nicht sicher auswählbar:', 'Not reliably selectable:'),
+      IntToStr(ObjectSummary.UncertainCount));
+    if ObjectSummary.Complete then
+      AddField(ToolbarHint('Analysierte Seiten:', 'Pages analysed:'),
+        IntToStr(ObjectSummary.ScannedPages))
+    else
+      AddField(ToolbarHint('Analyse:', 'Analysis:'),
+        ToolbarHint('Unvollständig', 'Incomplete'));
+    AddField(ToolbarHint('Hinweis:', 'Note:'),
+      ToolbarHint('Auswahl ist keine Bearbeitungsgarantie',
+        'Selection does not guarantee editing'));
+
+    ObjectsScroll.VertScrollBar.Range := RowY + P(15);
+    ObjectsScroll.VertScrollBar.Position := 0;
     FInfoContentScroll := FInfoDetailsScroll;
     // Nach der endgueltigen Groessenberechnung erneut am PDF-Fenster ausrichten.
     Dlg.Left := PDFWindow.Left + (PDFWindow.Width - Dlg.Width) div 2;
@@ -10308,6 +10405,7 @@ begin
     FInfoContentScroll := nil;
     FInfoDetailsScroll := nil;
     FInfoFontsScroll := nil;
+    FInfoObjectsScroll := nil;
     FInfoDialog := nil;
     Dlg.Free;
     raise;
@@ -12703,6 +12801,14 @@ begin
     begin
       FObjectSelectedIndex := -1;
       FObjectSelectedPage := -1;
+      if (FCore <> nil) and
+         FCore.DevicePointToPage(Img.Tag, Img.Width, Img.Height,
+           X, Y, PX, PY) and
+         FCore.FindUnsupportedObject(Img.Tag, PX, PY) then
+        PDFModernMessageDlg(ToolbarHint(
+          'Bearbeitung nicht unterstützt. Dieses PDF-Objekt kann nicht sicher verändert werden.',
+          'Editing not supported. This PDF object cannot be modified safely.'),
+          mtInformation, [mbOK], 0, False, SameText(PDFLanguage, 'en'));
     end;
     FObjectStart := Point(X,Y);
     FObjectCurrent := FObjectStart;

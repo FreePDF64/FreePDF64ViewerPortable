@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.Types, System.Math,
   Vcl.Controls, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons,
-  Vcl.Graphics, Vcl.ImgList, Vcl.VirtualImageList, Winapi.Windows, uPDFLanguage;
+  Vcl.Graphics, Vcl.ImgList, Vcl.VirtualImageList, Winapi.Windows, Winapi.Messages, uPDFLanguage;
 
 type
   TVCLRibbonCommandEvent = procedure(Sender: TObject; CommandId: Integer;
@@ -27,6 +27,23 @@ type
     procedure SetOrangeActive(Value: Boolean);
   end;
 
+  // DPI-aware, theme-aware collapse control; no external glyph resource.
+  TRibbonCollapseButton = class(TGraphicControl)
+  private
+    FExpanded: Boolean;
+    FHovered: Boolean;
+    FTextColor: TColor;
+    FSurfaceColor: TColor;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+  protected
+    procedure Paint; override;
+  public
+    constructor Create(AOwner: TComponent); override;
+    procedure SetExpanded(Value: Boolean);
+    procedure SetPalette(ATextColor, ASurfaceColor: TColor);
+  end;
+
   TFreePDFVCLRibbon = class(TPanel)
   private
     FObjectEditPressed: Boolean;
@@ -40,7 +57,7 @@ type
     FThemeBackground, FThemeText, FThemeAccent: TColor;
     FIconFolder: string;
     FIconImages: TVirtualImageList;
-    FCollapseButton: TSpeedButton;
+    FCollapseButton: TRibbonCollapseButton;
     FBottomDivider: TBevel;
     FCollapsed: Boolean;
     FOnCollapseChanged: TNotifyEvent;
@@ -267,6 +284,7 @@ begin
     else if S = 'Check for updates' then Result := 'Nach Updates suchen ...'
     else if S = 'Check weekly' then Result := 'Wöchentlich prüfen'
     else if S = 'Feature overview' then Result := 'Funktionsübersicht'
+    else if S = 'Feature overview (F1)' then Result := 'Funktionsübersicht (F1)'
     else if S = 'About FreePDF64' then Result := 'Über FreePDF64'
     else if S = 'Home' then Result := 'Home'
     else if S = 'Open PDFs and images ...' then Result := 'PDFs und Bilder öffnen ...'
@@ -412,6 +430,7 @@ begin
     else if German = 'Deutsch' then Result := 'German'
     else if German = 'English' then Result := 'English'
     else if German = 'Funktionsübersicht' then Result := 'Feature overview'
+    else if German = 'Funktionsübersicht (F1)' then Result := 'Feature overview (F1)'
     else if German = 'Über FreePDF64' then Result := 'About FreePDF64'
     else if German = 'PDFs und Bilder öffnen ...' then Result := 'Open PDFs and images ...'
     else if German = 'PDF neu laden (Änderungen verwerfen)' then Result := 'Reload PDF (discard changes)'
@@ -606,6 +625,73 @@ begin
     ColorToRGB(clFuchsia));
 end;
 
+constructor TRibbonCollapseButton.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  Caption := '';
+  FTextColor := clBlack;
+  FSurfaceColor := clWhite;
+  FExpanded := True;
+end;
+
+procedure TRibbonCollapseButton.SetExpanded(Value: Boolean);
+begin
+  if FExpanded = Value then Exit;
+  FExpanded := Value;
+  Invalidate;
+end;
+
+procedure TRibbonCollapseButton.SetPalette(ATextColor, ASurfaceColor: TColor);
+begin
+  FTextColor := ATextColor;
+  FSurfaceColor := ASurfaceColor;
+  Invalidate;
+end;
+
+procedure TRibbonCollapseButton.CMMouseEnter(var Message: TMessage);
+begin
+  inherited;
+  FHovered := True;
+  Invalidate;
+end;
+
+procedure TRibbonCollapseButton.CMMouseLeave(var Message: TMessage);
+begin
+  inherited;
+  FHovered := False;
+  Invalidate;
+end;
+
+procedure TRibbonCollapseButton.Paint;
+var
+  CX, CY, D, PPI: Integer;
+begin
+  // Der Pfeil verwendet dieselbe Flaechenfarbe wie die RibbonBar.
+  // Nicht die Akzentfarbe der Registerkartenleiste verwenden!
+  PPI := 96;
+  if Parent <> nil then PPI := Parent.CurrentPPI;
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Brush.Color := FSurfaceColor;
+  Canvas.FillRect(ClientRect);
+  CX := Width div 2;
+  CY := Height div 2;
+  D := Max(4, MulDiv(5, PPI, 96));
+  Canvas.Pen.Color := FTextColor;
+  Canvas.Pen.Width := Max(2, MulDiv(2, PPI, 96));
+  if FExpanded then
+  begin
+    Canvas.MoveTo(CX - D, CY + D div 2);
+    Canvas.LineTo(CX, CY - D div 2);
+    Canvas.LineTo(CX + D, CY + D div 2);
+  end
+  else
+  begin
+    Canvas.MoveTo(CX - D, CY - D div 2);
+    Canvas.LineTo(CX, CY + D div 2);
+    Canvas.LineTo(CX + D, CY - D div 2);
+  end;
+end;
+
 constructor TFreePDFVCLRibbon.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -624,12 +710,10 @@ begin
   // Clicking the unused tab-strip area toggles the Ribbon, just like the arrow.
   // Child tab panels retain their own click handlers.
   FTabs.OnClick := CollapseClick;
-  FCollapseButton := TSpeedButton.Create(Self);
+  FCollapseButton := TRibbonCollapseButton.Create(Self);
   FCollapseButton.Parent := FTabs;
-  FCollapseButton.Caption := '^';
   FCollapseButton.Hint := RibbonText('Ribbon ein-/ausklappen');
   FCollapseButton.ShowHint := True;
-  FCollapseButton.Flat := True;
   FCollapseButton.Align := alRight;
   FCollapseButton.Width := 32;
   FCollapseButton.OnClick := CollapseClick;
@@ -1439,6 +1523,8 @@ begin
       else Button.Hint := 'Jetzt nach Updates suchen'
     else if CommandId = 228 then
       Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
+    else if CommandId = 149 then
+      Button.Hint := RibbonText('Funktionsübersicht (F1)')
     else
       Button.Hint := RibbonText(ACaption);
     Button.ShowHint := True;
@@ -1730,7 +1816,7 @@ begin
   FThemeAccent := Accent;
   Color := Background;
   FTabs.Color := Accent;
-  FCollapseButton.Font.Color := TextColor;
+  FCollapseButton.SetPalette(TextColor, Background);
   FContent.Color := Background;
   for I := 0 to FPages.Count - 1 do
   begin
@@ -1924,6 +2010,8 @@ begin
                 TSpeedButton(C).Hint := 'Check for updates now'
               else TSpeedButton(C).Hint := 'Jetzt nach Updates suchen';
             end
+            else if TSpeedButton(C).Tag = 149 then
+              TSpeedButton(C).Hint := RibbonText('Funktionsübersicht (F1)')
             else
               TSpeedButton(C).Hint := RibbonText(RibbonGermanText(TSpeedButton(C).Hint));
           end
@@ -2090,8 +2178,7 @@ begin
     Height := MulDiv(155, 175, 100)
   else Height := 149;
   if FCollapseButton <> nil then
-    if Value then FCollapseButton.Caption := 'v'
-    else FCollapseButton.Caption := '^';
+    FCollapseButton.SetExpanded(not Value);
   UpdateGroupViewport;
   if Assigned(FOnCollapseChanged) then FOnCollapseChanged(Self);
 end;
