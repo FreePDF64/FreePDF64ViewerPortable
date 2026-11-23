@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.Types, System.Math,
   Vcl.Controls, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons,
-  Vcl.Graphics, Vcl.ImgList, Vcl.VirtualImageList, Winapi.Windows, Winapi.Messages, uPDFLanguage;
+  Vcl.Graphics, Vcl.ImgList, Vcl.VirtualImageList, Vcl.Menus, Vcl.Dialogs, Winapi.Windows, Winapi.Messages, uPDFLanguage;
 
 type
   TVCLRibbonCommandEvent = procedure(Sender: TObject; CommandId: Integer;
@@ -73,8 +73,11 @@ type
     FLayoutReady: Boolean;
     FFourKGeometryApplied: Boolean;
     FScrollBack, FScrollForward: TButton;
-    FGroupScroll: array[0..7] of Integer;
-    procedure ScrollGroups(Sender: TObject);
+    FOverflowMenu: TPopupMenu;
+    FOverflowImages: TImageList;
+    function AddOverflowIcon(CommandId: Integer; Enabled: Boolean): Integer;
+    procedure ShowOverflow(Sender: TObject);
+    procedure OverflowCommand(Sender: TObject);
     procedure UpdateGroupViewport;
     procedure ApplyFourKGeometry;
     procedure PageEditKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -847,16 +850,23 @@ begin
   FScrollBack := TButton.Create(Self);
   FScrollBack.Parent := FContent;
   FScrollBack.Caption := '<';
+  FScrollBack.Visible := False;
   FScrollBack.Hint := RibbonText('Ribbon-Gruppen nach links');
   FScrollBack.ShowHint := True;
-  FScrollBack.OnClick := ScrollGroups;
+  FScrollBack.OnClick := nil;
   FScrollForward := TButton.Create(Self);
   FScrollForward.Parent := FContent;
-  FScrollForward.Caption := '>';
-  FScrollForward.Hint := RibbonText('Ribbon-Gruppen nach rechts');
+  FScrollForward.Caption := '»';
+  FScrollForward.Hint := 'Weitere Befehle / More commands';
   FScrollForward.ShowHint := True;
-  FScrollForward.OnClick := ScrollGroups;
-  FillChar(FGroupScroll, SizeOf(FGroupScroll), 0);
+  FScrollForward.OnClick := ShowOverflow;
+  FOverflowMenu := TPopupMenu.Create(Self);
+  FOverflowImages := TImageList.Create(Self);
+  FOverflowImages.ColorDepth := cd24Bit;
+  FOverflowImages.Masked := True;
+  FOverflowImages.Width := 16;
+  FOverflowImages.Height := 16;
+  FOverflowMenu.Images := FOverflowImages;
   BuildRibbon;
   LayoutGroups;
   // Datei remains the sole file tab; options are a group inside it.
@@ -1761,71 +1771,193 @@ end;
 procedure TFreePDFVCLRibbon.UpdateGroupViewport;
 var
   Page: TPanel;
-  I, TotalWidth, ViewWidth, MaxOffset, Offset, X, ArrowWidth: Integer;
-  NeedsScroll: Boolean;
+  I, X, Available, ArrowWidth, FullWidth: Integer;
+  Group: TPanel;
+  Overflow, OutOfSpace: Boolean;
 begin
-  // During Create the ribbon has no parent window yet.  Calling
-  // BringToFront on the scroll buttons at that stage can force VCL to
-  // create their parent handles and raise EInvalidOperation
-  // ("Control has no parent window").  The first Resize after
-  // parenting will perform the viewport layout.
   if (Parent = nil) or not FLayoutReady or (FContent = nil) or
     (FActiveTab < 0) or (FActiveTab >= FPages.Count) then Exit;
   Page := TPanel(FPages[FActiveTab]);
-  TotalWidth := 4;
+  ArrowWidth := 34;
+  if FFourKGeometryApplied then ArrowWidth := 52;
+  FullWidth := 4;
   for I := 0 to Page.ControlCount - 1 do
-    if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
-      Inc(TotalWidth, Page.Controls[I].Width + 3);
-  NeedsScroll := TotalWidth > FContent.ClientWidth;
-  ArrowWidth := 30;
-  if FFourKGeometryApplied then ArrowWidth := 48;
-  // Windowed buttons remain above the windowed page panels.
-  if FScrollBack.Visible <> (NeedsScroll and not FCollapsed) then
-    FScrollBack.Visible := NeedsScroll and not FCollapsed;
-  if FScrollForward.Visible <> (NeedsScroll and not FCollapsed) then
-    FScrollForward.Visible := NeedsScroll and not FCollapsed;
-  ViewWidth := FContent.ClientWidth;
-  if NeedsScroll then Dec(ViewWidth, ArrowWidth * 2);
-  ViewWidth := Max(1, ViewWidth);
-  MaxOffset := Max(0, TotalWidth - ViewWidth);
-  Offset := EnsureRange(FGroupScroll[FActiveTab], 0, MaxOffset);
-  FGroupScroll[FActiveTab] := Offset;
-  // Reposition the groups without forcing a full Ribbon repaint on each click.
-  // In particular, avoid redundant Left assignments (which invalidate child
-  // windows) and the repeated BringToFront calls on every scroll step.
-  X := 4 - Offset;
+    if Page.Controls[I] is TPanel then
+      Inc(FullWidth, Page.Controls[I].Width + 3);
+  Overflow := not FCollapsed and (FullWidth > FContent.ClientWidth);
+  Available := FContent.ClientWidth;
+  if Overflow then Dec(Available, ArrowWidth + 4);
+  X := 4;
+  OutOfSpace := False;
   for I := 0 to Page.ControlCount - 1 do
-    if (Page.Controls[I] is TPanel) and Page.Controls[I].Visible then
+    if Page.Controls[I] is TPanel then
     begin
-      if Page.Controls[I].Left <> X then
+      Group := TPanel(Page.Controls[I]);
+      // Preserve group order: after the first overflow, hide all later groups.
+      if not OutOfSpace and (X + Group.Width <= Available) then
       begin
-        Page.Controls[I].Left := X;
+        if Group.Left <> X then Group.Left := X;
+        if not Group.Visible then Group.Visible := True;
+        Inc(X, Group.Width + 3);
+      end
+      else
+      begin
+        OutOfSpace := True;
+        if Group.Visible then Group.Visible := False;
       end;
-      Inc(X, Page.Controls[I].Width + 3);
     end;
-  if NeedsScroll then
+  if FScrollBack.Visible then FScrollBack.Visible := False;
+  if FScrollForward.Visible <> Overflow then
   begin
-    FScrollBack.SetBounds(FContent.ClientWidth - ArrowWidth * 2, 0,
-      ArrowWidth, FContent.ClientHeight);
+    FScrollForward.Visible := Overflow;
+    if Overflow then FScrollForward.BringToFront;
+  end;
+  if Overflow then
     FScrollForward.SetBounds(FContent.ClientWidth - ArrowWidth, 0,
       ArrowWidth, FContent.ClientHeight);
-    FScrollBack.Enabled := Offset > 0;
-    FScrollForward.Enabled := Offset < MaxOffset;
-    // The arrow buttons are already topmost after the initial layout.
-    // Reordering their HWNDs on every click causes visible flashing.
+end;
+
+procedure TFreePDFVCLRibbon.OverflowCommand(Sender: TObject);
+var
+  Item: TMenuItem;
+  Value: string;
+  C: TControl;
+begin
+  if not (Sender is TMenuItem) then Exit;
+  Item := TMenuItem(Sender);
+  if not Assigned(FOnCommand) then Exit;
+  C := FindCommand(Item.Tag);
+  if (C <> nil) and not C.Enabled then Exit;
+  Value := Item.Hint;
+  if (C is TEdit) then
+  begin
+    Value := TEdit(C).Text;
+    if not InputQuery(Item.Caption, Item.Caption, Value) then Exit;
+  end;
+  FOnCommand(Self, Item.Tag, Value);
+end;
+
+// Build menu glyphs from the same embedded Tabler resources as the Ribbon.
+// The menu image list is rebuilt only when the overflow is opened, so disabled
+// state, theme and per-monitor DPI are always current. No external icon files.
+function TFreePDFVCLRibbon.AddOverflowIcon(CommandId: Integer;
+  Enabled: Boolean): Integer;
+var
+  Source, Scaled: Vcl.Graphics.TBitmap;
+  FileName: string;
+  IconSize: Integer;
+begin
+  Result := -1;
+  if CommandId <= 0 then Exit;
+  FileName := ResolveIconFile(CommandId, False, Enabled);
+  if FileName = '' then Exit;
+  // Popup menus use the Windows menu background, not the Ribbon background.
+  // On a dark Ribbon ResolveIconFile selects white (_W) glyphs. Those become
+  // invisible in the usually light native popup menu when enabled.
+  // Prefer the embedded black glyph for enabled menu items; keep the gray
+  // disabled (_D) glyph unchanged.
+  if Enabled and (Length(FileName) >= 6) and
+     SameText(Copy(FileName, Length(FileName) - 5, 6), '_W.bmp') then
+  begin
+    if FindResource(HInstance, PChar(UpperCase(
+      ChangeFileExt(ExtractFileName(
+        Copy(FileName, 1, Length(FileName) - 6) + '.bmp'), ''))),
+      RT_RCDATA) <> 0 then
+      FileName := Copy(FileName, 1, Length(FileName) - 6) + '.bmp';
+  end;
+  Source := Vcl.Graphics.TBitmap.Create;
+  try
+    // Do not load from the file system: the portable EXE owns all icons.
+    if not LoadEmbeddedRibbonBitmap(Source, FileName) then Exit;
+    IconSize := FOverflowImages.Width;
+    Scaled := Vcl.Graphics.TBitmap.Create;
+    try
+      Scaled.PixelFormat := pf24bit;
+      Scaled.SetSize(IconSize, IconSize);
+      Scaled.Canvas.Brush.Color := clFuchsia;
+      Scaled.Canvas.FillRect(Rect(0, 0, IconSize, IconSize));
+      Scaled.Canvas.StretchDraw(Rect(0, 0, IconSize, IconSize), Source);
+      Scaled.TransparentMode := tmFixed;
+      Scaled.TransparentColor := clFuchsia;
+      Scaled.Transparent := True;
+      Result := FOverflowImages.AddMasked(Scaled, clFuchsia);
+    finally
+      Scaled.Free;
+    end;
+  finally
+    Source.Free;
   end;
 end;
 
-procedure TFreePDFVCLRibbon.ScrollGroups(Sender: TObject);
+procedure TFreePDFVCLRibbon.ShowOverflow(Sender: TObject);
 var
-  Delta: Integer;
+  Page, Group: TPanel;
+  I, J, K: Integer;
+  GroupItem, CmdItem, OptionItem: TMenuItem;
+  C: TControl;
+  CaptionText: string;
+  P: TPoint;
 begin
-  if (FActiveTab < 0) or (FActiveTab > 7) then Exit;
-  Delta := 180;
-  if FFourKGeometryApplied then Delta := 360;
-  if Sender = FScrollBack then Delta := -Delta;
-  FGroupScroll[FActiveTab] := Max(0, FGroupScroll[FActiveTab] + Delta);
-  UpdateGroupViewport;
+  if (FActiveTab < 0) or (FActiveTab >= FPages.Count) then Exit;
+  FOverflowMenu.Items.Clear;
+  // Use the actual ribbon window DPI, not the primary monitor's DPI.
+  FOverflowImages.Width := Max(16, MulDiv(16, GetDpiForWindow(FContent.Handle), 96));
+  FOverflowImages.Height := FOverflowImages.Width;
+  FOverflowImages.Clear;
+  Page := TPanel(FPages[FActiveTab]);
+  for I := 0 to Page.ControlCount - 1 do
+  begin
+    if not (Page.Controls[I] is TPanel) then Continue;
+    Group := TPanel(Page.Controls[I]);
+    if Group.Visible then Continue;
+    GroupItem := TMenuItem.Create(FOverflowMenu);
+    GroupItem.Caption := RibbonText(RibbonGroupTitle(Group));
+    FOverflowMenu.Items.Add(GroupItem);
+    for J := 0 to Group.ControlCount - 1 do
+    begin
+      C := Group.Controls[J];
+      if not ((C is TSpeedButton) or (C is TComboBox) or
+        (C is TEdit) or (C is TCheckBox)) then Continue;
+      if (C is TSpeedButton) and not C.Visible then Continue;
+      CmdItem := TMenuItem.Create(FOverflowMenu);
+      CmdItem.Tag := C.Tag;
+      CmdItem.Enabled := C.Enabled;
+      if C is TSpeedButton then
+        CaptionText := TSpeedButton(C).Caption
+      else if C is TCheckBox then
+      begin
+        CaptionText := TCheckBox(C).Caption;
+        CmdItem.Checked := TCheckBox(C).Checked;
+      end
+      else if C is TComboBox then
+        CaptionText := TComboBox(C).Hint
+      else
+        CaptionText := TEdit(C).Hint;
+      CaptionText := StringReplace(CaptionText, #13#10, ' ', [rfReplaceAll]);
+      if CaptionText = '' then CaptionText := C.Hint;
+      if CaptionText = '' then CaptionText := IntToStr(C.Tag);
+      CmdItem.Caption := CaptionText;
+      CmdItem.ImageIndex := AddOverflowIcon(C.Tag, C.Enabled);
+      if C is TComboBox then
+      begin
+        for K := 0 to TComboBox(C).Items.Count - 1 do
+        begin
+          OptionItem := TMenuItem.Create(FOverflowMenu);
+          OptionItem.Caption := TComboBox(C).Items[K];
+          OptionItem.Hint := RibbonGermanText(TComboBox(C).Items[K]);
+          OptionItem.Tag := C.Tag;
+          OptionItem.Checked := K = TComboBox(C).ItemIndex;
+          OptionItem.OnClick := OverflowCommand;
+          CmdItem.Add(OptionItem);
+        end;
+      end
+      else
+        CmdItem.OnClick := OverflowCommand;
+      GroupItem.Add(CmdItem);
+    end;
+  end;
+  P := FScrollForward.ClientToScreen(Point(0, FScrollForward.Height));
+  FOverflowMenu.Popup(P.X, P.Y);
 end;
 
 procedure TFreePDFVCLRibbon.UpdateFileTabHint;
@@ -2306,7 +2438,7 @@ begin
   end;
   FCollapseButton.Hint := RibbonText('Ribbon ein-/ausklappen');
   FScrollBack.Hint := RibbonText('Ribbon-Gruppen nach links');
-  FScrollForward.Hint := RibbonText('Ribbon-Gruppen nach rechts');
+  FScrollForward.Hint := 'Weitere Befehle / More commands';
   if FPageEdit <> nil then
   begin
     FPageEdit.Hint := RibbonText('Seitennummer eingeben und Enter drücken');
