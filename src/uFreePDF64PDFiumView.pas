@@ -5825,11 +5825,38 @@ begin
 end;
 
 procedure TFreePDF64PDFiumView.ViewModeChange(Sender: TObject);
+var
+  TargetPage, PageTop, NewScrollY: Integer;
 begin
+  if (FCore = nil) or (FCore.PageCount <= 0) then Exit;
+  TargetPage := EnsureRange(FPage, 0, FCore.PageCount - 1);
   FViewMode := FViewSelect.ItemIndex;
   FFitMode := FViewMode in [0, 1];
   if FViewMode = 2 then FZoom := CurrentPPI / 72.0;
+
+  // Bei grossen PDFs ist die Seitenliste oft noch nicht vollstaendig
+  // aufgebaut. Die aktuelle Seite muss vor dem Fit-Layout existieren.
+  if FContinuous and (FLayoutPageLimit <= TargetPage) then
+    FLayoutPageLimit := Min(FCore.PageCount, TargetPage + 1);
+
   PaintPage;
+
+  // LayoutAllPages stellt den alten absoluten Pixel-Scrollwert wieder her.
+  // Nach einer Aenderung der Seitenhoehe verweist dieser Wert auf eine
+  // andere Seite oder auf einen noch nicht aufgebauten leeren Bereich.
+  // Stattdessen die bisher aktive Seite am oberen Ansichtsrand verankern.
+  if FContinuous and (TargetPage < FPages.Count) then
+  begin
+    PageTop := FScroll.ScreenToClient(
+      TPDFiumImage(FPages[TargetPage]).ClientToScreen(Point(0, 0))).Y;
+    NewScrollY := Max(0, FScroll.VertScrollBar.Position + PageTop - 12);
+    if FScroll.VertScrollBar.Position <> NewScrollY then
+      FScroll.VertScrollBar.Position := NewScrollY;
+    // Der erste Renderdurchlauf kann noch den alten sichtbaren Bereich
+    // betroffen haben. Die nun sichtbare Zielseite sofort nachrendern.
+    RenderVisiblePages;
+  end;
+  FPage := TargetPage;
 end;
 
 procedure TFreePDF64PDFiumView.UpdateTwoPageIcon;
