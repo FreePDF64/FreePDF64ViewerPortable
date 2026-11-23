@@ -5248,7 +5248,7 @@ begin
   FZoom := Max(8.0 * CurrentPPI / 7200.0,
                Min(1000.0 * CurrentPPI / 7200.0, FZoom * AFactor));
   // Alte Bitmap als skalierte Vorschau zeigen. PDFium erst rendern,
-  // wenn fuer 220 ms kein weiterer Zoomschritt eingetroffen ist.
+  // wenn fuer 100 ms kein weiterer Zoomschritt eingetroffen ist.
   FZoomRenderPending := True;
   FLastZoomTick := GetTickCount64;
   PaintPage;
@@ -10544,7 +10544,7 @@ begin
   end;
   if FZoomRenderPending then
   begin
-    if GetTickCount64 - FLastZoomTick < 220 then Exit;
+    if GetTickCount64 - FLastZoomTick < 100 then Exit;
     FZoomRenderPending := False;
     FRenderPending := True;
     // Nach der Zoompause nur die jetzt sichtbaren Seiten scharf rendern.

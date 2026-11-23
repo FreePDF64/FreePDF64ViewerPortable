@@ -68,6 +68,9 @@ type
     FUpdatingAutoCheck: Boolean;
     FUpdatingTabPreviewCheck: Boolean;
     FPageEdit: TEdit;
+    FPageEditCommitted: Boolean;
+    FLastStatusPage: Integer;
+    FLastStatusCount: Integer;
     FZoomEdit: TEdit;
     FPageStatusTimer: TTimer;
     FLayoutReady: Boolean;
@@ -2282,10 +2285,15 @@ begin
   C := FindCommand(CommandId);
   if C is TSpeedButton then
   begin
-    TSpeedButton(C).Caption := RibbonText(ACaption);
-    TSpeedButton(C).Hint := RibbonText(AHint);
-    if (CommandId = 215) or (CommandId = 216) then
-      LoadGlyph(TSpeedButton(C), CommandId);
+    // Status refreshes must not redraw the same glyph every time.
+    if TSpeedButton(C).Caption <> RibbonText(ACaption) then
+    begin
+      TSpeedButton(C).Caption := RibbonText(ACaption);
+      if (CommandId = 215) or (CommandId = 216) then
+        LoadGlyph(TSpeedButton(C), CommandId);
+    end;
+    if TSpeedButton(C).Hint <> RibbonText(AHint) then
+      TSpeedButton(C).Hint := RibbonText(AHint);
   end;
 end;
 
@@ -2639,7 +2647,12 @@ begin
     S := Trim(FPageEdit.Text);
     if Pos(' ', S) > 0 then S := Copy(S, 1, Pos(' ', S) - 1);
     if TryStrToInt(S, N) and (N > 0) and Assigned(FOnCommand) then
+    begin
+      // The edit still has focus when the callback updates the page status.
+      // Allow that update to replace the manually entered page number.
+      FPageEditCommitted := True;
       FOnCommand(Self, 212, IntToStr(N));
+    end;
     Key := 0;
   end;
 end;
@@ -2655,8 +2668,15 @@ begin
     else S := Format('%d von %d', [APage, ACount])
   else if SameText(PDFLanguage, 'en') then S := 'Page – of –'
   else S := 'Seite – von –';
-  if not FPageEdit.Focused then
+  // A real page change must refresh the display even if the edit still
+  // has focus after the user clicked Previous/Next. Unchanged timer ticks
+  // must not overwrite a page number currently being typed.
+  if (not FPageEdit.Focused) or FPageEditCommitted or
+     (APage <> FLastStatusPage) or (ACount <> FLastStatusCount) then
     if FPageEdit.Text <> S then FPageEdit.Text := S;
+  FLastStatusPage := APage;
+  FLastStatusCount := ACount;
+  FPageEditCommitted := False;
 end;
 
 procedure TFreePDFVCLRibbon.BuildRibbon;
