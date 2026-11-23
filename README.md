@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.4.0
+# FreePDF64-Viewer Portable 3.4.1
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -14,9 +14,9 @@
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.4.0 – new VCL Ribbon and main window" width="900"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.4.1 – new VCL Ribbon and main window" width="900"></a>
 
-*FreePDF64-Viewer Portable 3.4.0 – redesigned main window and VCL Ribbon. Click to enlarge.*
+*FreePDF64-Viewer Portable 3.4.1 – redesigned main window and VCL Ribbon. Click to enlarge.*
 
 </div>
 
@@ -26,7 +26,16 @@
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
 
-## New in version 3.4.0
+<<<<<<< HEAD
+## New in version 3.4.1
+
+- **Ribbon Interface Improvements:** The Ribbon interface automatically adjusts to the available window width.
+- **Edit metadata.**
+
+### New in version 3.4.0
+=======
+## New in version 3.4.0-3.4.1
+>>>>>>> 2cfa2695a45085f55197c10922e88e25c8f6bd01
 
 - **Edit existing PDF objects:** Select, move, resize and rotate existing text, image and vector objects (where supported), with a persistent selection outline, live rotation preview, angle display, 15° snapping (Shift), Undo/Redo and one-key Esc exit. Unlike simply adding annotations, this changes existing page objects. A safety check blocks object transformations on pages containing unsupported PDFium object types, helping prevent content loss when saving.
 - **Comparison-only split view:** Compare two PDFs side by side, with navigation and zoom targeting the active pane. Editing and ambiguous document actions are disabled; ribbon state and update controls are restored after leaving split view.
@@ -75,7 +84,7 @@ See the **Workspaces** screenshot below for the management interface.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.4.0" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.4.1" width="260"></a>
 <a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
 <a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
 <a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
@@ -113,7 +122,16 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
 
-## Neu in Version 3.4.0
+<<<<<<< HEAD
+## Neu in Version 3.4.1
+
+- **Verbesserungen der Ribbon-Oberfläche:** Die Ribbon-Oberfläche passt sich automatisch an die verfügbare Fensterbreite an.
+- **Metadaten bearbeiten.**
+
+### Neu in Version 3.4.0
+=======
+## Neu in Version 3.4.0-3.4.1
+>>>>>>> 2cfa2695a45085f55197c10922e88e25c8f6bd01
 
 - **Vorhandene PDF-Objekte bearbeiten:** Vorhandene Text-, Bild- und Vektorobjekte (soweit unterstützt) auswählen, verschieben, skalieren und drehen. Anders als beim bloßen Hinzufügen von Anmerkungen werden bestehende Seitenobjekte verändert. Mit dauerhaftem Auswahlrahmen, Live-Drehvorschau, Winkelanzeige, 15°-Raster (Umschalt), Rückgängig/Wiederholen und Beenden mit einmal ESC. Eine Sicherheitsprüfung verhindert Objekttransformationen auf Seiten mit nicht unterstützten PDFium-Objekttypen und schützt so vor möglichen Inhaltsverlusten beim Speichern.
 - **Geteilte Ansicht als Vergleichsmodus:** Zwei PDFs nebeneinander vergleichen; Navigation und Zoom steuern die aktive Teilansicht. Bearbeitung und mehrdeutige Dokumentbefehle sind deaktiviert; Ribbon-Zustände einschließlich Update werden beim Beenden wiederhergestellt.
@@ -162,7 +180,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.4.0" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.4.1" width="260"></a>
 <a href="images/Zweifensteransicht_deutsch.png"><img src="images/Zweifensteransicht_deutsch.png" alt="Zweifensteransicht" width="260"></a>
 <a href="images/Globalesuche_deutsch.png"><img src="images/Globalesuche_deutsch.png" alt="Globale PDF-Suche" width="260"></a>
 <a href="images/Messen_deutsch.png"><img src="images/Messen_deutsch.png" alt="PDF-Messwerkzeuge" width="260"></a>
