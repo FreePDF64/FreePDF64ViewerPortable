@@ -677,6 +677,7 @@ type
     function GlobalExcerpt(APage, AChar, ALength: Integer): string;
     procedure GlobalShowMatch(const ATerm: string; const AMatch: TPDFTextMatch);
     procedure NextSearchMatch(ADirection: Integer);
+    procedure EnsureSearchMatchVisible(APage, AChar, ACount: Integer);
     procedure SelectAllText;
     function SelectedText: string;
     procedure CopySelectedText;
@@ -4679,6 +4680,54 @@ begin
   Result := StringReplace(Result, #10, ' ', [rfReplaceAll]);
 end;
 
+procedure TFreePDF64PDFiumView.EnsureSearchMatchVisible(
+  APage, AChar, ACount: Integer);
+var
+  Img: TPDFiumImage;
+  Boxes: TArray<TPDFInkRect>;
+  B: TPDFInkRect;
+  X1, Y1, X2, Y2: Integer;
+  R, Part: TRect;
+  P: TPoint;
+  Margin, DX, DY: Integer;
+begin
+  if (FCore = nil) or (FScroll = nil) or (ACount <= 0) then Exit;
+  Img := PageImage(APage);
+  if Img = nil then Exit;
+  Boxes := FCore.MatchCharRects(APage, AChar, ACount);
+  if Length(Boxes) = 0 then Exit;
+  R := Rect(MaxInt, MaxInt, -MaxInt, -MaxInt);
+  for B in Boxes do
+  begin
+    if not FCore.PagePointToDevice(APage, Img.Width, Img.Height,
+      B.Left, B.Top, X1, Y1) then Continue;
+    if not FCore.PagePointToDevice(APage, Img.Width, Img.Height,
+      B.Right, B.Bottom, X2, Y2) then Continue;
+    P := FScroll.ScreenToClient(Img.ClientToScreen(Point(0, 0)));
+    Part := Rect(P.X + Min(X1, X2), P.Y + Min(Y1, Y2),
+      P.X + Max(X1, X2), P.Y + Max(Y1, Y2));
+    if R.Left = MaxInt then R := Part
+    else UnionRect(R, R, Part);
+  end;
+  if R.Left = MaxInt then Exit;
+  Margin := Max(8, MulDiv(12, CurrentPPI, 96));
+  // Browser-Verhalten: sichtbare Treffer nicht verschieben.
+  if (R.Left >= Margin) and (R.Top >= Margin) and
+     (R.Right <= FScroll.ClientWidth - Margin) and
+     (R.Bottom <= FScroll.ClientHeight - Margin) then Exit;
+  DX := (R.Left + R.Right) div 2 - FScroll.ClientWidth div 2;
+  DY := (R.Top + R.Bottom) div 2 - FScroll.ClientHeight div 2;
+  if DX <> 0 then
+    FScroll.HorzScrollBar.Position := Max(0,
+      FScroll.HorzScrollBar.Position + DX);
+  if DY <> 0 then
+    FScroll.VertScrollBar.Position := Max(0,
+      FScroll.VertScrollBar.Position + DY);
+  FLastScrollPosition := FScroll.VertScrollBar.Position;
+  FRenderPending := True;
+  RenderVisiblePages;
+end;
+
 procedure TFreePDF64PDFiumView.GlobalShowMatch(const ATerm: string;
   const AMatch: TPDFTextMatch);
 var
@@ -4692,7 +4741,9 @@ begin
   FMatchPage := AMatch.PageIndex;
   FMatchChar := AMatch.CharIndex;
   FMatchCount := AMatch.CharCount;
-  ShowPage(AMatch.PageIndex);
+  if FPage <> AMatch.PageIndex then ShowPage(AMatch.PageIndex);
+  EnsureSearchMatchVisible(AMatch.PageIndex, AMatch.CharIndex,
+    AMatch.CharCount);
   for I := 0 to High(FLoadedPages) do
     if FLoadedPages[I] and (Abs(I - AMatch.PageIndex) <= 2) then
     begin
@@ -4785,7 +4836,8 @@ begin
       DrawSearchHighlight(Pg);
       PageImage(Pg).Invalidate;
     end;
-    ShowPage(Pg);
+    if FPage <> Pg then ShowPage(Pg);
+    EnsureSearchMatchVisible(Pg, Idx, Cnt);
     UpdateVisiblePage;
   end
   else
