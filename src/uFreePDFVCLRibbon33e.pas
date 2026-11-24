@@ -131,7 +131,7 @@ type
     procedure SetComboValue(CommandId: Integer; const Value: string);
     procedure SetComboItems(CommandId: Integer; const Values: array of string);
     procedure SetPageStatus(APage, ACount: Integer);
-    procedure SetZoomPercent(APercent: Integer; AEnabled: Boolean);
+    procedure SetZoomPercent(APercent: Integer; AEnabled: Boolean; AViewMode: Integer = -1);
     procedure SelectTab(Index: Integer);
     function ActiveTabIndex: Integer;
     property OnCommand: TVCLRibbonCommandEvent read FOnCommand write FOnCommand;
@@ -2598,10 +2598,31 @@ begin
     FOnCommand(Self, 213, '');
 end;
 
-procedure TFreePDFVCLRibbon.SetZoomPercent(APercent: Integer; AEnabled: Boolean);
+procedure TFreePDFVCLRibbon.SetZoomPercent(APercent: Integer; AEnabled: Boolean;
+  AViewMode: Integer);
 var
   S: string;
+  C: TControl;
+  Combo: TComboBox;
 begin
+  if AEnabled and (AViewMode in [0, 1, 2, 3]) then
+  begin
+    C := FindCommand(115);
+    if C is TComboBox then
+    begin
+      Combo := TComboBox(C);
+      if not Combo.DroppedDown and (AViewMode < Combo.Items.Count) and
+         (Combo.ItemIndex <> AViewMode) then
+      begin
+        FUpdatingCombos := True;
+        try
+          Combo.ItemIndex := AViewMode;
+        finally
+          FUpdatingCombos := False;
+        end;
+      end;
+    end;
+  end;
   if FZoomEdit = nil then Exit;
   FZoomEdit.Enabled := AEnabled;
   if not AEnabled then S := '–'

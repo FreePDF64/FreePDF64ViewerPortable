@@ -209,6 +209,7 @@ type
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomPDF(AIncrease: Boolean);
     function CurrentPDFZoomPercent: Integer;
+    function CurrentPDFZoomMode: Integer;
     procedure SetPDFZoomPercent(APercent: Integer);
     procedure RefreshPDFViewport;
     procedure RefitPDFOnTabActivation;
@@ -811,6 +812,13 @@ begin
   Result := 100;
   if (FPDFiumView <> nil) and FNavigationSucceeded then
     Result := Round(FPDFiumView.WorkspaceZoom * 7200 / FPDFiumView.CurrentPPI);
+end;
+
+function TPDFBrowserForm.CurrentPDFZoomMode: Integer;
+begin
+  Result := -1;
+  if (FPDFiumView <> nil) and FNavigationSucceeded and not IsBasicImage then
+    Result := FPDFiumView.DisplayZoomMode;
 end;
 
 procedure TPDFBrowserForm.SetPDFZoomPercent(APercent: Integer);

@@ -6730,7 +6730,7 @@ begin
     if (Browser <> nil) and not Browser.IsBasicImage then
     begin
       FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
-      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True, Browser.CurrentPDFZoomMode);
       FVCLRibbon.SetCommandEnabled(210, Browser.WorkspacePage > 1);
       FVCLRibbon.SetCommandEnabled(211,
         Browser.WorkspacePage < Browser.GlobalPageCount);
@@ -6750,7 +6750,7 @@ begin
        TryStrToInt(Value, Index) then
       Browser.SetPDFZoomPercent(Index);
     if (Browser <> nil) and not Browser.IsBasicImage then
-      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True, Browser.CurrentPDFZoomMode);
     Exit;
   end;
   if CommandId = 212 then
@@ -6760,7 +6760,7 @@ begin
       Browser.RibbonShowPage(Index);
     if (Browser <> nil) and not Browser.IsBasicImage then
       FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
-      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True, Browser.CurrentPDFZoomMode);
     Exit;
   end;
   if CommandId in [115, 172, 174, 175] then
@@ -6956,7 +6956,7 @@ begin
     if HasPDF then
     begin
       FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount);
-      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True);
+      FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True, Browser.CurrentPDFZoomMode);
     end
     else
     begin
@@ -7019,7 +7019,7 @@ begin
   if HasPDF then
     FVCLRibbon.SetPageStatus(Browser.WorkspacePage, Browser.GlobalPageCount)
   else FVCLRibbon.SetPageStatus(0, 0);
-  if HasPDF then FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True)
+  if HasPDF then FVCLRibbon.SetZoomPercent(Browser.CurrentPDFZoomPercent, True, Browser.CurrentPDFZoomMode)
   else FVCLRibbon.SetZoomPercent(0, False);
   if HasPDF then FVCLRibbon.SetMeasurementUnit(Browser.WorkspaceMeasureUnit)
   else FVCLRibbon.SetMeasurementUnit(-1);

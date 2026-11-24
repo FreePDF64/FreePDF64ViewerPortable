@@ -690,6 +690,7 @@ type
     property SearchRunning: Boolean read FSearchRunning;
     property OnSearchCountChanged: TNotifyEvent read FOnSearchCountChanged write FOnSearchCountChanged;
     property OnPDFPageClick: TNotifyEvent read FOnPDFPageClick write FOnPDFPageClick;
+    function DisplayZoomMode: Integer;
     property WorkspaceViewMode: Integer read FViewMode;
     property WorkspaceTwoPage: Boolean read FTwoPage;
     property WorkspaceContinuous: Boolean read FContinuous;
@@ -5232,6 +5233,52 @@ begin
   FScrollRenderPending := True;
   FLastScrollTick := GetTickCount64;
   FRenderPending := True;
+end;
+
+// Anzeige allein: niemals Fit-Modus, Zoom oder Layout verändern.
+function TFreePDF64PDFiumView.DisplayZoomMode: Integer;
+var
+  W, H, AvailableW, AvailableH, LayoutWidth, FirstPage, LastPage, I: Integer;
+  Img: TPDFiumImage;
+  ToleranceW, ToleranceH: Integer;
+begin
+  Result := 3;
+  if (FCore = nil) or (FScroll = nil) then Exit;
+  if FCore.PageCount = 0 then Exit;
+  if FFitMode and (FViewMode in [0, 1]) then Exit(FViewMode);
+  if Abs(FZoom * 7200.0 / CurrentPPI - 100.0) < 0.01 then Exit(2);
+  if (FPage < 0) or (FPage >= FCore.PageCount) then Exit;
+  FirstPage := FPage;
+  LastPage := FPage;
+  if FTwoPage then
+  begin
+    FirstPage := (FPage div 2) * 2;
+    LastPage := Min(FirstPage + 1, FCore.PageCount - 1);
+  end;
+  W := 0;
+  H := 0;
+  for I := FirstPage to LastPage do
+  begin
+    Img := PageImage(I);
+    if (Img = nil) or (Img.Width <= 1) or (Img.Height <= 1) then Exit;
+    Inc(W, Img.Width);
+    H := Max(H, Img.Height);
+  end;
+  LayoutWidth := FScroll.ClientWidth;
+  if FContinuous and (FCore.PageCount > 1) and FScroll.HandleAllocated and
+     ((GetWindowLong(FScroll.Handle, GWL_STYLE) and WS_VSCROLL) = 0) then
+    Dec(LayoutWidth, GetSystemMetrics(SM_CXVSCROLL));
+  AvailableW := LayoutWidth - 36;
+  if FTwoPage then AvailableW := LayoutWidth - 56 - 12;
+  AvailableH := FScroll.ClientHeight - 32;
+  if (AvailableW <= 0) or (AvailableH <= 0) then Exit;
+  ToleranceW := Max(2, Round(AvailableW * 0.005));
+  ToleranceH := Max(2, Round(AvailableH * 0.005));
+  if (W <= AvailableW + ToleranceW) and
+     (H <= AvailableH + ToleranceH) and
+     ((Abs(W - AvailableW) <= ToleranceW) or
+      (Abs(H - AvailableH) <= ToleranceH)) then Exit(1);
+  if Abs(W - AvailableW) <= ToleranceW then Result := 0;
 end;
 
 function TFreePDF64PDFiumView.WorkspaceSidebarVisible: Boolean;
