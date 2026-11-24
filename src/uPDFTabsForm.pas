@@ -59,6 +59,9 @@ type
     procedure VCLRibbonCommand(Sender: TObject; CommandId: Integer; const Value: string);
     procedure VCLRibbonCollapseChanged(Sender: TObject);
     procedure DispatchRibbonCommand(CommandId: Integer);
+    procedure SendFilesByEmail(Sender: TObject);
+    procedure SendRecentByEmail(Sender: TObject);
+    procedure ComposeEmail(Files: TStrings);
     procedure SyncVCLRibbonCommands;
     procedure FinalStatusTick(Sender: TObject);
     procedure UpdateFinalStatus;
@@ -3362,11 +3365,15 @@ begin
       AddSection('Ribbon and Tabler Icons', '');
       AddSection('Ribbon commands and high-DPI icons',
         'The VCL Ribbon organizes commands by task. Use the File tab for saving and '
-        + 'exporting PDFs, pages and embedded images. The Objects tab contains object tools. '
+        + 'exporting PDFs, pages and embedded images. The Edit tab contains object editing, text, images, links, attachments and watermarks. '
         + 'The Help tab contains theme selection, language settings and program information. '
         + 'Ribbon icons use Tabler Icons SVG artwork rendered for high-DPI displays. '
         + ''
         + 'The image and PDF commands are integrated into the Ribbon.');
+      AddSection('Ribbon tabs and commands',
+        'File: save as, export, email, document properties (Ctrl+D), options and exit. Home: open, save, print, workspaces and search. View: zoom, layout, navigation, images and comparison. Annotations: highlighting, comments and drawing. Edit: PDF objects, undo/redo, text, images, links, attachments, watermarks and fonts. Fill: field navigation, required fields and signatures. Page: hand tool, delete, rotate, extract and merge pages. Protect: visual and permanent redaction. Tools: measurements and tab previews. Help: themes, language, updates and feature overview (F1).');
+      AddSection('Send PDF and image files by email',
+        'Choose Send by email under File > Save / Export. The current file is preselected in the file dialog; use Ctrl or Shift to select multiple PDFs and images. On the start page, right-click a recent file to attach it directly. Save changes first. A compatible Simple MAPI email application is required; the message opens for editing and is not sent automatically.');
       AddSection('Tabler Icons: license and redistribution',
         'The Ribbon icon artwork is from Tabler Icons by Paweł Kuna and contributors, '
         + 'distributed under the MIT License. The complete original license text is '
@@ -3445,8 +3452,8 @@ begin
         + 'Fit page adjusts the current page to the viewport. Switch between one/two pages and continuous/page-by-page scrolling.');
       AddSection('Table of contents and loading',
         'Use Contents to display embedded PDF bookmarks. The first PDF page is prioritized; “Opening PDF…” disappears as soon as the first page has rendered. Visible toolbars are not unnecessarily redrawn while loading.');
-      AddSection('Search features in the Edit menu',
-        'Local text search (Ctrl+F) and global PDF search (Ctrl+Shift+F) are available in the Edit menu. '
+      AddSection('Search features on Home',
+        'Local text search (Ctrl+F) and global PDF search (Ctrl+Shift+F) are available on the Home tab. '
         + 'These commands are disabled when no PDF is open. F3 finds the next match in the current PDF.');
       AddSection('Select and copy text with the mouse',
         'Drag the left mouse button over PDF text to select it with a light-blue highlight and outline. ' +
@@ -3454,7 +3461,7 @@ begin
         'Alt + drag pans a zoomed page. The PDF file is not modified. ' +
         'Scanned pages without a text layer cannot be selected this way.');
       AddSection('Hand Tool and panning',
-        'Click the Hand Tool button directly to the left of Show Attachments in the main toolbar to move a zoomed PDF page by dragging with the left mouse button. ' +
+        'Click Hand tool on the Page tab to move a zoomed PDF page by dragging with the left mouse button. ' +
         'The button is highlighted in orange while the Hand Tool is active. The pointer changes to a hand when the tool is active and to a move cursor while dragging. ' +
         'Release the mouse button to stop panning. Alt + left mouse drag also pans the page without selecting Hand Tool. ' +
         'Choose another tool to return to its normal mouse behavior.');
@@ -3485,7 +3492,7 @@ begin
         'Choose Redaction (Preview) in the drawing tools and drag rectangles over the content to be removed. '
         + 'These rectangles are only a preview: the underlying PDF content remains intact and searchable until finalization. '
         + 'Use Undo and Redo to adjust pending rectangles, or Esc to discard them. '
-        + 'The orange Apply secure redaction ... button is located directly to the left of Document properties in the main toolbar. '
+        + 'The orange Apply secure redaction ... button is located on the Protect tab. '
         + 'It is enabled once at least one redaction rectangle has been marked. '
         + 'Click the button, review the confirmation and save the result as a new PDF file. '
         + 'Affected pages are fully rasterized at 300 DPI with the black redactions applied permanently. '
@@ -3499,7 +3506,7 @@ begin
         + 'The report is an analysis of the marked areas, not proof that content has already been removed. '
         + 'If any region fails inspection, finalization is blocked and no output file is created.');
       AddSection('Secure redaction: button and saved result',
-        'The Apply secure redaction ... button remains next to Document properties. It is highlighted orange only while Redaction (Preview) is selected; '
+        'The Apply secure redaction ... button is on the Protect tab. It is highlighted orange only while Redaction (Preview) is selected; '
         + 'when another drawing tool is selected, the orange highlight disappears and the button is disabled. '
         + 'The finalization command first checks all marked regions, asks for confirmation and opens a Save As dialog. '
         + 'The original file cannot be selected as the output. Affected pages are rasterized at 300 DPI with the black regions applied; '
@@ -3537,7 +3544,7 @@ begin
         'Right-click a PDF page or a thumbnail and choose Manage comments to list all PDF notes with their page numbers. '
         + 'Double-click a comment to jump to its page. Edit and Delete use the existing PDF annotation functions.');
       AddSection('Text comments on PDF pages',
-        'Enable Comment in the tools toolbar, click a position on the PDF page and enter your comment '
+        'Enable Add comment on the Annotations tab, click a position on the PDF page and enter your comment '
         + 'in the multiline text field. A yellow speech-bubble icon marks the comment. '
         + 'Move the mouse over the icon to display your comment, including line breaks. '
         + 'Right-click the icon for Edit comment or Delete comment. '
@@ -3547,7 +3554,7 @@ begin
         + 'Comments are stored as PDF annotations when you save the PDF and can be '
         + 'edited again after reopening, provided the document permissions allow it.');
       AddSection('Undo and redo text and highlights',
-        'Use the curved arrow buttons in the text toolbar (Undo and Redo) to undo or redo inserted text and highlights '
+        'Use Undo and Redo on the Edit tab to undo or redo inserted text and highlights '
         + 'in the order they were created. This does not apply to other drawings or page operations. '
         + 'The editing history belongs to the open document and is reset when the document is closed or saved.');
       AddSection('Merge PDF files and selected pages',
@@ -3589,20 +3596,20 @@ begin
         'the visible text remains. Save the PDF to preserve your changes.');
       AddSection('PDF measurement tools', '');
       AddSection('Measure rectangles on PDF pages',
-        'Show the Tools toolbar and choose Measure from the Measure drop-down. '
+        'Choose Measure on the Tools tab. '
         + 'Drag a rectangle on a PDF page with the left mouse button. '
         + 'Its width is displayed above the rectangle and its height beside the left edge. '
         + 'You can create multiple measurement rectangles on a document. Press Esc to exit measurement mode.');
-      AddSection('Active Insert and Measure tools',
-        'When an Insert or Measure tool is active, its toolbar button is shown in bold with an orange accent. '
+      AddSection('Active editing and measurement tools',
+        'When an editing or measurement tool is active, its toolbar button is shown in bold with an orange accent. '
         + 'The highlighting disappears when the tool is deactivated or another tool takes over.');
       AddSection('Measurement units and drawing scale',
-        'Select millimetres (mm), centimetres (cm) or inches (in) in the measurement toolbar. '
+        'Select millimetres (mm), centimetres (cm) or inches (in) on the Tools tab. '
         + 'Use Drawing scale to enter a ratio such as 1:1 or 1:50. '
         + 'The displayed dimensions take the selected scale and unit into account.');
       AddSection('Edit measurements and undo or redo',
         'Right-click a measurement rectangle to remove it. '
-        + 'Use Undo and Redo in the Tools toolbar to reverse or restore measurement changes. '
+        + 'Use Undo and Redo on the Edit tab to reverse or restore measurement changes. '
         + 'When the Tools toolbar is hidden, measurement overlays are hidden temporarily; '
         + 'select Measure again to display them.');
       AddSection('Measurement report and CSV export',
@@ -3723,10 +3730,14 @@ begin
       AddSection('Ribbon-Befehle und hochauflösende Symbole',
         'Das VCL-Ribbon ordnet die Befehle nach Aufgaben. Unter Datei finden Sie '
         + 'das Speichern und den Export von PDFs, Seiten und eingebetteten Bildern. '
-        + 'Die Registerkarte Objekte enthält die Objektwerkzeuge. Unter Hilfe stehen '
+        + 'Unter Bearbeiten finden Sie Objektbearbeitung, Text, Bilder, Hyperlinks, Anlagen und Wasserzeichen. Unter Hilfe stehen '
         + 'Design, Sprache und Programminformationen zur Verfügung. '
         + 'Die Ribbon-Symbole basieren auf originalen Tabler-SVGs und sind für hohe '
         + 'Bildschirmauflösungen aufbereitet. PDF- und Bildwerkzeuge sind im Ribbon integriert.');
+      AddSection('Ribbon-Registerkarten und Befehle',
+        'Datei: Speichern unter, Export, E-Mail, Dokumenteigenschaften (Strg+D), Optionen und Beenden. Start: Öffnen, Speichern, Drucken, Arbeitsbereiche und Suche. Ansicht: Zoom, Layout, Navigation, Bilder und Vergleich. Anmerkungen: Hervorhebungen, Kommentare und Zeichnen. Bearbeiten: PDF-Objekte, Rückgängig/Wiederholen, Text, Bilder, Hyperlinks, Anlagen, Wasserzeichen und Schrift. Ausfüllen: Feldnavigation, Pflichtfelder und Unterschriften. Seite: Handwerkzeug, Löschen, Drehen, Extrahieren und Zusammenführen. Schützen: optische und endgültige Schwärzung. Werkzeuge: Messung und Registerkartenvorschau. Hilfe: Designs, Sprache, Updates und Funktionsübersicht (F1).');
+      AddSection('PDFs und Bilder per E-Mail senden',
+        'Wählen Sie „Per E-Mail senden ...“ unter Datei > Speichern / Export. Die aktuelle Datei ist im Dateidialog vorausgewählt; mit Strg oder Umschalt wählen Sie mehrere PDFs und Bilder. Auf der Startseite können Sie eine zuletzt geöffnete Datei per Rechtsklick direkt anhängen. Speichern Sie Änderungen zuerst. Ein Simple-MAPI-kompatibles E-Mail-Programm ist erforderlich. Die Nachricht wird zur Bearbeitung geöffnet und nicht automatisch versendet.');
       AddSection('Tabler Icons: Lizenz und Weitergabe',
         'Die Ribbon-Symbole stammen aus Tabler Icons von Paweł Kuna und Mitwirkenden '
         + 'und stehen unter der MIT-Lizenz. Der vollständige Original-Lizenztext '
@@ -3822,9 +3833,9 @@ begin
         'Die erste PDF-Seite wird bevorzugt geladen; „PDF wird geöffnet ...“ ' +
         'verschwindet, sobald die erste Seite gerendert ist. ' +
         'Beim Laden werden bereits sichtbare Symbolleisten nicht unnötig neu gezeichnet.');
-      AddSection('Suchfunktionen im Menü Bearbeiten',
+      AddSection('Suchfunktionen unter Start',
         'Die lokale Textsuche (Strg+F) und die globale PDF-Suche (Strg+Umschalt+F) ' +
-        'finden Sie im Menü „Bearbeiten“. Ohne geöffnete PDF sind die Befehle deaktiviert. ' +
+        'finden Sie unter „Start“. Ohne geöffnete PDF sind die Befehle deaktiviert. ' +
         'F3 sucht die nächste Fundstelle innerhalb der aktuellen PDF.');
       AddSection('Text mit der Maus auswählen und kopieren',
         'Mit gedrückter linker Maustaste über den Text ziehen, um ihn hellblau mit einem Rahmen zu markieren. ' +
@@ -3832,7 +3843,7 @@ begin
         'Alt + Ziehen verschiebt eine vergrößerte Seite. Die PDF-Datei bleibt unverändert. ' +
         'Bei gescannten Seiten ohne Textebene ist keine Textauswahl möglich.');
       AddSection('Hand-Werkzeug und Seiten verschieben',
-        'Klicken Sie in der Hauptsymbolleiste direkt links neben „Anlagen anzeigen“ auf den Button „Hand-Werkzeug“, um eine vergrößerte PDF-Seite mit gedrückter linker Maustaste zu verschieben. ' +
+        'Klicken Sie unter „Seite“ auf „Handwerkzeug“, um eine vergrößerte PDF-Seite mit gedrückter linker Maustaste zu verschieben. ' +
         'Der Button ist bei aktiviertem Hand-Werkzeug orange hervorgehoben. Der Mauszeiger zeigt eine Hand und während des Ziehens ein Verschiebesymbol. ' +
         'Beim Loslassen endet das Verschieben. Mit Alt + linker Maustaste können Sie die Seite auch ohne ausgewähltes Hand-Werkzeug verschieben. ' +
         'Beim Wechsel zu einem anderen Werkzeug gilt wieder dessen normale Mausbedienung.');
@@ -3875,7 +3886,7 @@ begin
         'Wählen Sie in den Zeichenwerkzeugen „Schwärzung (Vorschau)“ und ziehen Sie Rechtecke über die zu entfernenden Inhalte. '
         + 'Die Rechtecke sind zunächst nur eine Vorschau: Der ursprüngliche PDF-Inhalt bleibt bis zur endgültigen Schwärzung erhalten und durchsuchbar. '
         + 'Mit „Rückgängig“ und „Wiederholen“ können Sie vorgemerkte Rechtecke bearbeiten; mit Esc verwerfen Sie diese. '
-        + 'Die orange Schaltfläche „Endgültig schwärzen ...“ befindet sich in der oberen Hauptsymbolleiste direkt links neben „Dokumenteigenschaften anzeigen“. '
+        + 'Die orange Schaltfläche „Endgültig schwärzen ...“ befindet sich unter „Schützen“. '
         + 'Sie ist aktiv, sobald mindestens ein Schwärzungsrechteck vorgemerkt wurde. '
         + 'Klicken Sie darauf, bestätigen Sie den Vorgang und speichern Sie das Ergebnis als neue PDF-Datei. '
         + 'Betroffene Seiten werden vollständig mit 300 DPI gerastert; die schwarzen Schwärzungen sind fest eingearbeitet. '
@@ -3889,7 +3900,7 @@ begin
         + 'Der Bericht analysiert die vorgemerkten Bereiche; er bedeutet nicht, dass Inhalte bereits entfernt wurden. '
         + 'Wenn ein Bereich nicht vollständig geprüft werden kann, wird die endgültige Schwärzung abgebrochen und keine Ausgabedatei erstellt.');
       AddSection('Sichere Schwärzung: Schaltfläche und Ausgabedatei',
-        'Die Schaltfläche „Endgültig schwärzen ...“ bleibt neben „Dokumenteigenschaften anzeigen“. Sie ist nur beim Werkzeug „Schwärzung (Vorschau)“ orange hervorgehoben. '
+        'Die Schaltfläche „Endgültig schwärzen ...“ befindet sich unter „Schützen“. Sie ist nur beim Werkzeug „Schwärzung (Vorschau)“ orange hervorgehoben. '
         + 'Beim Wechsel zu einem anderen Zeichenwerkzeug verschwindet die orange Farbe und die Schaltfläche wird deaktiviert. '
         + 'Vor der endgültigen Schwärzung werden alle vorgemerkten Bereiche geprüft; danach folgen eine Sicherheitsabfrage und „Speichern unter ...“. '
         + 'Die Originaldatei kann nicht als Ausgabedatei gewählt werden. Betroffene Seiten werden mit 300 DPI gerastert und die schwarzen Bereiche fest eingearbeitet; '
@@ -3991,11 +4002,11 @@ begin
         'ändern oder die anklickbare Linkannotation löschen. Beim Löschen bleibt der sichtbare ' +
         'Text erhalten. Speichern Sie die PDF, um die Änderungen zu übernehmen.');
       AddSection('PDF-Messwerkzeuge', '');
-      AddSection('Aktive Werkzeuge Einfügen und Messen erkennen',
-        'Wenn ein Werkzeug aus „Einfügen“ oder „Messen“ aktiv ist, wird die entsprechende Schaltfläche fett und orange hervorgehoben. '
+      AddSection('Aktive Bearbeitungs- und Messwerkzeuge erkennen',
+        'Wenn ein Bearbeitungs- oder Messwerkzeug aktiv ist, wird die entsprechende Schaltfläche fett und orange hervorgehoben. '
         + 'Beim Beenden oder Wechseln des Werkzeugs verschwindet die Hervorhebung.');
       AddSection('Rechtecke auf PDF-Seiten messen',
-        'Die Werkzeug-Symbolleiste öffnen und im Dropdown „Messen“ den Eintrag „Messen“ wählen. '
+        'Unter „Werkzeuge“ den Befehl „Messen“ wählen. '
         + 'Mit gedrückter linker Maustaste ein Rechteck auf der PDF-Seite aufziehen. '
         + 'Die Breite erscheint oberhalb des Rechtecks, die Höhe links daneben. '
         + 'Pro Dokument können mehrere Messrechtecke erstellt werden. Mit Esc den Messmodus beenden.');
@@ -4005,7 +4016,7 @@ begin
         + 'Die angezeigten Maße berücksichtigen die gewählte Einheit und den Maßstab.');
       AddSection('Messungen bearbeiten und rückgängig machen',
         'Ein Messrechteck mit der rechten Maustaste anklicken, um es zu löschen. '
-        + 'Über „Rückgängig“ und „Wiederholen“ in der Werkzeug-Symbolleiste '
+        + 'Über „Rückgängig“ und „Wiederholen“ unter „Bearbeiten“ '
         + 'lassen sich Messänderungen zurücknehmen oder wiederherstellen. '
         + 'Beim Schließen der Werkzeug-Symbolleiste werden Messrechtecke vorübergehend ausgeblendet; '
         + 'durch erneutes Aktivieren von „Messen“ werden sie wieder angezeigt.');
@@ -5602,6 +5613,9 @@ begin
   HelpItem.Caption := Tr('Dateiordner öffnen');
   HelpItem.OnClick := RecentPDFShowFolder;
   FRecentPopup.Items.Add(HelpItem);
+  HelpItem := TMenuItem.Create(FRecentPopup);
+  HelpItem.OnClick := SendRecentByEmail;
+  FRecentPopup.Items.Add(HelpItem);
   RefreshRecentPDFList;
   FWelcomePanel.OnResize := WelcomeResize;
 
@@ -6395,6 +6409,9 @@ begin
   FRecentPopupIndex := TControl(Sender).Tag;
   if (FRecentPopupIndex < 0) or (FRecentPopupIndex >= FRecentPDFs.Count) then Exit;
   P := TControl(Sender).ClientToScreen(MousePos);
+  if SameText(PDFLanguage, 'en') then
+    FRecentPopup.Items[FRecentPopup.Items.Count - 1].Caption := 'Send by email ...'
+  else FRecentPopup.Items[FRecentPopup.Items.Count - 1].Caption := 'Per E-Mail senden ...';
   FRecentPopup.Popup(P.X, P.Y);
   Handled := True;
 end;
@@ -6579,6 +6596,156 @@ begin
   end;
 end;
 
+procedure TPDFTabsForm.ComposeEmail(Files: TStrings);
+type
+  TMailFile = record
+    Reserved, Flags, Position: Cardinal;
+    PathName, FileName, FileType: Pointer;
+  end;
+  TMailMessage = record
+    Reserved: Cardinal;
+    Subject, NoteText, MessageType, DateReceived, ConversationID: Pointer;
+    Flags: Cardinal;
+    Originator: Pointer;
+    RecipCount: Cardinal;
+    Recips: Pointer;
+    FileCount: Cardinal;
+    FileDescs: Pointer;
+  end;
+  TSendMail = function(Session, UIParam: NativeUInt; var Msg: TMailMessage;
+    Flags, Reserved: Cardinal): Cardinal; stdcall;
+var
+  Lib: HMODULE;
+  SendMail: TSendMail;
+  Msg: TMailMessage;
+  Attachments: array of TMailFile;
+  Paths: array of string;
+  AnsiPaths: array of AnsiString;
+  I, J: Integer;
+  B: TPDFBrowserForm;
+  Status: Cardinal;
+  UnicodeMail: Boolean;
+  function L(const DE, EN: string): string;
+  begin
+    if SameText(PDFLanguage, 'en') then Result := EN else Result := DE;
+  end;
+begin
+  if (Files.Count = 0) or (FSplitHost <> nil) then Exit;
+  for I := 0 to Files.Count - 1 do
+  begin
+    if not IsSupportedViewerFile(Files[I]) or not FileExists(Files[I]) then
+    begin
+      PDFModernMessageDlg(L('Datei fehlt oder wird nicht unterstützt:', 'File missing or unsupported:') + sLineBreak + Files[I], mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    for J := 0 to FTabs.PageCount - 1 do
+    begin
+      B := PDFInTab(FTabs.Pages[J]);
+      if (B <> nil) and SameText(ExpandFileName(B.PDFFileName), ExpandFileName(Files[I])) and
+        (B.HasUnsavedPDFChanges or B.HasUnsavedImageChanges) then
+      begin
+        PDFModernMessageDlg(L('Bitte speichern Sie zuerst die Änderungen oder wählen Sie die gespeicherte Kopie aus:',
+          'Please save your changes first or select the saved copy:') + sLineBreak + Files[I], mtWarning, [mbOK], 0);
+        Exit;
+      end;
+    end;
+  end;
+  Lib := LoadLibrary(PChar(IncludeTrailingPathDelimiter(GetEnvironmentVariable('SystemRoot')) + 'System32\mapi32.dll'));
+  if Lib = 0 then
+  begin
+    PDFModernMessageDlg(L('Kein kompatibles E-Mail-Programm verfügbar.', 'No compatible email application available.'), mtWarning, [mbOK], 0);
+    Exit;
+  end;
+  try
+    SendMail := TSendMail(GetProcAddress(Lib, 'MAPISendMailW'));
+    UnicodeMail := Assigned(SendMail);
+    if not UnicodeMail then SendMail := TSendMail(GetProcAddress(Lib, 'MAPISendMail'));
+    if not Assigned(SendMail) then
+    begin
+      PDFModernMessageDlg(L('Simple MAPI ist nicht verfügbar.', 'Simple MAPI is unavailable.'), mtWarning, [mbOK], 0);
+      Exit;
+    end;
+    SetLength(Paths, Files.Count);
+    SetLength(AnsiPaths, Files.Count);
+    SetLength(Attachments, Files.Count);
+    for I := 0 to Files.Count - 1 do
+    begin
+      Paths[I] := ExpandFileName(Files[I]);
+      Attachments[I].Position := Cardinal($FFFFFFFF);
+      if UnicodeMail then Attachments[I].PathName := PWideChar(Paths[I])
+      else
+      begin
+        AnsiPaths[I] := AnsiString(Paths[I]);
+        if string(AnsiPaths[I]) <> Paths[I] then
+        begin
+          PDFModernMessageDlg(L('Das E-Mail-Programm unterstützt diesen Unicode-Dateipfad nicht.',
+            'The email application does not support this Unicode file path.'), mtWarning, [mbOK], 0);
+          Exit;
+        end;
+        Attachments[I].PathName := PAnsiChar(AnsiPaths[I]);
+      end;
+    end;
+    FillChar(Msg, SizeOf(Msg), 0);
+    Msg.FileCount := Files.Count;
+    Msg.FileDescs := @Attachments[0];
+    // MAPI_LOGON_UI or MAPI_DIALOG: never send without a compose dialog.
+    Status := SendMail(0, NativeUInt(Handle), Msg, $00000009, 0);
+    if (Status <> 0) and (Status <> 1) then
+      PDFModernMessageDlg(L('E-Mail konnte nicht geöffnet werden. Prüfen Sie Ihr Simple-MAPI-kompatibles E-Mail-Programm. Fehlercode: ',
+        'Could not open email. Check your Simple MAPI-compatible email application. Error code: ') + IntToStr(Status), mtWarning, [mbOK], 0);
+  finally
+    FreeLibrary(Lib);
+  end;
+end;
+
+procedure TPDFTabsForm.SendFilesByEmail(Sender: TObject);
+var
+  D: TOpenDialog;
+  B: TPDFBrowserForm;
+begin
+  if FSplitHost <> nil then Exit;
+  D := TOpenDialog.Create(Self);
+  try
+    if SameText(PDFLanguage, 'en') then
+    begin
+      D.Title := 'Select email attachments';
+      D.Filter := 'PDF and image files|*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff';
+    end
+    else
+    begin
+      D.Title := 'E-Mail-Anhänge auswählen';
+      D.Filter := 'PDFs und Bilder|*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff';
+    end;
+    D.Options := D.Options + [ofAllowMultiSelect, ofFileMustExist, ofPathMustExist, ofNoChangeDir];
+    if (FTabs <> nil) and (FTabs.ActivePage <> nil) then
+    begin
+      B := PDFInTab(FTabs.ActivePage);
+      if B <> nil then
+      begin
+        D.InitialDir := ExtractFileDir(B.PDFFileName);
+        D.FileName := ExtractFileName(B.PDFFileName);
+      end;
+    end;
+    if D.Execute then ComposeEmail(D.Files);
+  finally
+    D.Free;
+  end;
+end;
+
+procedure TPDFTabsForm.SendRecentByEmail(Sender: TObject);
+var
+  Files: TStringList;
+begin
+  if (FRecentPopupIndex < 0) or (FRecentPopupIndex >= FRecentPDFs.Count) then Exit;
+  Files := TStringList.Create;
+  try
+    Files.Add(FRecentPDFs[FRecentPopupIndex]);
+    ComposeEmail(Files);
+  finally
+    Files.Free;
+  end;
+end;
+
 procedure TPDFTabsForm.DispatchRibbonCommand(CommandId: Integer);
 var
   ActiveBrowser: TPDFBrowserForm;
@@ -6599,6 +6766,13 @@ begin
      [103, 166, 165, 116, 117, 119, 120, 210, 211]) then
     Exit;
   case CommandId of
+    230: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.FocusAdjacentFormWidget(-1);
+    231: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.FocusAdjacentFormWidget(1);
+    232: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
+           ActiveBrowser.ShowRequiredFieldsReport;
+    237: SendFilesByEmail(Self);
     103: OpenPDFClick(Self);
     166: OpenPDFClick(Self);
     163: if ActiveBrowser <> nil then ReloadActivePDFClick(Self);
@@ -6646,7 +6820,7 @@ begin
     127: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage then
            ActiveBrowser.ShowCommentOverview;
     115, 123, 124, 126, 129, 130, 133, 134, 135, 137, 138,
-    143, 145, 146, 168..184, 190, 193, 194, 214..217, 229:
+    143, 145, 146, 168..184, 190, 193, 194, 214..217, 229, 233..236:
       if ActiveBrowser <> nil then
       begin
         ActiveBrowser.ExecuteRibbonPDFCommand(CommandId);
@@ -6657,7 +6831,7 @@ begin
           if CommandId in [181, 182, 183] then
             FVCLRibbon.SetMeasurementUnit(ActiveBrowser.WorkspaceMeasureUnit);
         end;
-        if CommandId in [129, 130, 229] then
+        if CommandId in [129, 130, 229, 233..236] then
           SyncVCLRibbonCommands;
       end;
     142: if (ActiveBrowser <> nil) and not ActiveBrowser.IsBasicImage and
@@ -6926,9 +7100,10 @@ begin
       FVCLRibbon.SetCommandEnabled(PDFCommands[I], False);
     for I := 168 to 194 do FVCLRibbon.SetCommandEnabled(I, False);
     for I := 201 to 209 do FVCLRibbon.SetCommandEnabled(I, False);
-    for I := 214 to 229 do FVCLRibbon.SetCommandEnabled(I, False);
+    for I := 214 to 236 do FVCLRibbon.SetCommandEnabled(I, False);
     for I := 129 to 130 do FVCLRibbon.SetCommandEnabled(I, False);
     FVCLRibbon.SetCommandEnabled(104, False);
+    FVCLRibbon.SetCommandEnabled(237, False);
     FVCLRibbon.SetCommandEnabled(105, False);
     FVCLRibbon.SetCommandEnabled(141, False);
     FVCLRibbon.SetCommandEnabled(142, False);
@@ -6992,6 +7167,7 @@ begin
   FVCLRibbon.SetCommandEnabled(-191, HasPDF); // Seiten als Bilder exportieren
   FVCLRibbon.SetCommandEnabled(-192, HasPDF); // Seiten als Text exportieren
   FVCLRibbon.SetCommandEnabled(229, HasPDF);
+  for I := 230 to 236 do FVCLRibbon.SetCommandEnabled(I, HasPDF);
   FVCLRibbon.SetCommandEnabled(104, HasPDF); // Direkt speichern
   FVCLRibbon.SetCommandEnabled(220, HasPDF); // PDF speichern unter ...
   FVCLRibbon.SetCommandEnabled(224, HasPDF and (FTabs <> nil) and
@@ -7006,6 +7182,7 @@ begin
     FVCLRibbon.SetCommandChecked(226, FStartMinimized);
   end;
   FVCLRibbon.SetCommandChecked(227, FTrayEnabled);
+  FVCLRibbon.SetCommandEnabled(237, True);
   FVCLRibbon.SetCommandEnabled(105, HasDocument); // Drucken
   FVCLRibbon.SetCommandEnabled(218, HasDocument and not HasPDF and
     (Browser.TIFFRibbonPageCount > 1) and (Browser.TIFFRibbonPageIndex > 0));

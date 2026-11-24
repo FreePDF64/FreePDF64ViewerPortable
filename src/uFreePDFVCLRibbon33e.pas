@@ -182,6 +182,7 @@ begin
   case CommandId of
     103: if SameText(PDFLanguage, 'en') then Result := 'Open PDF documents or supported images in a new tab.' else Result := 'Öffnet PDF-Dateien oder unterstützte Bilder in einer neuen Registerkarte.';
     104: if SameText(PDFLanguage, 'en') then Result := 'Save changes to the open PDF document. Shortcut: Ctrl+S.' else Result := 'Speichert Änderungen am geöffneten PDF-Dokument. Tastenkürzel: Strg+S.';
+    237: if SameText(PDFLanguage, 'en') then Result := 'Select PDF and image files to attach to a new email.' else Result := 'Wählt PDFs und Bilder als Anhänge einer neuen E-Mail aus.';
     105: if SameText(PDFLanguage, 'en') then Result := 'Print the current document or image using the Windows print dialog.' else Result := 'Druckt das aktuell geöffnete Dokument oder Bild über den Windows-Druckdialog.';
     108: if SameText(PDFLanguage, 'en') then Result := 'Open the manager for saved workspaces. Search, load, rename or delete workspaces here.' else Result := 'Öffnet die Verwaltung gespeicherter Arbeitsbereiche. Hier können Sie Arbeitsbereiche suchen, laden, umbenennen und löschen.';
     196: if SameText(PDFLanguage, 'en') then Result := 'Save the current set of open documents as a workspace.' else Result := 'Speichert die aktuelle Zusammenstellung geöffneter Dokumente als Arbeitsbereich.';
@@ -194,7 +195,7 @@ begin
     214: if SameText(PDFLanguage, 'en') then Result := 'Reset the document zoom to 100 percent.' else Result := 'Setzt die Dokumentansicht auf 100 Prozent Vergrößerung.';
     215: if SameText(PDFLanguage, 'en') then Result := 'Display PDF pages in a two-page view.' else Result := 'Zeigt PDF-Seiten in einer doppelseitigen Ansicht an.';
     216: if SameText(PDFLanguage, 'en') then Result := 'Switch the document display to page-by-page viewing.' else Result := 'Wechselt die Seitenanzeige in den seitenweisen Modus.';
-    217: if SameText(PDFLanguage, 'en') then Result := 'Activate the hand tool to pan around a zoomed page with the mouse.' else Result := 'Aktiviert das Hand-Werkzeug, um die vergrößerte Seite mit der Maus zu verschieben.';
+    217: if SameText(PDFLanguage, 'en') then Result := 'Activate the hand tool to pan around a zoomed page with the mouse.' else Result := 'Aktiviert das Handwerkzeug, um die vergrößerte Seite mit der Maus zu verschieben.';
     210: if SameText(PDFLanguage, 'en') then Result := 'Go to the previous page of the current PDF document.' else Result := 'Wechselt zur vorherigen Seite des aktuellen PDF-Dokuments.';
     211: if SameText(PDFLanguage, 'en') then Result := 'Go to the next page of the current PDF document.' else Result := 'Wechselt zur nächsten Seite des aktuellen PDF-Dokuments.';
     212: if SameText(PDFLanguage, 'en') then Result := 'Enter a page number and press Enter to jump directly to that page.' else Result := 'Geben Sie eine Seitennummer ein und drücken Sie Enter, um direkt zu dieser Seite zu springen.';
@@ -234,13 +235,13 @@ begin
     177: if SameText(PDFLanguage, 'en') then Result := 'Display existing PDF hyperlinks and manage them.' else Result := 'Zeigt vorhandene PDF-Hyperlinks an und ermöglicht ihre Verwaltung.';
     137: if SameText(PDFLanguage, 'en') then Result := 'Add a text watermark to the PDF document.' else Result := 'Fügt ein Textwasserzeichen in das PDF-Dokument ein.';
     138: if SameText(PDFLanguage, 'en') then Result := 'Add an image watermark to the PDF document.' else Result := 'Fügt ein Bild als Wasserzeichen in das PDF-Dokument ein.';
-    141: if SameText(PDFLanguage, 'en') then Result := 'Display document properties and technical information about the open PDF.' else Result := 'Zeigt Dokumenteigenschaften und technische Informationen zum geöffneten PDF.';
+    141: if SameText(PDFLanguage, 'en') then Result := 'Display document properties and technical information about the open PDF (Ctrl+D).' else Result := 'Zeigt Dokumenteigenschaften und technische Informationen zum geöffneten PDF (Strg+D).';
     142: if SameText(PDFLanguage, 'en') then Result := 'Display embedded PDF attachments and tools to manage them.' else Result := 'Zeigt eingebettete PDF-Anlagen an und bietet Funktionen zu ihrer Verwaltung.';
     145: if SameText(PDFLanguage, 'en') then Result := 'Activate the measuring tool to measure distances on the PDF page.' else Result := 'Aktiviert das Messwerkzeug, um Abstände auf der PDF-Seite zu messen.';
     178: if SameText(PDFLanguage, 'en') then Result := 'Set the scale used for measurements on PDF pages.' else Result := 'Legt den Maßstab für Messungen auf PDF-Seiten fest.';
     179: if SameText(PDFLanguage, 'en') then Result := 'Choose the display color for measurement annotations.' else Result := 'Wählt die Darstellungsfarbe für Messmarkierungen.';
     180: if SameText(PDFLanguage, 'en') then Result := 'Generate a report of measurements, including CSV output.' else Result := 'Erstellt einen Bericht über die Messungen, einschließlich CSV-Ausgabe.';
-    146: if SameText(PDFLanguage, 'en') then Result := 'Mark areas on the PDF page for redaction.' else Result := 'Markiert Bereiche auf der PDF-Seite für die Schwärzung.';
+    146: if SameText(PDFLanguage, 'en') then Result := 'Marks sensitive areas on the PDF page for redaction.' else Result := 'Markiert sensible Bereiche auf der PDF-Seite für die Schwärzung.';
     194: if SameText(PDFLanguage, 'en') then Result := 'Permanently apply prepared redactions. Review the marked areas before proceeding.' else Result := 'Wendet die vorbereiteten Schwärzungen endgültig an. Prüfen Sie die markierten Bereiche vor dem Ausführen.';
     181: if SameText(PDFLanguage, 'en') then Result := 'Use millimeters as the measurement unit.' else Result := 'Verwendet Millimeter als Einheit für Messungen.';
     182: if SameText(PDFLanguage, 'en') then Result := 'Use centimeters as the measurement unit.' else Result := 'Verwendet Zentimeter als Einheit für Messungen.';
@@ -253,7 +254,7 @@ begin
     159: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface language to German.' else Result := 'Stellt die Benutzeroberfläche auf Deutsch um.';
     160: if SameText(PDFLanguage, 'en') then Result := 'Switch the user interface language to English.' else Result := 'Stellt die Benutzeroberfläche auf Englisch um.';
     223: if SameText(PDFLanguage, 'en') then Result := 'Check now whether a newer version of FreePDF64 Viewer is available.' else Result := 'Prüft jetzt, ob eine neuere Version des FreePDF64-Viewers verfügbar ist.';
-    149: if SameText(PDFLanguage, 'en') then Result := 'Open the feature guide with explanations of available tools and commands. Press F1.' else Result := 'Öffnet die Funktionsübersicht mit Beschreibungen der verfügbaren Werkzeuge und Befehle. Taste F1.';
+    149: if SameText(PDFLanguage, 'en') then Result := 'Open the feature guide with explanations of available tools and commands (F1).' else Result := 'Öffnet die Funktionsübersicht mit Beschreibungen der verfügbaren Werkzeuge und Befehle (F1).';
     150: if SameText(PDFLanguage, 'en') then Result := 'Show version information and other details about FreePDF64 Viewer Portable.' else Result := 'Zeigt Versionsinformationen und weitere Angaben zu FreePDF64-Viewer Portable.';
     167: if SameText(PDFLanguage, 'en') then Result := 'Return to the home page with recent files and workspaces.' else Result := 'Wechselt zur Startseite mit zuletzt geöffneten Dateien und Arbeitsbereichen.';
     163: if SameText(PDFLanguage, 'en') then Result := 'Reload the current PDF from disk and discard unsaved changes.' else Result := 'Lädt das aktuelle PDF erneut von der Festplatte und verwirft ungespeicherte Änderungen.';
@@ -277,7 +278,25 @@ begin
   // lets dynamic command captions be refreshed repeatedly without losing state.
   if SameText(PDFLanguage, 'en') then
   begin
-    if S = 'File' then Result := 'Datei'
+    if S = 'Comment' then Result := 'Kommentar'
+    else if S = 'Fill' then Result := 'Ausfüllen'
+    else if S = 'Page' then Result := 'Seite'
+    else if S = 'Protect' then Result := 'Schützen'
+    else if S = 'Links' then Result := 'Verknüpfungen'
+    else if S = 'Attachments' then Result := 'Anlagen'
+    else if S = 'Signatures' then Result := 'Unterschriften'
+    else if S = 'Management' then Result := 'Verwaltung'
+    else if S = 'Comments' then Result := 'Kommentare'
+    else if S = 'Forms' then Result := 'Formulare'
+    else if S = 'Form navigation' then Result := 'Formularnavigation'
+    else if S = 'Form validation' then Result := 'Formularprüfung'
+    else if S = 'Previous field' then Result := 'Vorheriges Feld'
+    else if S = 'Next field' then Result := 'Nächstes Feld'
+    else if S = 'Check required fields' then Result := 'Pflichtfelder prüfen'
+    else if S = 'Organize pages' then Result := 'Seitenverwaltung'
+    else if S = 'Protection' then Result := 'Schutz'
+    else if S = 'Export' then Result := 'Export'
+    else if S = 'File' then Result := 'Datei'
     else if S = 'Start' then Result := 'Start'
     else if S = 'View' then Result := 'Ansicht'
     else if S = 'Edit' then Result := 'Bearbeiten'
@@ -316,6 +335,7 @@ begin
     else if S = 'Program' then Result := 'Programm'
     else if S = 'Open' then Result := 'Öffnen'
     else if S = 'Save' then Result := 'Speichern'
+    else if S = 'Send by email ...' then Result := 'Per E-Mail senden ...'
     else if S = 'Print' then Result := 'Drucken'
     else if S = 'Manage workspaces' then Result := 'Arbeitsbereiche verwalten'
     else if S = 'Save workspace' then Result := 'Arbeitsbereich speichern'
@@ -330,7 +350,7 @@ begin
     else if S = 'Single page' then Result := 'Einzelansicht'
     else if S = 'Continuous' then Result := 'Durchgehend'
     else if S = 'Single page scrolling' then Result := 'Seitenweise'
-    else if S = 'Hand tool' then Result := 'Hand-Werkzeug'
+    else if S = 'Hand tool' then Result := 'Handwerkzeug'
     else if S = 'Previous page' then Result := 'Vorherige Seite'
     else if S = 'Next page' then Result := 'Nächste Seite'
     else if S = 'Zoom in' then Result := 'Bild vergrößern'
@@ -367,6 +387,10 @@ begin
     else if S = 'Manage hyperlinks' then Result := 'Hyperlinks verwalten ...'
     else if S = 'Text watermark' then Result := 'Textwasserzeichen'
     else if S = 'Image watermark' then Result := 'Bildwasserzeichen'
+    else if S = 'Delete page' then Result := 'Seite löschen'
+    else if S = 'Rotate page 90° right' then Result := 'Seite 90° nach rechts'
+    else if S = 'Rotate page 90° left' then Result := 'Seite 90° nach links'
+    else if S = 'Extract page' then Result := 'Seite extrahieren'
     else if S = 'Document properties' then Result := 'Dokumenteigenschaften'
     else if S = 'PDF attachments' then Result := 'PDF-Anlagen'
     else if S = 'Measure' then Result := 'Messen'
@@ -415,7 +439,7 @@ begin
     else if S = 'Switch to split view' then Result := 'Zur Doppelansicht wechseln'
     else if S = 'Switch to continuous view' then Result := 'Zur durchgehenden Ansicht wechseln'
     else if S = 'Switch to page-by-page view' then Result := 'Zur seitenweisen Ansicht wechseln'
-    else if S = 'Hand tool: off' then Result := 'Hand-Werkzeug ausschalten'
+    else if S = 'Hand tool: off' then Result := 'Handwerkzeug ausschalten'
     else if S = 'Move PDF page with the mouse' then Result := 'PDF-Seite mit der Maus verschieben'
     else if S = 'Hand: on' then Result := 'Hand: Ein'
     else if S = 'Page width' then Result := 'Seitenbreite'
@@ -430,11 +454,33 @@ end;
 function RibbonText(const German: string): string;
 begin
   Result := German;
+  if German = 'Hand-Werkzeug' then
+    Result := 'Handwerkzeug'
+  else if German = 'Hand-Werkzeug ausschalten' then
+    Result := 'Handwerkzeug ausschalten';
   if SameText(PDFLanguage, 'en') then
   begin
     // Keep this map centralized so tabs, groups, commands and hints use the
     // same English terminology throughout the Ribbon.
     if German = 'Datei' then Result := 'File'
+    else if German = 'Kommentar' then Result := 'Comment'
+    else if German = 'Ausfüllen' then Result := 'Fill'
+    else if German = 'Seite' then Result := 'Page'
+    else if German = 'Schützen' then Result := 'Protect'
+    else if German = 'Verknüpfungen' then Result := 'Links'
+    else if German = 'Anlagen' then Result := 'Attachments'
+    else if German = 'Unterschriften' then Result := 'Signatures'
+    else if German = 'Verwaltung' then Result := 'Management'
+    else if German = 'Kommentare' then Result := 'Comments'
+    else if German = 'Formulare' then Result := 'Forms'
+    else if German = 'Formularnavigation' then Result := 'Form navigation'
+    else if German = 'Formularprüfung' then Result := 'Form validation'
+    else if German = 'Vorheriges Feld' then Result := 'Previous field'
+    else if German = 'Nächstes Feld' then Result := 'Next field'
+    else if German = 'Pflichtfelder prüfen' then Result := 'Check required fields'
+    else if German = 'Seitenverwaltung' then Result := 'Organize pages'
+    else if German = 'Schutz' then Result := 'Protection'
+    else if German = 'Export' then Result := 'Export'
     else if German = 'Ansicht' then Result := 'View'
     else if German = 'Bearbeiten' then Result := 'Edit'
     else if German = 'Objekte' then Result := 'Objects'
@@ -468,6 +514,7 @@ begin
     else if German = 'Programm' then Result := 'Program'
     else if German = 'Öffnen' then Result := 'Open'
     else if German = 'Speichern' then Result := 'Save'
+    else if German = 'Per E-Mail senden ...' then Result := 'Send by email ...'
     else if German = 'Drucken' then Result := 'Print'
     else if German = 'Arbeitsbereiche verwalten' then Result := 'Manage workspaces'
     else if German = 'Arbeitsbereich speichern' then Result := 'Save workspace'
@@ -479,7 +526,7 @@ begin
     else if German = 'Einzelansicht' then Result := 'Single page'
     else if German = 'Seitenweise' then Result := 'Single page scrolling'
     else if German = 'Durchgehend' then Result := 'Continuous'
-    else if German = 'Hand-Werkzeug' then Result := 'Hand tool'
+    else if (German = 'Handwerkzeug') or (German = 'Hand-Werkzeug') then Result := 'Hand tool'
     else if German = 'Vorherige Seite' then Result := 'Previous page'
     else if German = 'Nächste Seite' then Result := 'Next page'
     else if German = 'Bild vergrößern' then Result := 'Zoom in'
@@ -516,6 +563,10 @@ begin
     else if German = 'Hyperlinks verwalten ...' then Result := 'Manage hyperlinks'
     else if German = 'Textwasserzeichen' then Result := 'Text watermark'
     else if German = 'Bildwasserzeichen' then Result := 'Image watermark'
+    else if German = 'Seite löschen' then Result := 'Delete page'
+    else if German = 'Seite 90° nach rechts' then Result := 'Rotate page 90° right'
+    else if German = 'Seite 90° nach links' then Result := 'Rotate page 90° left'
+    else if German = 'Seite extrahieren' then Result := 'Extract page'
     else if German = 'Dokumenteigenschaften' then Result := 'Document properties'
     else if German = 'PDF-Anlagen' then Result := 'PDF attachments'
     else if German = 'Messen' then Result := 'Measure'
@@ -558,7 +609,7 @@ begin
     else if German = 'Zur Doppelansicht wechseln' then Result := 'Switch to split view'
     else if German = 'Zur durchgehenden Ansicht wechseln' then Result := 'Switch to continuous view'
     else if German = 'Zur seitenweisen Ansicht wechseln' then Result := 'Switch to page-by-page view'
-    else if German = 'Hand-Werkzeug ausschalten' then Result := 'Turn off hand tool'
+    else if (German = 'Handwerkzeug ausschalten') or (German = 'Hand-Werkzeug ausschalten') then Result := 'Turn off hand tool'
     else if German = 'PDF-Seite mit der Maus verschieben' then Result := 'Move PDF page with the mouse'
     else if German = 'Hand: Ein' then Result := 'Hand: On'
     else if German = 'Zoommodus auswählen' then Result := 'Select zoom mode'
@@ -873,16 +924,16 @@ begin
   BuildRibbon;
   LayoutGroups;
   // Datei remains the sole file tab; options are a group inside it.
-  if FTabPanels.Count = 7 then
-  begin
-    TPanel(FTabPanels[6]).Left := 4;
-    TPanel(FTabPanels[0]).Left := TPanel(FTabPanels[6]).Left + TPanel(FTabPanels[6]).Width + 2;
-    TPanel(FTabPanels[1]).Left := TPanel(FTabPanels[0]).Left + TPanel(FTabPanels[0]).Width + 2;
-    TPanel(FTabPanels[2]).Left := TPanel(FTabPanels[1]).Left + TPanel(FTabPanels[1]).Width + 2;
-    TPanel(FTabPanels[3]).Left := TPanel(FTabPanels[2]).Left + TPanel(FTabPanels[2]).Width + 2;
-    TPanel(FTabPanels[4]).Left := TPanel(FTabPanels[3]).Left + TPanel(FTabPanels[3]).Width + 2;
-    TPanel(FTabPanels[5]).Left := TPanel(FTabPanels[4]).Left + TPanel(FTabPanels[4]).Width + 2;
-  end;
+  TPanel(FTabPanels[6]).Left := 4;
+  TPanel(FTabPanels[0]).Left := TPanel(FTabPanels[6]).Left + TPanel(FTabPanels[6]).Width + 2;
+  TPanel(FTabPanels[1]).Left := TPanel(FTabPanels[0]).Left + TPanel(FTabPanels[0]).Width + 2;
+  TPanel(FTabPanels[7]).Left := TPanel(FTabPanels[1]).Left + TPanel(FTabPanels[1]).Width + 2;
+  TPanel(FTabPanels[2]).Left := TPanel(FTabPanels[7]).Left + TPanel(FTabPanels[7]).Width + 2;
+  TPanel(FTabPanels[9]).Left := TPanel(FTabPanels[2]).Left + TPanel(FTabPanels[2]).Width + 2;
+  TPanel(FTabPanels[8]).Left := TPanel(FTabPanels[9]).Left + TPanel(FTabPanels[9]).Width + 2;
+  TPanel(FTabPanels[3]).Left := TPanel(FTabPanels[8]).Left + TPanel(FTabPanels[8]).Width + 2;
+  TPanel(FTabPanels[4]).Left := TPanel(FTabPanels[3]).Left + TPanel(FTabPanels[3]).Width + 2;
+  TPanel(FTabPanels[5]).Left := TPanel(FTabPanels[4]).Left + TPanel(FTabPanels[4]).Width + 2;
   ApplyPalette(clWhite, clWindowText, TColor($00F1E8E1));
   ShowTab(0);
   FCollapseButton.BringToFront;
@@ -957,12 +1008,12 @@ begin
           if I = 1 then
           begin
             if GroupCaption(Group) = 'Anzeigen' then CompactPercent := 88
-            else if GroupCaption(Group) = 'Bilder' then CompactPercent := 82;
+            else if RibbonGermanText(GroupCaption(Group)) = 'Seiten' then CompactPercent := 85
+            else if RibbonGermanText(GroupCaption(Group)) = 'Bilder' then CompactPercent := 66;
           end
           else if I = 6 then
           begin
-            if GroupCaption(Group) = 'Speichern / Export' then CompactPercent := 95
-            else if GroupCaption(Group) = 'Programm' then CompactPercent := 94;
+            if GroupCaption(Group) = 'Speichern / Export' then CompactPercent := 95;
           end;
           if CompactPercent <> 100 then
           begin
@@ -1095,10 +1146,11 @@ end;
 function RibbonCompactGroup(TabIndex: Integer; const GroupName: string): Boolean;
 begin
   Result := ((TabIndex = 1) and (GroupName = 'Anzeigen')) or
-    ((TabIndex = 2) and ((GroupName = 'Weitere Zeichenwerkzeuge') or
-                         (GroupName = 'Schrift'))) or
+    (((TabIndex = 7) and (GroupName = 'Weitere Zeichenwerkzeuge')) or
+     ((TabIndex = 2) and (GroupName = 'Schrift'))) or
     ((TabIndex = 1) and ((GroupName = 'Bilder') or (GroupName = 'Seiten') or (GroupName = 'Anzeigen'))) or
-    (TabIndex = 6) or
+    ((TabIndex = 6) and (GroupName <> 'Dokument') and
+      (GroupName <> 'Programm') and (GroupName <> 'E-Mail')) or
     ((TabIndex = 5) and (GroupName = 'Updates'));
 end;
 
@@ -1120,6 +1172,7 @@ begin
   if SameText(PDFLanguage, 'en') then
   begin
     case CommandId of
+      237: Result := 'Send by' + #13#10 + 'email ...';
       107: Result := 'Open' + #13#10 + 'workspaces';
       108: Result := 'Manage' + #13#10 + 'workspaces';
       196: Result := 'Save' + #13#10 + 'workspace';
@@ -1139,9 +1192,14 @@ begin
       177: Result := 'Manage' + #13#10 + 'hyperlinks';
       137: Result := 'Text' + #13#10 + 'watermark';
       138: Result := 'Image' + #13#10 + 'watermark';
-      141: Result := 'Document' + #13#10 + 'properties';
+      141: Result := 'Document properties';
       142: Result := 'PDF' + #13#10 + 'attachments';
       143: Result := 'Extract' + #13#10 + 'images';
+      184: Result := 'Redact' + #13#10 + '(visual)';
+      233: Result := 'Delete' + #13#10 + 'page';
+      234: Result := 'Rotate page' + #13#10 + '90° right';
+      235: Result := 'Rotate page' + #13#10 + '90° left';
+      236: Result := 'Extract' + #13#10 + 'page';
       194: Result := 'Apply' + #13#10 + 'redaction';
       154: Result := 'Modern' + #13#10 + 'Light';
       155: Result := 'Classic' + #13#10 + 'Gray';
@@ -1151,11 +1209,13 @@ begin
       150: Result := 'About' + #13#10 + 'FreePDF64';
       223: Result := 'Check for' + #13#10 + 'updates';
       224: Result := 'Merge' + #13#10 + 'PDFs';
+      232: Result := 'Check required' + #13#10 + 'fields';
       229: Result := 'Edit PDF' + #13#10 + 'objects';
     end;
     Exit;
   end;
   case CommandId of
+    237: Result := 'Per E-Mail' + #13#10 + 'senden ...';
     107: Result := 'Arbeitsbereiche' + #13#10 + 'öffnen';
     108: Result := 'Arbeitsbereiche' + #13#10 + 'verwalten';
     196: Result := 'Arbeitsbereich' + #13#10 + 'speichern';
@@ -1178,9 +1238,14 @@ begin
     177: Result := 'Hyperlinks' + #13#10 + 'verwalten';
     137: Result := 'Text-' + #13#10 + 'wasserzeichen';
     138: Result := 'Bild-' + #13#10 + 'wasserzeichen';
-    141: Result := 'Dokument-' + #13#10 + 'eigenschaften';
+    141: Result := 'Dokumenteigenschaften';
     142: Result := 'PDF-' + #13#10 + 'Anlagen';
     143: Result := 'Bilder' + #13#10 + 'extrahieren';
+    184: Result := 'Schwärzen' + #13#10 + '(optisch)';
+    233: Result := 'Seite' + #13#10 + 'löschen';
+    234: Result := 'Seite 90°' + #13#10 + 'nach rechts';
+    235: Result := 'Seite 90°' + #13#10 + 'nach links';
+    236: Result := 'Seite' + #13#10 + 'extrahieren';
     194: Result := 'Endgültig' + #13#10 + 'schwärzen';
     154: Result := 'Modern' + #13#10 + 'Hell';
     155: Result := 'Klassisch' + #13#10 + 'Grau';
@@ -1190,6 +1255,7 @@ begin
     150: Result := 'Über' + #13#10 + 'FreePDF64';
     223: Result := 'Nach Updates' + #13#10 + 'suchen';
     224: Result := 'PDFs' + #13#10 + 'zusammenführen';
+    232: Result := 'Pflichtfelder' + #13#10 + 'prüfen';
     229: Result := 'PDF-Objekte' + #13#10 + 'bearbeiten';
   end;
 end;
@@ -1204,6 +1270,7 @@ begin
   // directories (Win64\Debug, Win64\Release) when run from the IDE.
   // Reuse existing embedded Tabler glyphs for the new PDF view controls.
   case CommandId of
+    237: CommandId := 142; // embedded attachment glyph
     214: CommandId := 207; // original size
     215: CommandId := 119; // split view
     216: CommandId := 114; // page list
@@ -1211,6 +1278,13 @@ begin
     218: CommandId := 210; // previous page arrow, embedded Tabler icon
     219: CommandId := 211; // next page arrow, embedded Tabler icon
     220: CommandId := 104; // save-as uses existing embedded save glyph
+    230: CommandId := 210;
+    231: CommandId := 211;
+    232: CommandId := 141;
+    234: CommandId := 204;
+    235: CommandId := 203;
+    236: CommandId := 143;
+    233: CommandId := 163;
     229: CommandId := 168; // Embedded monochrome drawing icon
     224: CommandId := 120; // use embedded PDF comparison glyph as fallback
     // Reuse existing monochrome Tabler resources for the compact options.
@@ -1424,12 +1498,12 @@ begin
     begin
       Col := 0;
       RowIndex := Group.Tag;
-      CellWidth := 195;
+      CellWidth := 175;
       LeftPos := 6;
     end
     else if (TabIndex = 1) and (GroupName = 'Anzeigen') then
     begin
-      // Compact 4-column layout. Keep the existing three-row rhythm,
+      // Compact 3-column layout. Keep the existing three-row rhythm,
       // but eliminate the oversized 60+ px gaps between commands.
       case CommandId of
         116: begin Col := 1; RowIndex := 0; end;
@@ -1437,7 +1511,6 @@ begin
         214: begin Col := 2; RowIndex := 0; end;
         215: begin Col := 2; RowIndex := 1; end;
         216: begin Col := 2; RowIndex := 2; end;
-        217: begin Col := 3; RowIndex := 0; end;
       else
         begin Col := 0; RowIndex := Group.Tag; end;
       end;
@@ -1464,8 +1537,9 @@ begin
       if TabIndex = 6 then
       begin
         if GroupName = 'Datei' then CellWidth := 315
-        else if GroupName = 'Speichern / Export' then CellWidth := 252
+        else if GroupName = 'Speichern / Export' then CellWidth := 236
         else if GroupName = 'Optionen' then CellWidth := 260
+        else if GroupName = 'Dokument' then CellWidth := 205
         else if GroupName = 'Programm' then CellWidth := 135
         else CellWidth := 165;
       end
@@ -1486,10 +1560,11 @@ begin
   begin
     ButtonWidth := 69;
     case CommandId of
+      237: ButtonWidth := 100;
       107,108,196: ButtonWidth := 105;
       110,111: ButtonWidth := 85;
       119,120: ButtonWidth := 95;
-      129,130: ButtonWidth := 100;
+      129,130: ButtonWidth := 86;
       178,179,180: ButtonWidth := 96;
       123: ButtonWidth := 72;
       124: ButtonWidth := 100;
@@ -1497,12 +1572,17 @@ begin
       126,127: ButtonWidth := 83;
       133,134,135,177: ButtonWidth := 83;
       137,138: ButtonWidth := 102;
-      141: ButtonWidth := 115;
+      141: ButtonWidth := 155;
+      217: ButtonWidth := 105;
+      184: ButtonWidth := 90;
+      233..236: ButtonWidth := 105;
       142,143: ButtonWidth := 77;
       153,154,155,156: ButtonWidth := 64;
       157: ButtonWidth := 105;
       159,160: ButtonWidth := 72;
       149: ButtonWidth := 111;
+      230, 231, 232: ButtonWidth := 112;
+      224: ButtonWidth := 110;
       150: ButtonWidth := 84;
       223: ButtonWidth := 105;
       194: ButtonWidth := 94;
@@ -1514,56 +1594,14 @@ begin
     if Group.Tag = 0 then LeftPos := 5;
     TopPos := 4;
   end;
-  if (TabIndex = 1) and (GroupName = 'Anzeigen') and (CommandId = 217) then
-  begin
-    // Editable zoom percentage in the third row, directly below Zoom -.
-    FZoomEdit := TEdit.Create(Self);
-    FZoomEdit.Parent := Group;
-    FZoomEdit.Tag := 221;
-    FZoomEdit.Font.Name := 'Segoe UI';
-    FZoomEdit.Font.Size := 8;
-    FZoomEdit.SetBounds(158, 64, 132, 25);
-    FZoomEdit.Text := '100 %';
-    FZoomEdit.Enabled := False;
-    FZoomEdit.ShowHint := True;
-    if SameText(PDFLanguage, 'en') then
-      FZoomEdit.Hint := 'Enter zoom percentage and press Enter'
-    else
-      FZoomEdit.Hint := 'Zoom in % eingeben und Enter drücken';
-    FZoomEdit.OnKeyDown := ZoomEditKeyDown;
-    // Preserve the Hand Tool button, located in the fourth column.
-    Button := TRibbonSpeedButton.Create(Self);
-    Button.Parent := Group;
-    Button.Tag := CommandId;
-    if CommandId = 228 then
-      Button.Hint := RibbonText('PDF-Dateien mit dem FreePDF64-Viewer verknüpfen ...')
-    else
-      Button.Hint := RibbonText(ACaption);
-    if DetailedRibbonHint(CommandId) <> '' then
-      Button.Hint := DetailedRibbonHint(CommandId);
-    Button.ShowHint := True;
-    Button.Flat := True;
-    Button.Font.Name := 'Segoe UI';
-    Button.Font.Size := 8;
-    Button.Caption := RibbonText(ACaption);
-    Button.Layout := blGlyphLeft;
-    Button.Margin := 3;
-    Button.Spacing := 4;
-    if (TabIndex = 6) and (GroupName = 'Optionen') then
-      Button.SetBounds(LeftPos, TopPos, ButtonWidth, 21)
-    else
-      Button.SetBounds(LeftPos, TopPos, ButtonWidth, 29);
-    Button.OnClick := CommandClick;
-    LoadGlyph(Button, CommandId);
-  end
-  else if (TabIndex = 1) and (GroupName = 'Seiten') and (CommandId = 212) then
+  if (TabIndex = 1) and (GroupName = 'Seiten') and (CommandId = 212) then
   begin
     FPageEdit := TEdit.Create(Self);
     FPageEdit.Parent := Group;
     FPageEdit.Tag := 212;
     FPageEdit.Font.Name := 'Segoe UI';
     FPageEdit.Font.Size := 9;
-    FPageEdit.SetBounds(LeftPos + 4, TopPos + 1, 174, 27);
+    FPageEdit.SetBounds(LeftPos + 4, TopPos + 1, 154, 27);
     FPageEdit.Text := 'Seite – von –';
     FPageEdit.Enabled := False;
     FPageEdit.Hint := RibbonText('Seitennummer eingeben und Enter drücken');
@@ -1741,11 +1779,29 @@ begin
     Button.OnClick := CommandClick;
     LoadGlyph(Button, CommandId);
   end;
+  if (TabIndex = 1) and (GroupName = 'Anzeigen') and (CommandId = 216) then
+  begin
+    // Editable zoom percentage in the third row, directly below Zoom -.
+    FZoomEdit := TEdit.Create(Self);
+    FZoomEdit.Parent := Group;
+    FZoomEdit.Tag := 221;
+    FZoomEdit.Font.Name := 'Segoe UI';
+    FZoomEdit.Font.Size := 8;
+    FZoomEdit.SetBounds(158, 64, 132, 25);
+    FZoomEdit.Text := '100 %';
+    FZoomEdit.Enabled := False;
+    FZoomEdit.ShowHint := True;
+    if SameText(PDFLanguage, 'en') then
+      FZoomEdit.Hint := 'Enter zoom percentage and press Enter'
+    else
+      FZoomEdit.Hint := 'Zoom in % eingeben und Enter drücken';
+    FZoomEdit.OnKeyDown := ZoomEditKeyDown;
+  end;
   Group.Tag := Group.Tag + 1;
   if Compact then
   begin
     if (TabIndex = 1) and (GroupName = 'Anzeigen') then
-      Group.Width := 600
+      Group.Width := 453
     else
       Group.Width := Max(80, (Col + 1) * CellWidth + 6);
   end
@@ -2320,19 +2376,22 @@ begin
   UpdateFileTabHint;
   // Reposition tab headers after translated captions have changed widths.
   W := 4;
-  if FTabPanels.Count = 7 then
+  if FTabPanels.Count = 10 then
   begin
-    for I := 0 to 6 do
+    for I := 0 to 9 do
     begin
       case I of
-        0: TP := TPanel(FTabPanels[6]); // Datei
-        1: TP := TPanel(FTabPanels[0]); // Start
-        2: TP := TPanel(FTabPanels[1]); // Ansicht
-        3: TP := TPanel(FTabPanels[2]); // Bearbeiten
-        4: TP := TPanel(FTabPanels[3]); // Objekte
-        5: TP := TPanel(FTabPanels[4]); // Werkzeuge
+        0: TP := TPanel(FTabPanels[6]);
+        1: TP := TPanel(FTabPanels[0]);
+        2: TP := TPanel(FTabPanels[1]);
+        3: TP := TPanel(FTabPanels[7]);
+        4: TP := TPanel(FTabPanels[2]);
+        5: TP := TPanel(FTabPanels[9]);
+        6: TP := TPanel(FTabPanels[8]);
+        7: TP := TPanel(FTabPanels[3]);
+        8: TP := TPanel(FTabPanels[4]);
       else
-        TP := TPanel(FTabPanels[5]); // Hilfe
+        TP := TPanel(FTabPanels[5]);
       end;
       TP.Left := W;
       Inc(W, TP.Width + 2);
@@ -2722,7 +2781,6 @@ begin
   AddCommand(1, 214, '100 %', false);
   AddCommand(1, 215, 'Doppelansicht', false);
   AddCommand(1, 216, 'Seitenweise', false);
-  AddCommand(1, 217, 'Hand-Werkzeug', false);
   AddGroup(1, 'Seiten');
   AddCommand(1, 210, 'Vorherige Seite', false);
   AddCommand(1, 211, 'Nächste Seite', false);
@@ -2745,52 +2803,37 @@ begin
   AddCommand(1, 119, 'Ansicht teilen', false);
   AddCommand(1, 120, 'PDFs visuell vergleichen', false);
   AddTab('Bearbeiten');
-  // Keep object editing as the first group on the Edit tab.
   AddGroup(2, 'PDF-Objekte');
   AddCommand(2, 229, 'PDF-Objekte bearbeiten', false);
-  AddGroup(2, 'Text');
-  AddCommand(2, 123, 'Text einfügen', false);
-  AddCommand(2, 124, 'Text hervorheben', false);
-  AddGroup(2, 'Anmerkungen');
-  AddCommand(2, 126, 'Kommentar hinzufügen', false);
-  AddCommand(2, 127, 'Kommentare verwalten', false);
   AddGroup(2, 'Änderungen');
   AddCommand(2, 129, 'Rückgängig', false);
   AddCommand(2, 130, 'Wiederholen', false);
-  AddGroup(2, 'Zeichnen');
-  AddCommand(2, 168, 'Freihand', false);
-  AddCommand(2, 169, 'Linie', false);
-  AddCommand(2, 170, 'Rechteck', false);
-  AddCommand(2, 171, 'Ellipse', false);
-  AddGroup(2, 'Weitere Zeichenwerkzeuge');
-  AddCommand(2, 172, 'Strichstärke ...', true);
-  AddCommand(2, 173, 'Farbe ...', false);
-  AddCommand(2, 184, 'Schwärzen (optisch)', false);
+  AddGroup(2, 'Objekte');
+  AddCommand(2, 123, 'Text einfügen', false);
+  AddCommand(2, 133, 'Bild einfügen', false);
+  AddGroup(2, 'Verknüpfungen');
+  AddCommand(2, 135, 'Hyperlink hinzufügen', false);
+  AddCommand(2, 177, 'Hyperlinks verwalten ...', false);
+  AddGroup(2, 'Anlagen');
+  AddCommand(2, 142, 'PDF-Anlagen', false);
+  AddGroup(2, 'Wasserzeichen');
+  AddCommand(2, 137, 'Textwasserzeichen', false);
+  AddCommand(2, 138, 'Bildwasserzeichen', false);
   AddGroup(2, 'Schrift');
   AddCommand(2, 174, 'Schriftart ...', true);
   AddCommand(2, 175, 'Schriftgröße ...', true);
   AddCommand(2, 176, 'Textfarbe ...', false);
-  AddTab('Objekte');
-  AddGroup(3, 'Objekte');
-  AddCommand(3, 133, 'Bild einfügen', false);
-  AddCommand(3, 134, 'Unterschrift hinzufügen', false);
-  AddCommand(3, 135, 'Hyperlink hinzufügen', false);
-  AddCommand(3, 177, 'Hyperlinks verwalten ...', false);
-  AddGroup(3, 'Wasserzeichen');
-  AddCommand(3, 137, 'Textwasserzeichen', false);
-  AddCommand(3, 138, 'Bildwasserzeichen', false);
+  AddTab('Schützen');
+  AddGroup(3, 'Schwärzung');
+  AddCommand(3, 184, 'Schwärzen (optisch)', false);
+  AddCommand(3, 146, 'Schwärzen', false);
+  AddCommand(3, 194, 'Endgültig schwärzen ...', false);
   AddTab('Werkzeuge');
-  AddGroup(4, 'Dokument');
-  AddCommand(4, 141, 'Dokumenteigenschaften', false);
-  AddCommand(4, 142, 'PDF-Anlagen', false);
   AddGroup(4, 'Messung');
   AddCommand(4, 145, 'Messen', false);
   AddCommand(4, 178, 'Maßstab ...', false);
   AddCommand(4, 179, 'Messfarbe ...', false);
   AddCommand(4, 180, 'Messbericht ...', false);
-  AddGroup(4, 'Schwärzung');
-  AddCommand(4, 146, 'Schwärzen', false);
-  AddCommand(4, 194, 'Endgültig schwärzen ...', false);
   AddGroup(4, 'Einheiten');
   AddCommand(4, 181, 'mm', false);
   AddCommand(4, 182, 'cm', false);
@@ -2861,10 +2904,44 @@ begin
   AddCommand(6, -191, 'Seiten als Bilder exportieren ...', false);
   AddCommand(6, -192, 'Seiten als Text exportieren ...', false);
   AddCommand(6, 143, 'PDF-Bilder extrahieren ...', false);
-  AddCommand(6, 224, 'PDFs zusammenführen ...', false);
+  AddCommand(6, 237, 'Per E-Mail senden ...', false);
+  AddGroup(6, 'Dokument');
+  AddCommand(6, 141, 'Dokumenteigenschaften', false);
   AddGroup(6, 'Programm');
   AddCommand(6, 165, 'Beenden', false);
-  // Export command states are synchronized with the active PDF tab.
+  AddTab('Anmerkungen');
+  AddGroup(7, 'Kommentare');
+  AddCommand(7, 124, 'Text hervorheben', false);
+  AddCommand(7, 126, 'Kommentar hinzufügen', false);
+  AddGroup(7, 'Zeichnen');
+  AddCommand(7, 168, 'Freihand', false);
+  AddCommand(7, 169, 'Linie', false);
+  AddCommand(7, 170, 'Rechteck', false);
+  AddCommand(7, 171, 'Ellipse', false);
+  AddGroup(7, 'Weitere Zeichenwerkzeuge');
+  AddCommand(7, 172, 'Strichstärke ...', true);
+  AddCommand(7, 173, 'Farbe ...', false);
+  AddGroup(7, 'Verwaltung');
+  AddCommand(7, 127, 'Kommentare verwalten', false);
+  AddTab('Seite');
+  AddGroup(8, '');
+  AddCommand(8, 217, 'Handwerkzeug', false);
+  AddGroup(8, 'Seitenverwaltung');
+  AddCommand(8, 233, 'Seite löschen', false);
+  AddCommand(8, 234, 'Seite 90° nach rechts', false);
+  AddCommand(8, 235, 'Seite 90° nach links', false);
+  AddCommand(8, 236, 'Seite extrahieren', false);
+  AddGroup(8, 'Dokument');
+  AddCommand(8, 224, 'PDFs zusammenführen ...', false);
+  AddTab('Ausfüllen');
+  AddGroup(9, 'Formularnavigation');
+  AddCommand(9, 230, 'Vorheriges Feld', false);
+  AddCommand(9, 231, 'Nächstes Feld', false);
+  AddGroup(9, 'Formularprüfung');
+  AddCommand(9, 232, 'Pflichtfelder prüfen', false);
+  AddGroup(9, 'Unterschriften');
+  AddCommand(9, 134, 'Unterschrift hinzufügen', false);
+
 end;
 
 end.

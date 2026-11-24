@@ -5506,9 +5506,38 @@ procedure TFreePDF64PDFiumView.ExecuteRibbonPDFCommand(ACommandId: Integer);
 var
   S: string;
   N: Integer;
+  PageAction: TMenuItem;
+  TemporarySelection: Boolean;
 begin
   if FCore = nil then Exit;
   case ACommandId of
+    233..236:
+      begin
+        if (FCore.PageCount = 0) or (FPage < 0) or
+           (FPage >= FCore.PageCount) then Exit;
+        TemporarySelection := FThumbSelected.Count = 0;
+        PageAction := TMenuItem.Create(nil);
+        try
+          if TemporarySelection then FThumbSelected.Add(FPage);
+          case ACommandId of
+            233: DeleteSelectedThumbs(PageAction);
+            234, 235:
+              begin
+                if ACommandId = 235 then PageAction.Tag := -90
+                else PageAction.Tag := 90;
+                RotateSelectedThumbs(PageAction);
+              end;
+            236: ExtractSelectedThumbs(PageAction);
+          end;
+        finally
+          PageAction.Free;
+          if TemporarySelection then
+          begin
+            FThumbSelected.Clear;
+            UpdateThumbnailSelection;
+          end;
+        end;
+      end;
     105: PrintClick(Self);
     115: FitClick(Self);
     214: Zoom100Click(Self);
@@ -8841,8 +8870,8 @@ begin
     PDFModernMessageDlg(Tr('Mindestens eine Seite muss erhalten bleiben.'), mtWarning, [mbOK], 0);
     Exit;
   end;
-  if PDFModernMessageDlg(Format('%d ausgewählte PDF-Seite(n) entfernen?'+sLineBreak+
-     'Das Original bleibt unverändert. Dauerhaft wird die Änderung erst mit "Speichern unter ...".',
+  if PDFModernMessageDlg(Format(Tr('%d ausgewählte PDF-Seite(n) entfernen?')+sLineBreak+
+     Tr('Das Original bleibt unverändert. Dauerhaft wird die Änderung erst mit "Speichern unter ...".'),
      [FThumbSelected.Count]), mtConfirmation, [mbYes, mbNo], 0) <> mrYes then Exit;
   Pages := FThumbSelected.ToArray;
   Target := FPage;

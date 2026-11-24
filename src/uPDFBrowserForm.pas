@@ -205,6 +205,7 @@ type
     procedure SelectAllPDFText;
     procedure CopyPDFText;
     function HasUnsavedPDFChanges: Boolean;
+    function HasUnsavedImageChanges: Boolean;
     function SaveUnsavedPDFChanges: Boolean;
     procedure SetFullScreenDisplay(AEnabled: Boolean);
     procedure ZoomPDF(AIncrease: Boolean);
@@ -619,6 +620,11 @@ begin
   FPDFLoadInProgress := False;
   Job.Free;
 
+end;
+
+function TPDFBrowserForm.HasUnsavedImageChanges: Boolean;
+begin
+  Result := FImageModified;
 end;
 
 function TPDFBrowserForm.HasUnsavedPDFChanges: Boolean;
