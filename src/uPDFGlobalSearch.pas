@@ -21,6 +21,8 @@ type
   private
     FTabs: TPageControl;
     FTerm: TEdit;
+    FMatchCase, FWholeWords: TCheckBox;
+    FSearchFlags: Cardinal;
     FSearchBar: TPanel;
     FSearchHeader: TPanel;
     FSearchFooter: TPanel;
@@ -55,6 +57,8 @@ type
     procedure StopClick(Sender: TObject);
     procedure SearchTick(Sender: TObject);
     procedure ResultChoose(Sender: TObject);
+    procedure ResultMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure SearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Closing(Sender: TObject; var Action: TCloseAction);
     procedure SetStatus;
@@ -68,7 +72,7 @@ type
 implementation
 
 uses
-  System.Math;
+  System.Math, System.Types;
 
 constructor TPDFGlobalSearchForm.CreateForTabs(AOwner: TComponent; ATabs: TPageControl);
 var
@@ -133,7 +137,7 @@ begin
   FSubtitle.Top := Px(66);
   FSubtitle.AutoSize := False;
   FSubtitle.WordWrap := True;
-  FSubtitle.Caption := Tr('Doppelklick öffnet die Fundstelle. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.');
+  FSubtitle.Caption := Tr('Ein Klick auf eine Fundstelle öffnet die entsprechende PDF-Seite. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.');
   FTitle.SetBounds(Px(20), Px(12), Px(860), Px(58));
   FSubtitle.SetBounds(Px(21), Px(78), Px(858), Px(42));
   Header.Height := Px(142);
@@ -181,6 +185,13 @@ begin
   FTerm.OnKeyDown := SearchKeyDown;
   FTerm.Font.Size := 11;
 
+  FMatchCase := TCheckBox.Create(Self);
+  FMatchCase.Parent := Bar;
+  FMatchCase.Caption := Tr('Groß-/Kleinschreibung beachten');
+  FWholeWords := TCheckBox.Create(Self);
+  FWholeWords.Parent := Bar;
+  FWholeWords.Caption := Tr('Ganze Wörter');
+
   Footer := TPanel.Create(Self);
   FSearchFooter := Footer;
   Footer.Parent := Self;
@@ -208,7 +219,7 @@ begin
   FResults.Font.Name := 'Segoe UI';
   FResults.Font.Size := 10;
   FResults.DoubleBuffered := True;
-  FResults.OnDblClick := ResultChoose;
+  FResults.OnMouseUp := ResultMouseUp;
   FResults.OnKeyDown := SearchKeyDown;
   FTimer := TTimer.Create(Self);
   FTimer.Enabled := False;
@@ -228,7 +239,7 @@ var
   MeasureBitmap: TBitmap;
 begin
   if (FSearchBar = nil) or (FTerm = nil) or (FStop = nil) or
-     (FStart = nil) or (FSearchHeader = nil) or (FSearchFooter = nil) then Exit;
+     (FStart = nil) or (FMatchCase = nil) or (FWholeWords = nil) or (FSearchHeader = nil) or (FSearchFooter = nil) then Exit;
   D := CurrentPPI;
   if D < 96 then D := 96;
   Gap := MulDiv(10, D, 96);
@@ -267,6 +278,10 @@ begin
       FStart.SetBounds(X, TopY, BW1, ControlH);
       FTerm.SetBounds(Side, TopY, Max(1, X - Gap - Side), ControlH);
     end;
+    TopY := Max(FTerm.Top + FTerm.Height, FStart.Top + FStart.Height) + Gap;
+    FMatchCase.SetBounds(Side, TopY, Max(1, W - 2 * Side), MulDiv(24, D, 96));
+    FWholeWords.SetBounds(Side, TopY + FMatchCase.Height, Max(1, W - 2 * Side), MulDiv(24, D, 96));
+    FSearchBar.Height := FWholeWords.Top + FWholeWords.Height + Gap;
   finally
     MeasureBitmap.Free;
   end;
@@ -352,7 +367,13 @@ end;
 procedure TPDFGlobalSearchForm.ShowSearch;
 var
   Viewer: TCustomForm;
+  Flags: Cardinal;
 begin
+  Flags := LoadPDFSearchFlags('GlobalPDFSearch');
+  FMatchCase.Checked := (Flags and 1) <> 0;
+  FWholeWords.Checked := (Flags and 2) <> 0;
+  FMatchCase.Caption := Tr('Groß-/Kleinschreibung beachten');
+  FWholeWords.Caption := Tr('Ganze Wörter');
   // Bei jedem Öffnen über dem aktuellen Viewer zentrieren.
   // Die Bildschirmmitte ist bei mehreren Monitoren nicht geeignet.
   if Owner is TCustomForm then
@@ -457,6 +478,10 @@ begin
   FLastUIUpdate := GetTickCount64;
   FTermValue := Trim(FTerm.Text);
   if FTermValue = '' then Exit;
+  FSearchFlags := 0;
+  if FMatchCase.Checked then FSearchFlags := FSearchFlags or 1;
+  if FWholeWords.Checked then FSearchFlags := FSearchFlags or 2;
+  SavePDFSearchFlags('GlobalPDFSearch', FSearchFlags);
   FTabIndex := 0;
   FOfflineTab := -1;
   FPageIndex := 0;
@@ -544,9 +569,9 @@ begin
   end;
   try
     if FOfflineCore <> nil then
-      Matches := FOfflineCore.FindTextMatchesOnPage(FTermValue, FPageIndex)
+      Matches := FOfflineCore.FindTextMatchesOnPage(FTermValue, FPageIndex, FSearchFlags)
     else
-      Matches := PDF.GlobalFindOnPage(FTermValue, FPageIndex);
+      Matches := PDF.GlobalFindOnPage(FTermValue, FPageIndex, FSearchFlags);
     Inc(FScannedPages);
     for M in Matches do
     begin
@@ -593,11 +618,23 @@ begin
     SetStatus;
 end;
 
+procedure TPDFGlobalSearchForm.ResultMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var I: Integer;
+begin
+  if Button <> mbLeft then Exit;
+  I := FResults.ItemAtPos(Point(X, Y), True);
+  if I < 0 then Exit;
+  FResults.ItemIndex := I;
+  ResultChoose(Sender);
+end;
+
 procedure TPDFGlobalSearchForm.ResultChoose(Sender: TObject);
 var Hit: TGlobalSearchHit; I: Integer;
 begin
   // Kein Flush bei der Trefferwahl: das wuerde die Liste unter dem
   // Mauszeiger neu zeichnen und kann einen Doppelklick stoeren.
+  if FPendingHit <> nil then Exit;
   I := FResults.ItemIndex;
   if (I < 0) or (I >= FHits.Count) then Exit;
   Hit := FHits[I];
@@ -606,6 +643,9 @@ begin
     FStatus.Caption := Tr('Das Dokument wurde inzwischen geschlossen oder gewechselt.');
     Exit;
   end;
+  FTimer.Enabled := False;
+  FRunning := False;
+  ReleaseOfflineCore;
   for I := 0 to FTabs.PageCount - 1 do
     if FindPDF(FTabs.Pages[I]) = Hit.PDF then
     begin

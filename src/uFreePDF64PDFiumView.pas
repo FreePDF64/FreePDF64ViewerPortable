@@ -260,6 +260,7 @@ type
     FGoPage: TButton;
     FFind: TButton;
     FFindTerm: string;
+    FFindFlags: Cardinal;
     FMatchPage, FMatchChar, FMatchCount: Integer;
     FTotalSearchMatches: Integer;
     FSearchTimer: TTimer;
@@ -673,7 +674,7 @@ type
     procedure SearchText(const AText: string);
     function HasSearchHighlights: Boolean;
     function GlobalPageCount: Integer;
-    function GlobalFindOnPage(const ATerm: string; APage: Integer): TArray<TPDFTextMatch>;
+    function GlobalFindOnPage(const ATerm: string; APage: Integer; AFlags: Cardinal = 0): TArray<TPDFTextMatch>;
     function GlobalExcerpt(APage, AChar, ALength: Integer): string;
     procedure GlobalShowMatch(const ATerm: string; const AMatch: TPDFTextMatch);
     procedure NextSearchMatch(ADirection: Integer);
@@ -4504,6 +4505,8 @@ var
   Dialog: TForm;
   Prompt: TLabel;
   Entry: TEdit;
+  MatchCase, WholeWords: TCheckBox;
+  Flags: Cardinal;
   OKButton, CancelButton: TButton;
   Margin, Gap, ButtonY, TextWidth: Integer;
 
@@ -4543,7 +4546,20 @@ begin
 
     Entry.TabOrder := 0;
 
-    ButtonY := Entry.Top + Entry.Height + Px(16);
+    Flags := LoadPDFSearchFlags('PDFSearch');
+    MatchCase := TCheckBox.Create(Dialog);
+    MatchCase.Parent := Dialog;
+    MatchCase.Caption := Tr('Groß-/Kleinschreibung beachten');
+    MatchCase.Checked := (Flags and 1) <> 0;
+    MatchCase.SetBounds(Margin, Entry.Top + Entry.Height + Gap, TextWidth, Px(24));
+    MatchCase.TabOrder := 1;
+    WholeWords := TCheckBox.Create(Dialog);
+    WholeWords.Parent := Dialog;
+    WholeWords.Caption := Tr('Ganze Wörter');
+    WholeWords.Checked := (Flags and 2) <> 0;
+    WholeWords.SetBounds(Margin, MatchCase.Top + MatchCase.Height + Gap, TextWidth, Px(24));
+    WholeWords.TabOrder := 2;
+    ButtonY := WholeWords.Top + WholeWords.Height + Px(16);
     CancelButton := TButton.Create(Dialog);
     CancelButton.Parent := Dialog;
     CancelButton.ParentFont := True;
@@ -4552,7 +4568,7 @@ begin
     CancelButton.Cancel := True;
     CancelButton.SetBounds(Dialog.ClientWidth - Margin - Px(100),
       ButtonY, Px(100), Px(34));
-    CancelButton.TabOrder := 2;
+    CancelButton.TabOrder := 4;
 
     OKButton := TButton.Create(Dialog);
     OKButton.Parent := Dialog;
@@ -4562,7 +4578,7 @@ begin
     OKButton.Default := True;
     OKButton.SetBounds(CancelButton.Left - Gap - Px(98),
       ButtonY, Px(98), Px(34));
-    OKButton.TabOrder := 1;
+    OKButton.TabOrder := 3;
 
     Dialog.ClientHeight := ButtonY + Px(34) + Margin;
     ApplyPDFDialogDesign(Dialog);
@@ -4572,6 +4588,10 @@ begin
       mrOk:
         begin
           Term := Trim(Entry.Text);
+          FFindFlags := 0;
+          if MatchCase.Checked then FFindFlags := FFindFlags or 1;
+          if WholeWords.Checked then FFindFlags := FFindFlags or 2;
+          SavePDFSearchFlags('PDFSearch', FFindFlags);
           SearchText(Term);
         end;
     end;
@@ -4602,7 +4622,7 @@ begin
   Inc(FSearchPage);
   // PDFium bleibt ausschliesslich im UI-Thread: keine konkurrierenden
   // Dokumentzugriffe. Pro Tick nur eine Seite, daher kein 800-Seiten-Block.
-  PageMatches := FCore.FindTextMatchesOnPage(FFindTerm, Pg);
+  PageMatches := FCore.FindTextMatchesOnPage(FFindTerm, Pg, FFindFlags);
   N := Length(FSearchMatches);
   SetLength(FSearchMatches, N + Length(PageMatches));
   for I := 0 to High(PageMatches) do
@@ -4666,9 +4686,9 @@ begin
 end;
 
 function TFreePDF64PDFiumView.GlobalFindOnPage(const ATerm: string;
-  APage: Integer): TArray<TPDFTextMatch>;
+  APage: Integer; AFlags: Cardinal): TArray<TPDFTextMatch>;
 begin
-  Result := FCore.FindTextMatchesOnPage(ATerm, APage);
+  Result := FCore.FindTextMatchesOnPage(ATerm, APage, AFlags);
 end;
 
 function TFreePDF64PDFiumView.GlobalExcerpt(APage, AChar, ALength: Integer): string;
@@ -4742,7 +4762,7 @@ begin
   FMatchPage := AMatch.PageIndex;
   FMatchChar := AMatch.CharIndex;
   FMatchCount := AMatch.CharCount;
-  if FPage <> AMatch.PageIndex then ShowPage(AMatch.PageIndex);
+  ShowPage(AMatch.PageIndex);
   EnsureSearchMatchVisible(AMatch.PageIndex, AMatch.CharIndex,
     AMatch.CharCount);
   for I := 0 to High(FLoadedPages) do

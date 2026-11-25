@@ -206,6 +206,7 @@ type
     FLocalTextSearchHotkeyRegistered: Boolean;
     FTabCountBadge: TPaintBox;
     FGlobalSearchForm: TPDFGlobalSearchForm;
+    FLocalSearchOpen: Boolean;
     FTabSearchForm: TForm;
     FTabSearchEdit: TEdit;
     FTabSearchList: TListBox;
@@ -228,6 +229,8 @@ type
     FInitialWindowMaximized: Boolean;
     FRightPDFOverlay: TPanel;
 
+    function GlobalSearchOpen: Boolean;
+    procedure SearchWindowChanged(Sender: TObject);
     procedure DesignClick(Sender: TObject);
     procedure ApplyViewerDesign;
     procedure UpdateIntegratedOptionsVisibility;
@@ -1652,7 +1655,7 @@ begin
       finally
         Http.Free;
       end;
-      TThread.Synchronize(nil, TThreadProcedure(
+      TThread.Synchronize(nil,
         procedure
         var
           Ini: TIniFile;
@@ -1727,7 +1730,7 @@ begin
               MessageDlg(MsgText + ErrorText, mtWarning, [mbOK], 0);
             end;
           end;
-        end));
+        end);
     end).Start;
 end;
 
@@ -3469,10 +3472,10 @@ begin
         'Choose another tool to return to its normal mouse behavior.');
       AddSection('Search modes and highlights',
         'Search open tabs (Ctrl+Shift+A) locates open PDF tabs by document name; it does not jump to a text match. '
-        + 'Search (Ctrl+F) finds text in the current PDF; Search PDFs (Ctrl+Shift+F) searches across all open PDFs. '
+        + 'Search PDF (Ctrl+F) finds text in the current PDF; Search all PDFs (Ctrl+Shift+F) searches across all open PDFs. '
         + 'Click inside the PDF page to clear temporary search highlights.');
-      AddSection('Search text',
-        'Find text searches the current PDF. Press F3 for the next match and Shift+F3 for the previous one. Search all PDFs or press Ctrl+Shift+F to search all open PDF tabs. The button is available directly after opening PDFs from FreePDF64 without switching tabs. The search handler is also assigned to all tabs when PDFs are opened directly. Selecting a result displays the relevant PDF and match. The global search window is hidden so the PDF can be viewed. Click Search all PDFs again to bring the search window back without starting a new search.');
+      AddSection('Search PDF and Search all PDFs',
+        'Search PDF searches the current PDF. Both search dialogs offer Match case and Whole words. The options are saved separately for each dialog and restored when the viewer is restarted. Only one search dialog can be open at a time. Press F3 for the next match and Shift+F3 for the previous one. Search all PDFs or press Ctrl+Shift+F to search all open PDF tabs. The button is available directly after opening PDFs from FreePDF64 without switching tabs. The search handler is also assigned to all tabs when PDFs are opened directly. A single click on a result displays the relevant PDF page and highlights the match. The global search window is hidden so the PDF can be viewed. Click Search all PDFs again to bring the search window back without starting a new search.');
       AddSection('Editing and combining PDFs', '');
       AddSection('Thumbnails and editing PDF pages',
         'Click the thumbnail icon at the top left to open the PDF file’s thumbnail view. A normal left-click clears previous selections, selects only the clicked thumbnail and displays that page. Use Ctrl+Click to add or remove individual pages from the selection and Shift+Click to select a range. A blue border indicates the currently displayed page; a red border indicates a selected thumbnail. If the current page is also selected, both borders appear (blue outside, red inside). Press Esc to clear the thumbnail selection without closing the thumbnail view. Right-click to delete or rotate selected pages together, use Extract page(s)… to save them as a separate PDF, or choose Insert PDF before page… / Insert PDF after page… to insert all pages of another PDF at the selected position. '
@@ -3851,12 +3854,12 @@ begin
         'Beim Wechsel zu einem anderen Werkzeug gilt wieder dessen normale Mausbedienung.');
       AddSection('Sucharten und Markierungen',
         '„Geöffnete Registerkarten suchen“ (Strg+Umschalt+A) sucht nach geöffneten PDF-Tabs, nicht nach Textstellen. '
-        + '„Suchen“ (Strg+F) durchsucht die aktuelle PDF, „PDFs durchsuchen“ (Strg+Umschalt+F) alle geöffneten PDFs. '
+        + '„PDF durchsuchen“ (Strg+F) durchsucht die aktuelle PDF, „Alle PDFs durchsuchen“ (Strg+Umschalt+F) alle geöffneten PDFs. '
         + 'Ein Klick in die PDF-Seite entfernt die temporären Suchmarkierungen.');
-      AddSection('Text suchen',
-        '„Text suchen“ durchsucht die aktuelle PDF. Mit F3 springen Sie zum nächsten Treffer, mit Umschalt+F3 zum vorherigen Treffer. ' +
+      AddSection('PDF durchsuchen und Alle PDFs durchsuchen',
+        '„PDF durchsuchen“ durchsucht die aktuelle PDF. Beide Suchdialoge bieten die Optionen „Groß-/Kleinschreibung beachten“ und „Ganze Wörter“. Die Einstellungen werden für beide Dialoge getrennt gespeichert und nach einem Programmneustart wiederhergestellt. Es kann jeweils nur ein Suchdialog geöffnet sein. Mit F3 springen Sie zum nächsten Treffer, mit Umschalt+F3 zum vorherigen Treffer. ' +
         '„Alle PDFs durchsuchen“ oder Strg+Umschalt+F durchsucht alle geöffneten PDF-Registerkarten. Die Schaltfläche ist direkt nach dem Öffnen der PDFs aus FreePDF64 verfügbar, ohne Registerwechsel. Auch beim direkten Start mit PDF-Dateien wird der Such-Handler für alle Registerkarten gesetzt. ' +
-        'Beim Anklicken eines Treffers wird die entsprechende PDF mit der Fundstelle angezeigt. Das globale Suchfenster wird dabei ausgeblendet. Über „Alle PDFs durchsuchen“ lässt es sich wieder in den Vordergrund holen, ohne die Suche erneut auszuführen.');
+        'Ein einfacher Klick auf einen Treffer zeigt die entsprechende PDF-Seite an und hebt die Fundstelle hervor. Das globale Suchfenster wird dabei ausgeblendet. Über „Alle PDFs durchsuchen“ lässt es sich wieder in den Vordergrund holen, ohne die Suche erneut auszuführen.');
       AddSection('PDFs bearbeiten und zusammenführen', '');
       AddSection('Miniaturansicht und PDF-Seiten bearbeiten',
         'Über Klick auf das Miniaturansicht-Symbol links oben öffnen Sie die Miniaturansicht der PDF-Datei. Ein einfacher Linksklick hebt bisherige Markierungen auf, markiert nur die angeklickte Miniatur und zeigt die entsprechende Seite an. Mit Strg+Klick fügen Sie einzelne Seiten zur Auswahl hinzu oder entfernen sie daraus; mit Umschalt+Klick wählen Sie einen zusammenhängenden Seitenbereich aus. Ein blauer Rahmen kennzeichnet die aktuell angezeigte Seite, ein roter Rahmen eine markierte Miniatur. Ist die aktuelle Seite zugleich markiert, erscheinen beide Rahmen (blau außen, rot innen). Mit Esc heben Sie die Markierung auf, ohne die Miniaturansicht zu schließen. ' +
@@ -7165,7 +7168,9 @@ begin
   FVCLRibbon.SetCommandEnabled(222, True); // Woechentliche Updatepruefung
   FVCLRibbon.SetCommandEnabled(223, True); // Nach Updates suchen
   for I := Low(PDFCommands) to High(PDFCommands) do
-    FVCLRibbon.SetCommandEnabled(PDFCommands[I], HasPDF);
+    FVCLRibbon.SetCommandEnabled(PDFCommands[I], HasPDF and
+      ((PDFCommands[I] <> 110) or not GlobalSearchOpen) and
+      ((PDFCommands[I] <> 111) or not FLocalSearchOpen));
   FVCLRibbon.SetCommandEnabled(-191, HasPDF); // Seiten als Bilder exportieren
   FVCLRibbon.SetCommandEnabled(-192, HasPDF); // Seiten als Text exportieren
   FVCLRibbon.SetCommandEnabled(229, HasPDF);
@@ -7329,8 +7334,12 @@ var
   HasPDF: Boolean;
 begin
   HasPDF := (FTabs <> nil) and (FTabs.PageCount > 0);
-  if FLocalSearchMenuItem <> nil then FLocalSearchMenuItem.Enabled := HasPDF;
-  if FGlobalSearchMenuItem <> nil then FGlobalSearchMenuItem.Enabled := HasPDF;
+  if FLocalSearchMenuItem <> nil then
+    FLocalSearchMenuItem.Enabled := HasPDF and not GlobalSearchOpen;
+  if FGlobalSearchMenuItem <> nil then
+    FGlobalSearchMenuItem.Enabled := HasPDF and not FLocalSearchOpen;
+  if FTabTextSearchButton <> nil then
+    FTabTextSearchButton.Enabled := HasPDF and not GlobalSearchOpen;
   if FMergePDFMenuItem <> nil then
     FMergePDFMenuItem.Enabled := HasPDF and (FTabs.PageCount > 1) and
       (FSplitHost = nil);
@@ -7349,6 +7358,17 @@ begin
   end;
 end;
 
+function TPDFTabsForm.GlobalSearchOpen: Boolean;
+begin
+  Result := (FGlobalSearchForm <> nil) and FGlobalSearchForm.Visible;
+end;
+
+procedure TPDFTabsForm.SearchWindowChanged(Sender: TObject);
+begin
+  EditMenuClick(nil);
+  SyncVCLRibbonCommands;
+end;
+
 procedure TPDFTabsForm.LocalSearchMenuClick(Sender: TObject);
 var
   Tab: TTabSheet;
@@ -7361,16 +7381,31 @@ begin
       ((Sender is TControl) and (TControl(Sender).Tag = 1))) then
     Tab := FSplitRightTab;
   if Tab = nil then Exit;
+  if GlobalSearchOpen or FLocalSearchOpen then Exit;
   if PDFInTab(Tab) <> nil then
-    PDFInTab(Tab).ShowPDFSearch;
+  begin
+    FLocalSearchOpen := True;
+    try
+      SearchWindowChanged(Self);
+      PDFInTab(Tab).ShowPDFSearch;
+    finally
+      FLocalSearchOpen := False;
+      SearchWindowChanged(Self);
+    end;
+  end;
 end;
 
 procedure TPDFTabsForm.GlobalSearchClick(Sender: TObject);
 begin
   if (FTabs = nil) or (FTabs.PageCount = 0) then Exit;
+  if FLocalSearchOpen then Exit;
   if FGlobalSearchForm = nil then
+  begin
     FGlobalSearchForm := TPDFGlobalSearchForm.CreateForTabs(Self, FTabs);
+    FGlobalSearchForm.OnHide := SearchWindowChanged;
+  end;
   FGlobalSearchForm.ShowSearch;
+  SearchWindowChanged(Self);
 end;
 
 procedure TPDFTabsForm.TabSearchClick(Sender: TObject);
@@ -7600,7 +7635,7 @@ begin
           for I := 0 to Tab.ControlCount - 1 do
             if Tab.Controls[I] is TPDFBrowserForm then
             begin
-              TPDFBrowserForm(Tab.Controls[I]).ShowPDFSearch;
+              LocalSearchMenuClick(Self);
               Break;
             end;
       end;
@@ -10989,7 +11024,7 @@ begin
         if Tab.Controls[I] is TPDFBrowserForm then
         begin
           PDF := TPDFBrowserForm(Tab.Controls[I]);
-          PDF.ShowPDFSearch;
+          LocalSearchMenuClick(Self);
           Exit(True);
         end;
   end;

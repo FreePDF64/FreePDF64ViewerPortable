@@ -14,6 +14,8 @@ procedure TranslatePDFMenu(AMenu: TMenuItem);
 // Gemeinsame Farbpalette fuer zusaetzliche PDF-Dialoge.
 procedure SetPDFDialogDesign(ADesign: Integer);
 procedure ApplyPDFDialogDesign(AForm: TCustomForm);
+function LoadPDFSearchFlags(const ASection: string): Cardinal;
+procedure SavePDFSearchFlags(const ASection: string; AFlags: Cardinal);
 
 implementation
 
@@ -23,6 +25,29 @@ var
   FIniPath: string;
   PairsDE, PairsEN: TStringList;
 
+
+function LoadPDFSearchFlags(const ASection: string): Cardinal;
+var Ini: TIniFile;
+begin
+  Result := 0;
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    Result := Cardinal(Ini.ReadInteger(ASection, 'Flags', 0)) and 3;
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure SavePDFSearchFlags(const ASection: string; AFlags: Cardinal);
+var Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  try
+    Ini.WriteInteger(ASection, 'Flags', Integer(AFlags and 3));
+  finally
+    Ini.Free;
+  end;
+end;
 
 procedure SetPDFDialogDesign(ADesign: Integer);
 begin
@@ -354,8 +379,8 @@ begin
   AddPair('Möchten Sie den Verlauf der zuletzt geöffneten Dateien löschen?', 'Clear the recently opened file history?');
   AddPair('Verlauf löschen', 'Clear history');
   AddPair('Alle geöffneten PDFs durchsuchen', 'Search all open PDFs');
-  AddPair('Doppelklick öffnet die Fundstelle. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.',
-    'Double-click to open a match. Click “Search All PDFs” to show the search window again.');
+  AddPair('Ein Klick auf eine Fundstelle öffnet die entsprechende PDF-Seite. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.',
+    'Click a search result to open the corresponding PDF page. Use “Search all PDFs” to reopen the search window.');
   AddPair('Suchen', 'Search');
   AddPair('Suchbegriff eingeben und Enter drücken.', 'Enter a search term and press Enter.');
   AddPair('Das Dokument wurde inzwischen geschlossen.', 'The document has been closed.');
@@ -696,6 +721,8 @@ begin
   AddPair('OK', 'OK');
   AddPair('PDF-Textsuche', 'PDF text search');
   AddPair('Suchbegriff:', 'Search term:');
+  AddPair('Groß-/Kleinschreibung beachten', 'Match case');
+  AddPair('Ganze Wörter', 'Whole words');
   AddPair('Exit', 'Exit');
 
   // Dokumenteigenschaften: separate, zweisprachige Schriftartenseite.

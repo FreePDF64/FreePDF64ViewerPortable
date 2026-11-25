@@ -359,7 +359,7 @@ type
     function PageSize(APageIndex: Integer; out AWidth, AHeight: Single): Boolean;
     function FindTextPage(const AText: string; AStartPage: Integer): Integer;
     function FindAllTextMatches(const AText: string): TArray<TPDFTextMatch>;
-    function FindTextMatchesOnPage(const AText: string; APage: Integer): TArray<TPDFTextMatch>;
+    function FindTextMatchesOnPage(const AText: string; APage: Integer; AFlags: Cardinal = 0): TArray<TPDFTextMatch>;
     function MatchCharRects(APage, ACharIndex, ACharCount: Integer): TArray<TPDFInkRect>;
     function TextCharAt(APage: Integer; AX, AY: Double): Integer;
     function TextCharCount(APage: Integer): Integer;
@@ -6724,7 +6724,7 @@ begin
 end;
 
 function TFreePDF64PDFiumCore.FindTextMatchesOnPage(
-  const AText: string; APage: Integer): TArray<TPDFTextMatch>;
+  const AText: string; APage: Integer; AFlags: Cardinal): TArray<TPDFTextMatch>;
 var
   Idx, Cnt, N: Integer;
   P, TP, H: Pointer;
@@ -6739,7 +6739,7 @@ begin
     TP := FPDFText_LoadPage(P);
     if TP = nil then Exit;
     try
-      H := FPDFText_FindStart(TP, PWideChar(AText), 0, 0);
+      H := FPDFText_FindStart(TP, PWideChar(AText), AFlags, 0);
       if H = nil then Exit;
       try
         while FPDFText_FindNext(H) <> 0 do

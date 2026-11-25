@@ -178,7 +178,7 @@ type
     procedure PDFPageClickClearSearch(Sender: TObject);
     function GlobalViewerReady: Boolean;
     function GlobalPageCount: Integer;
-    function GlobalFindOnPage(const ATerm: string; APage: Integer): TArray<TPDFTextMatch>;
+    function GlobalFindOnPage(const ATerm: string; APage: Integer; AFlags: Cardinal = 0): TArray<TPDFTextMatch>;
     function GlobalExcerpt(APage, AChar, ALength: Integer): string;
     procedure GlobalShowMatch(const ATerm: string; const AMatch: TPDFTextMatch);
     procedure SetGlobalSearchCount(ACount: Integer);
@@ -474,11 +474,11 @@ begin
 end;
 
 function TPDFBrowserForm.GlobalFindOnPage(const ATerm: string;
-  APage: Integer): TArray<TPDFTextMatch>;
+  APage: Integer; AFlags: Cardinal): TArray<TPDFTextMatch>;
 begin
   SetLength(Result, 0);
   if (FPDFiumView <> nil) and not FClosing then
-    Result := FPDFiumView.GlobalFindOnPage(ATerm, APage);
+    Result := FPDFiumView.GlobalFindOnPage(ATerm, APage, AFlags);
 end;
 
 function TPDFBrowserForm.GlobalExcerpt(APage, AChar, ALength: Integer): string;
