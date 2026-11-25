@@ -1793,34 +1793,24 @@ var
   I: Integer;
   PDF: TPDFBrowserForm;
   LastOpenedPDF: TPDFBrowserForm;
-  ActiveTab: TTabSheet;
-  ActivePDF: TPDFBrowserForm;
-  ActiveDir: string;
-  J: Integer;
+  Ini: TIniFile;
+  LastOpenDir: string;
 begin
   LastOpenedPDF := nil;
-  ActivePDF := nil;
-  ActiveDir := '';
-  ActiveTab := FTabs.ActivePage;
-  if Assigned(ActiveTab) then
-    for J := 0 to ActiveTab.ControlCount - 1 do
-      if ActiveTab.Controls[J] is TPDFBrowserForm then
-      begin
-        ActivePDF := TPDFBrowserForm(ActiveTab.Controls[J]);
-        Break;
-      end;
-  if Assigned(ActivePDF) and (ActivePDF.PDFFileName <> '') then
-  begin
-    ActiveDir := ExtractFilePath(ActivePDF.PDFFileName);
-    if not DirectoryExists(ActiveDir) then
-      ActiveDir := '';
+  Ini := TIniFile.Create(TabsIniFileName);
+  try
+    LastOpenDir := Ini.ReadString('Viewer', 'LastOpenDirectory', '');
+  finally
+    Ini.Free;
   end;
+  if not DirectoryExists(LastOpenDir) then
+    LastOpenDir := '';
   Dialog := TFileOpenDialog.Create(Self);
   try
     Dialog.Title := Tr('Datei(en) öffnen');
-    // Ordner der aktiven PDF; ohne PDF oder bei fehlendem Ordner 'Dieser PC'.
-    if ActiveDir <> '' then
-      Dialog.DefaultFolder := ActiveDir
+    // Zuletzt im Öffnen-Dialog verwendeter Ordner, unabhängig vom aktiven Tab.
+    if LastOpenDir <> '' then
+      Dialog.DefaultFolder := LastOpenDir
     else
       Dialog.DefaultFolder := '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}';
     Dialog.FileName := '';
@@ -1858,7 +1848,19 @@ begin
     // Nur bei explizitem "PDF öffnen" zur zuletzt geöffneten PDF wechseln.
     // Stapelimporte aus Suche und Hauptfenster behalten ihre Auswahl.
     if LastOpenedPDF <> nil then
+    begin
       ActivatePDF(LastOpenedPDF);
+      LastOpenDir := ExtractFilePath(Dialog.Files[Dialog.Files.Count - 1]);
+      if DirectoryExists(LastOpenDir) then
+      begin
+        Ini := TIniFile.Create(TabsIniFileName);
+        try
+          Ini.WriteString('Viewer', 'LastOpenDirectory', LastOpenDir);
+        finally
+          Ini.Free;
+        end;
+      end;
+    end;
   finally
     Dialog.Free;
   end;
