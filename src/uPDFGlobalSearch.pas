@@ -4,7 +4,7 @@ interface
 
 uses
   uPDFLanguage,
-  System.SysUtils, System.Classes, System.Generics.Collections, Winapi.Windows,
+  System.SysUtils, System.Classes, System.Generics.Collections, Winapi.Windows, Winapi.Messages,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Graphics,
   uPDFBrowserForm, uFreePDF64PDFiumCore;
 
@@ -62,6 +62,7 @@ type
     procedure SearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Closing(Sender: TObject; var Action: TCloseAction);
     procedure SaveWindowSize;
+    procedure WMExitSizeMove(var Message: TMessage); message WM_EXITSIZEMOVE;
     procedure SetStatus;
     procedure LayoutSearchControls(Sender: TObject);
   public
@@ -408,6 +409,10 @@ begin
     D := Max(96, CurrentPPI);
   end;
   Area := TargetMonitor.WorkareaRect;
+  WindowState := wsNormal;
+  Show;
+  D := Max(96, CurrentPPI);
+  Area := Monitor.WorkareaRect;
   W := MulDiv(Width, 96, Max(96, CurrentPPI));
   H := MulDiv(Height, 96, Max(96, CurrentPPI));
   try
@@ -421,7 +426,6 @@ begin
   except
     on E: Exception do begin end;
   end;
-  WindowState := wsNormal;
   Constraints.MinWidth := Min(MulDiv(650, D, 96), Area.Right - Area.Left);
   Constraints.MinHeight := Min(MulDiv(450, D, 96), Area.Bottom - Area.Top);
   W := Min(Area.Right - Area.Left, Max(Constraints.MinWidth, MulDiv(EnsureRange(W, 1, 32767), D, 96)));
@@ -432,11 +436,16 @@ begin
   else
     SetBounds(Area.Left + (Area.Right - Area.Left - W) div 2,
       Area.Top + (Area.Bottom - Area.Top - H) div 2, W, H);
-  Show;
   LayoutSearchControls(nil);
   BringToFront;
   FTerm.SetFocus;
   FTerm.SelectAll;
+end;
+
+procedure TPDFGlobalSearchForm.WMExitSizeMove(var Message: TMessage);
+begin
+  inherited;
+  SaveWindowSize;
 end;
 
 procedure TPDFGlobalSearchForm.SaveWindowSize;
@@ -455,6 +464,7 @@ begin
     try
       Ini.WriteInteger('GlobalPDFSearch', 'WindowWidth96', MulDiv(W, 96, D));
       Ini.WriteInteger('GlobalPDFSearch', 'WindowHeight96', MulDiv(H, 96, D));
+      Ini.UpdateFile;
     finally
       Ini.Free;
     end;
