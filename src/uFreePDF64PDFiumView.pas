@@ -678,6 +678,7 @@ type
     function GlobalFindOnPage(const ATerm: string; APage: Integer; AFlags: Cardinal = 0): TArray<TPDFTextMatch>;
     function GlobalExcerpt(APage, AChar, ALength: Integer): string;
     procedure GlobalShowMatch(const ATerm: string; const AMatch: TPDFTextMatch);
+    function CurrentSearchMatchIndex: Integer;
     procedure NextSearchMatch(ADirection: Integer);
     procedure EnsureSearchMatchVisible(APage, AChar, ACount: Integer);
     procedure SelectAllText;
@@ -4805,6 +4806,25 @@ begin
     end;
 end;
 
+function TFreePDF64PDFiumView.CurrentSearchMatchIndex: Integer;
+var I, L, R: Integer;
+begin
+  Result := 0;
+  L := 0;
+  R := High(FSearchMatches);
+  while L <= R do
+  begin
+    I := L + (R - L) div 2;
+    if (FSearchMatches[I].PageIndex = FMatchPage) and
+       (FSearchMatches[I].CharIndex = FMatchChar) then
+    begin Result := I + 1; Exit; end;
+    if (FSearchMatches[I].PageIndex < FMatchPage) or
+       ((FSearchMatches[I].PageIndex = FMatchPage) and
+        (FSearchMatches[I].CharIndex < FMatchChar)) then L := I + 1
+    else R := I - 1;
+  end;
+end;
+
 procedure TFreePDF64PDFiumView.NextSearchMatch(ADirection: Integer);
 begin
   SearchNext(ADirection);
@@ -4889,6 +4909,7 @@ begin
     if FPage <> Pg then ShowPage(Pg);
     EnsureSearchMatchVisible(Pg, Idx, Cnt);
     UpdateVisiblePage;
+    if Assigned(FOnSearchCountChanged) then FOnSearchCountChanged(Self);
   end
   else
     PDFModernMessageDlg(Tr('Keine weiteren Treffer gefunden.'), mtInformation, [mbOK], 0);

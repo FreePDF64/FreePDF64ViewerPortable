@@ -86,6 +86,8 @@ type
     FGlobalFindButton: TBitBtn;
     FSearchCountLabel: TLabel;
     FSearchRibbonCountPanel: TPanel;
+    FSearchPrevButton, FSearchNextButton, FSearchCloseButton: TSpeedButton;
+    FSearchRibbonLabel: TLabel;
     FToolbarDesignIndex: Integer;
     FToolbarDesignApplied: Boolean;
     FGlobalSearchActive: Boolean;
@@ -125,6 +127,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure GlobalFindClick(Sender: TObject);
     procedure UpdateSearchCount(Sender: TObject);
+    procedure SearchArrowClick(Sender: TObject);
     procedure SetSearchTerm(const AValue: string);
     procedure ToggleAttachmentsClick(Sender: TObject);
     procedure HandToolButtonClick(Sender: TObject);
@@ -1607,6 +1610,18 @@ begin
   FindTermClick(nil);
 end;
 
+procedure TPDFBrowserForm.SearchArrowClick(Sender: TObject);
+begin
+  if Sender = FSearchCloseButton then
+  begin
+    ClearPDFSearchHighlights;
+    Exit;
+  end;
+  if FGlobalSearchActive then Exit;
+  if Sender = FSearchPrevButton then NextPDFSearchMatch(-1)
+  else NextPDFSearchMatch(1);
+end;
+
 procedure TPDFBrowserForm.UpdateSearchCount(Sender: TObject);
 begin
   if (FSearchCountLabel = nil) or (FPDFiumView = nil) then Exit;
@@ -1637,9 +1652,29 @@ begin
   // ueber der PDF darstellen, ohne die PDFium-Suchlogik zu veraendern.
   if FSearchRibbonCountPanel <> nil then
   begin
-    FSearchRibbonCountPanel.Caption := FSearchCountLabel.Caption;
+    if FGlobalSearchActive then
+      FSearchRibbonLabel.Caption := FSearchCountLabel.Caption
+    else
+    begin
+      FSearchRibbonLabel.Caption := Format('%d/%d',
+        [FPDFiumView.CurrentSearchMatchIndex, FPDFiumView.SearchMatchCount]);
+      if FPDFiumView.SearchRunning then
+        FSearchRibbonLabel.Caption := FSearchRibbonLabel.Caption + ' ...';
+    end;
+    FSearchPrevButton.Visible := not FGlobalSearchActive;
+    FSearchNextButton.Visible := not FGlobalSearchActive;
+    FSearchPrevButton.Enabled := FPDFiumView.SearchMatchCount > 0;
+    FSearchNextButton.Enabled := FSearchPrevButton.Enabled;
+    FSearchPrevButton.Hint := ToolbarHintBrowser('Vorheriger Treffer (Umschalt+F3)',
+      'Previous match (Shift+F3)');
+    FSearchNextButton.Hint := ToolbarHintBrowser('Nächster Treffer (F3)',
+      'Next match (F3)');
+    FSearchCloseButton.Hint := ToolbarHintBrowser('Suche abbrechen / beenden',
+      'Cancel / close search');
+    FSearchCloseButton.Enabled := True;
     FSearchRibbonCountPanel.Hint := FSearchCountLabel.Hint;
     FSearchRibbonCountPanel.Visible := FTabbedPDFMode and
+      not FGlobalSearchActive and
       (FPDFiumView <> nil) and FPDFiumView.HasSearchHighlights;
     if FSearchRibbonCountPanel.Visible then
       FSearchRibbonCountPanel.BringToFront;
@@ -1851,6 +1886,59 @@ begin
     AButton.Spacing := 0;
   finally
     B.Free;
+  end;
+end;
+
+procedure SetSearchNavigationGlyph(AButton: TSpeedButton; AKind: Integer;
+  AColor: TColor; APPI: Integer);
+var
+  B: TBitmap;
+  S, C, DX, DY: Integer;
+begin
+  if AButton = nil then Exit;
+  AButton.Glyph.Assign(nil);
+  AButton.ParentFont := True;
+  AButton.Font.Color := AColor;
+  if AKind in [0, 1] then
+  begin
+    AButton.Caption := '';
+    S := Max(1, MulDiv(20, APPI, 96));
+    C := S div 2;
+    DX := Max(1, MulDiv(5, APPI, 96));
+    DY := Max(1, MulDiv(5, APPI, 96));
+    B := TBitmap.Create;
+    try
+      B.PixelFormat := pf24bit;
+      B.SetSize(S, S);
+      B.Canvas.Brush.Color := clFuchsia;
+      B.Canvas.FillRect(Rect(0, 0, S, S));
+      B.Canvas.Pen.Color := AColor;
+      B.Canvas.Pen.Width := Max(1, MulDiv(2, APPI, 96));
+      if AKind = 0 then
+      begin
+        B.Canvas.MoveTo(C + DX, C - DY);
+        B.Canvas.LineTo(C - DX, C);
+        B.Canvas.LineTo(C + DX, C + DY);
+      end
+      else
+      begin
+        B.Canvas.MoveTo(C - DX, C - DY);
+        B.Canvas.LineTo(C + DX, C);
+        B.Canvas.LineTo(C - DX, C + DY);
+      end;
+      B.TransparentColor := clFuchsia;
+      AButton.Glyph.Assign(B);
+      AButton.NumGlyphs := 1;
+      AButton.Margin := -1;
+    finally
+      B.Free;
+    end;
+    Exit;
+  end;
+  case AKind of
+    0: AButton.Caption := '<';
+    1: AButton.Caption := '>';
+    2: AButton.Caption := 'X';
   end;
 end;
 
@@ -2565,9 +2653,40 @@ begin
     FSearchRibbonCountPanel.ShowHint := True;
     FSearchRibbonCountPanel.Anchors := [akTop, akRight];
     FSearchRibbonCountPanel.SetBounds(
-      Max(0, ClientWidth - MulDiv(194, CurrentPPI, 96)),
+      Max(0, ClientWidth - MulDiv(190, CurrentPPI, 96)),
       MulDiv(8, CurrentPPI, 96),
-      MulDiv(186, CurrentPPI, 96), MulDiv(26, CurrentPPI, 96));
+      MulDiv(182, CurrentPPI, 96), MulDiv(26, CurrentPPI, 96));
+    FSearchRibbonCountPanel.Caption := '';
+    FSearchCloseButton := TSpeedButton.Create(FSearchRibbonCountPanel);
+    FSearchCloseButton.Parent := FSearchRibbonCountPanel;
+    FSearchCloseButton.Width := MulDiv(24, CurrentPPI, 96);
+    FSearchCloseButton.Left := FSearchRibbonCountPanel.ClientWidth;
+    FSearchCloseButton.Align := alRight;
+    FSearchCloseButton.Flat := True;
+    FSearchCloseButton.ShowHint := True;
+    FSearchCloseButton.OnClick := SearchArrowClick;
+    FSearchNextButton := TSpeedButton.Create(FSearchRibbonCountPanel);
+    FSearchNextButton.Parent := FSearchRibbonCountPanel;
+    FSearchNextButton.Width := MulDiv(24, CurrentPPI, 96);
+    FSearchNextButton.Left := 0;
+    FSearchNextButton.Align := alRight;
+    FSearchNextButton.Flat := True;
+    FSearchNextButton.ShowHint := True;
+    FSearchNextButton.OnClick := SearchArrowClick;
+    FSearchPrevButton := TSpeedButton.Create(FSearchRibbonCountPanel);
+    FSearchPrevButton.Parent := FSearchRibbonCountPanel;
+    FSearchPrevButton.Width := MulDiv(24, CurrentPPI, 96);
+    FSearchPrevButton.Left := 0;
+    FSearchPrevButton.Align := alRight;
+    FSearchPrevButton.Flat := True;
+    FSearchPrevButton.ShowHint := True;
+    FSearchPrevButton.OnClick := SearchArrowClick;
+    FSearchRibbonLabel := TLabel.Create(FSearchRibbonCountPanel);
+    FSearchRibbonLabel.Parent := FSearchRibbonCountPanel;
+    FSearchRibbonLabel.AutoSize := False;
+    FSearchRibbonLabel.Align := alClient;
+    FSearchRibbonLabel.Alignment := taCenter;
+    FSearchRibbonLabel.Layout := tlCenter;
     FSearchRibbonCountPanel.Visible := False;
     UpdateSearchCount(FPDFiumView);
     FPDFiumView.BringToFront;
@@ -3235,6 +3354,15 @@ begin
     FImageZoomLabel.Transparent := True;
   end;
   UpdateImageSaveIndicator;
+  if FSearchRibbonCountPanel <> nil then
+  begin
+    FSearchRibbonCountPanel.ParentBackground := False;
+    FSearchRibbonCountPanel.Color := BackColor;
+    FSearchRibbonLabel.Font.Color := TextColor;
+    SetSearchNavigationGlyph(FSearchPrevButton, 0, TextColor, CurrentPPI);
+    SetSearchNavigationGlyph(FSearchNextButton, 1, TextColor, CurrentPPI);
+    SetSearchNavigationGlyph(FSearchCloseButton, 2, TextColor, CurrentPPI);
+  end;
   // TIFF-Pfeile als zentrierte DPI-Glyphen in der aktuellen Designfarbe.
   // Nur bei der initialen Gestaltung oder einem echten Designwechsel zeichnen.
   if FTIFFPrevButton <> nil then
