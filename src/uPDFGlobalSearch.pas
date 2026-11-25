@@ -98,7 +98,7 @@ begin
   Position := poDesigned;
   Scaled := False;
   PixelsPerInch := D;
-  Width := Px(900);
+  ClientWidth := Px(900);
   Height := Px(650);
   Constraints.MinWidth := Px(650);
   Constraints.MinHeight := Px(450);
@@ -138,10 +138,10 @@ begin
   FSubtitle.AutoSize := False;
   FSubtitle.WordWrap := True;
   FSubtitle.Caption := Tr('Ein Klick auf eine Fundstelle öffnet die entsprechende PDF-Seite. Über „Alle PDFs durchsuchen“ erscheint das Suchfenster erneut.');
-  FTitle.SetBounds(Px(20), Px(12), Px(860), Px(58));
-  FSubtitle.SetBounds(Px(21), Px(78), Px(858), Px(42));
-  Header.Height := Px(142);
-  FSubtitle.Font.Size := 9;
+  FTitle.SetBounds(Px(20), Px(12), Px(860), Px(24));
+  FSubtitle.SetBounds(Px(21), Px(40), Px(858), Px(36));
+  Header.Height := Px(80);
+  FSubtitle.Font.Size := 10;
   FSubtitle.Font.Color := clGray;
 
   Bar := TPanel.Create(Self);
@@ -178,12 +178,11 @@ begin
 
   FTerm := TEdit.Create(Self);
   FTerm.Parent := Bar;
-  FTerm.ParentFont := False;
+  FTerm.ParentFont := True;
   FTerm.Align := alNone;
   FTerm.AutoSize := False;
   FTerm.TextHint := Tr('Suchbegriff eingeben ...');
   FTerm.OnKeyDown := SearchKeyDown;
-  FTerm.Font.Size := 11;
 
   FMatchCase := TCheckBox.Create(Self);
   FMatchCase.Parent := Bar;
@@ -203,6 +202,7 @@ begin
   FStatus := TLabel.Create(Self);
   FStatus.Parent := Footer;
   FStatus.ParentFont := False;
+  FStatus.Font.Assign(Font);
   FStatus.Align := alClient;
   FStatus.Layout := tlCenter;
   FStatus.Margins.Left := 18;
@@ -234,36 +234,35 @@ end;
 // Avoid alRight/alClient on an auto-sized edit: it can collapse at 4K scaling.
 procedure TPDFGlobalSearchForm.LayoutSearchControls(Sender: TObject);
 var
-  D, Gap, Side, ControlH, TopY, BW1, BW2, X, RowH: Integer;
-  W: Integer;
+  D, Gap, Side, ControlH, TopY, BW1, BW2, X, RowH, CheckH, CheckGap: Integer;
+  W, TitleH, SubtitleH: Integer;
+  R: TRect;
   MeasureBitmap: TBitmap;
 begin
   if (FSearchBar = nil) or (FTerm = nil) or (FStop = nil) or
      (FStart = nil) or (FMatchCase = nil) or (FWholeWords = nil) or (FSearchHeader = nil) or (FSearchFooter = nil) then Exit;
   D := CurrentPPI;
   if D < 96 then D := 96;
-  Gap := MulDiv(10, D, 96);
-  Side := MulDiv(18, D, 96);
+  Gap := MulDiv(6, D, 96);
+  Side := MulDiv(12, D, 96);
   MeasureBitmap := TBitmap.Create;
   try
     MeasureBitmap.Canvas.Font.Assign(FTerm.Font);
-    ControlH := Max(MulDiv(36, D, 96),
-      MeasureBitmap.Canvas.TextHeight('ÄgjQ') + MulDiv(14, D, 96));
-    RowH := ControlH + MulDiv(24, D, 96);
-    FSearchBar.Height := RowH;
+    ControlH := Max(MulDiv(28, D, 96),
+      MeasureBitmap.Canvas.TextHeight('ÄgjQ') + MulDiv(8, D, 96));
+    RowH := ControlH + MulDiv(12, D, 96);
     TopY := (RowH - ControlH) div 2;
     MeasureBitmap.Canvas.Font.Assign(FStart.Font);
-    BW1 := Max(MulDiv(105, D, 96),
-      MeasureBitmap.Canvas.TextWidth(FStart.Caption) + MulDiv(28, D, 96));
+    BW1 := Max(MulDiv(82, D, 96),
+      MeasureBitmap.Canvas.TextWidth(FStart.Caption) + MulDiv(16, D, 96));
     MeasureBitmap.Canvas.Font.Assign(FStop.Font);
-    BW2 := Max(MulDiv(118, D, 96),
-      MeasureBitmap.Canvas.TextWidth(FStop.Caption) + MulDiv(28, D, 96));
+    BW2 := Max(MulDiv(90, D, 96),
+      MeasureBitmap.Canvas.TextWidth(FStop.Caption) + MulDiv(16, D, 96));
     W := FSearchBar.ClientWidth;
     if W < Side * 2 + BW1 + BW2 + Gap * 2 + MulDiv(180, D, 96) then
     begin
       // Bei schmalem effektivem Fenster die Eingabezeile nicht auf wenige
       // Pixel zusammendruecken: Suchfeld oben, Schaltflaechen darunter.
-      FSearchBar.Height := Side * 3 + ControlH * 2;
       TopY := Side;
       FTerm.SetBounds(Side, TopY, Max(1, W - 2 * Side), ControlH);
       TopY := TopY + ControlH + Side;
@@ -279,22 +278,38 @@ begin
       FTerm.SetBounds(Side, TopY, Max(1, X - Gap - Side), ControlH);
     end;
     TopY := Max(FTerm.Top + FTerm.Height, FStart.Top + FStart.Height) + Gap;
-    FMatchCase.SetBounds(Side, TopY, Max(1, W - 2 * Side), MulDiv(24, D, 96));
-    FWholeWords.SetBounds(Side, TopY + FMatchCase.Height, Max(1, W - 2 * Side), MulDiv(24, D, 96));
-    FSearchBar.Height := FWholeWords.Top + FWholeWords.Height + Gap;
+    MeasureBitmap.Canvas.Font.Assign(FMatchCase.Font);
+    CheckH := Max(MulDiv(18, D, 96), Max(Abs(FMatchCase.Font.Height),
+      MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + MulDiv(2, D, 96));
+    MeasureBitmap.Canvas.Font.Assign(FWholeWords.Font);
+    CheckH := Max(CheckH, Max(Abs(FWholeWords.Font.Height),
+      MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + MulDiv(2, D, 96));
+    CheckGap := MulDiv(2, D, 96);
+    FSearchBar.Height := TopY + 2 * CheckH + CheckGap + Gap;
+    FMatchCase.SetBounds(Side, TopY, Max(1, W - 2 * Side), CheckH);
+    FWholeWords.SetBounds(Side, TopY + CheckH + CheckGap,
+      Max(1, W - 2 * Side), CheckH);
   finally
     MeasureBitmap.Free;
   end;
 
-  FTitle.SetBounds(MulDiv(20, D, 96), MulDiv(12, D, 96),
-    Max(1, FSearchHeader.ClientWidth - MulDiv(40, D, 96)), MulDiv(58, D, 96));
-  FSubtitle.SetBounds(MulDiv(21, D, 96), MulDiv(78, D, 96),
-    Max(1, FSearchHeader.ClientWidth - MulDiv(42, D, 96)), MulDiv(42, D, 96));
-  FSearchHeader.Height := MulDiv(142, D, 96);
-  FSearchFooter.Height := MulDiv(40, D, 96);
   FStatus.Margins.Left := Side;
   MeasureBitmap := TBitmap.Create;
   try
+    MeasureBitmap.Canvas.Font.Assign(FTitle.Font);
+    TitleH := Max(Abs(FTitle.Font.Height), MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + MulDiv(4, D, 96);
+    FTitle.SetBounds(Side, Gap, Max(1, FSearchHeader.ClientWidth - 2 * Side), TitleH);
+    MeasureBitmap.Canvas.Font.Assign(FSubtitle.Font);
+    R := Rect(0, 0, Max(1, FSearchHeader.ClientWidth - 2 * Side), 0);
+    DrawText(MeasureBitmap.Canvas.Handle, PChar(FSubtitle.Caption), -1, R,
+      DT_CALCRECT or DT_WORDBREAK or DT_NOPREFIX);
+    SubtitleH := Max(R.Bottom - R.Top, MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + MulDiv(4, D, 96);
+    FSubtitle.SetBounds(Side, FTitle.Top + TitleH + Gap, Max(1, FSearchHeader.ClientWidth - 2 * Side), SubtitleH);
+    FSearchHeader.Height := FSubtitle.Top + SubtitleH + Gap;
+    MeasureBitmap.Canvas.Font.Assign(FStatus.Font);
+    FSearchFooter.Height := Max(MulDiv(28, D, 96),
+      Max(Abs(FStatus.Font.Height), MeasureBitmap.Canvas.TextHeight('ÄgjQ')) +
+      FStatus.Margins.Top + FStatus.Margins.Bottom + MulDiv(6, D, 96));
     MeasureBitmap.Canvas.Font.Assign(FResults.Font);
     FResults.ItemHeight := Max(MulDiv(25, D, 96),
       MeasureBitmap.Canvas.TextHeight('ÄgjQ') + MulDiv(8, D, 96));
@@ -383,6 +398,7 @@ begin
     Top := Viewer.Top + (Viewer.Height - Height) div 2;
   end;
   Show;
+  LayoutSearchControls(nil);
   BringToFront;
   FTerm.SetFocus;
   FTerm.SelectAll;

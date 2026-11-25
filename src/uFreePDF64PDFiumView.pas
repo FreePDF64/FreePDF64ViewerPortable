@@ -4508,7 +4508,8 @@ var
   MatchCase, WholeWords: TCheckBox;
   Flags: Cardinal;
   OKButton, CancelButton: TButton;
-  Margin, Gap, ButtonY, TextWidth: Integer;
+  Margin, Gap, TextWidth, ControlH, CheckH, CheckGap, RowY, BW1, BW2: Integer;
+  MeasureBitmap: TBitmap;
 
   function Px(V: Integer): Integer;
   begin
@@ -4518,31 +4519,35 @@ var
 begin
   // Eigenes Suchdialogfenster verwenden, damit auch die Standardbuttons
   // unabhaengig von der Windows-/VCL-Dialogs Sprache uebersetzt werden.
-  Margin := Px(16);
-  Gap := Px(8);
-  TextWidth := Px(440);
+  Margin := Px(12);
+  Gap := Px(6);
+  TextWidth := Px(520) - 2 * Margin;
   Dialog := TForm.Create(nil);
   try
     Dialog.Caption := Tr('PDF-Textsuche');
     Dialog.BorderStyle := bsDialog;
     Dialog.Position := poMainFormCenter;
     Dialog.BorderIcons := [biSystemMenu];
+    Dialog.Scaled := False;
+    Dialog.PixelsPerInch := CurrentPPI;
     Dialog.ClientWidth := TextWidth + Margin * 2;
     Dialog.ClientHeight := Px(132);
-    Dialog.Font.Assign(Font);
+    Dialog.Font.Name := 'Segoe UI';
+    Dialog.Font.Size := 10;
 
     Prompt := TLabel.Create(Dialog);
     Prompt.Parent := Dialog;
     Prompt.ParentFont := True;
     Prompt.Caption := Tr('Suchbegriff:');
-    Prompt.SetBounds(Margin, Margin, TextWidth, Px(20));
+    Prompt.Font.Name := 'Segoe UI Semibold';
+    Prompt.Font.Size := 11;
+    Prompt.SetBounds(Margin, Gap, TextWidth, Px(24));
 
     Entry := TEdit.Create(Dialog);
     Entry.Parent := Dialog;
     Entry.ParentFont := True;
     Entry.Text := FFindTerm;
-    Entry.SetBounds(Margin, Prompt.Top + Prompt.Height + Gap,
-      TextWidth, Px(28));
+    Entry.AutoSize := False;
 
     Entry.TabOrder := 0;
 
@@ -4551,37 +4556,60 @@ begin
     MatchCase.Parent := Dialog;
     MatchCase.Caption := Tr('Groß-/Kleinschreibung beachten');
     MatchCase.Checked := (Flags and 1) <> 0;
-    MatchCase.SetBounds(Margin, Entry.Top + Entry.Height + Gap, TextWidth, Px(24));
+
     MatchCase.TabOrder := 1;
     WholeWords := TCheckBox.Create(Dialog);
     WholeWords.Parent := Dialog;
     WholeWords.Caption := Tr('Ganze Wörter');
     WholeWords.Checked := (Flags and 2) <> 0;
-    WholeWords.SetBounds(Margin, MatchCase.Top + MatchCase.Height + Gap, TextWidth, Px(24));
+
     WholeWords.TabOrder := 2;
-    ButtonY := WholeWords.Top + WholeWords.Height + Px(16);
+
     CancelButton := TButton.Create(Dialog);
     CancelButton.Parent := Dialog;
     CancelButton.ParentFont := True;
     CancelButton.Caption := Tr('Abbrechen');
     CancelButton.ModalResult := mrCancel;
     CancelButton.Cancel := True;
-    CancelButton.SetBounds(Dialog.ClientWidth - Margin - Px(100),
-      ButtonY, Px(100), Px(34));
+
     CancelButton.TabOrder := 4;
 
     OKButton := TButton.Create(Dialog);
     OKButton.Parent := Dialog;
     OKButton.ParentFont := True;
-    OKButton.Caption := Tr('OK');
+    OKButton.Caption := Tr('Suchen');
     OKButton.ModalResult := mrOk;
     OKButton.Default := True;
-    OKButton.SetBounds(CancelButton.Left - Gap - Px(98),
-      ButtonY, Px(98), Px(34));
+
     OKButton.TabOrder := 3;
 
-    Dialog.ClientHeight := ButtonY + Px(34) + Margin;
     ApplyPDFDialogDesign(Dialog);
+    MeasureBitmap := TBitmap.Create;
+    try
+      MeasureBitmap.Canvas.Font.Assign(Entry.Font);
+      ControlH := Max(Px(28), MeasureBitmap.Canvas.TextHeight('ÄgjQ') + Px(8));
+      MeasureBitmap.Canvas.Font.Assign(OKButton.Font);
+      BW1 := Max(Px(82), MeasureBitmap.Canvas.TextWidth(OKButton.Caption) + Px(16));
+      MeasureBitmap.Canvas.Font.Assign(CancelButton.Font);
+      BW2 := Max(Px(90), MeasureBitmap.Canvas.TextWidth(CancelButton.Caption) + Px(16));
+      RowY := Prompt.Top + Prompt.Height + Gap;
+      CancelButton.SetBounds(Dialog.ClientWidth - Margin - BW2, RowY, BW2, ControlH);
+      OKButton.SetBounds(CancelButton.Left - Gap - BW1, RowY, BW1, ControlH);
+      Entry.SetBounds(Margin, RowY, Max(1, OKButton.Left - Gap - Margin), ControlH);
+      RowY := RowY + ControlH + Gap;
+      MeasureBitmap.Canvas.Font.Assign(MatchCase.Font);
+      CheckH := Max(Px(18), Max(Abs(MatchCase.Font.Height),
+        MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + Px(2));
+      MeasureBitmap.Canvas.Font.Assign(WholeWords.Font);
+      CheckH := Max(CheckH, Max(Abs(WholeWords.Font.Height),
+        MeasureBitmap.Canvas.TextHeight('ÄgjQ')) + Px(2));
+      CheckGap := Px(2);
+      MatchCase.SetBounds(Margin, RowY, TextWidth, CheckH);
+      WholeWords.SetBounds(Margin, RowY + CheckH + CheckGap, TextWidth, CheckH);
+      Dialog.ClientHeight := WholeWords.Top + CheckH + Gap;
+    finally
+      MeasureBitmap.Free;
+    end;
     Dialog.ActiveControl := Entry;
     Entry.SelectAll;
     case Dialog.ShowModal of
