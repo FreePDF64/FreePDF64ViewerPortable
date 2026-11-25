@@ -61,6 +61,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure SearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Closing(Sender: TObject; var Action: TCloseAction);
+    procedure SaveWindowSize;
     procedure SetStatus;
     procedure LayoutSearchControls(Sender: TObject);
   public
@@ -72,7 +73,7 @@ type
 implementation
 
 uses
-  System.Math, System.Types;
+  System.Math, System.Types, System.IniFiles;
 
 constructor TPDFGlobalSearchForm.CreateForTabs(AOwner: TComponent; ATabs: TPageControl);
 var
@@ -105,7 +106,7 @@ begin
   BorderStyle := bsSizeable;
   Color := clWhite;
   Font.Name := 'Segoe UI';
-  Font.Size := 10;
+  Font.Size := 9;
   PopupMode := pmExplicit;
   if AOwner is TCustomForm then PopupParent := TCustomForm(AOwner);
   OnClose := Closing;
@@ -128,7 +129,7 @@ begin
   FTitle.WordWrap := True;
   FTitle.Caption := Tr('Alle geöffneten PDFs durchsuchen');
   FTitle.Font.Name := 'Segoe UI Semibold';
-  FTitle.Font.Size := 11;
+  FTitle.Font.Size := 10;
   FTitle.Font.Color := $00412B20;
   FSubtitle := TLabel.Create(Self);
   FSubtitle.Parent := Header;
@@ -141,7 +142,7 @@ begin
   FTitle.SetBounds(Px(20), Px(12), Px(860), Px(24));
   FSubtitle.SetBounds(Px(21), Px(40), Px(858), Px(36));
   Header.Height := Px(80);
-  FSubtitle.Font.Size := 10;
+  FSubtitle.Font.Size := 9;
   FSubtitle.Font.Color := clGray;
 
   Bar := TPanel.Create(Self);
@@ -217,7 +218,7 @@ begin
   FResults.BorderStyle := bsNone;
   FResults.ItemHeight := 25;
   FResults.Font.Name := 'Segoe UI';
-  FResults.Font.Size := 10;
+  FResults.Font.Size := 9;
   FResults.DoubleBuffered := True;
   FResults.OnMouseUp := ResultMouseUp;
   FResults.OnKeyDown := SearchKeyDown;
@@ -320,6 +321,7 @@ end;
 
 destructor TPDFGlobalSearchForm.Destroy;
 begin
+  if Visible then SaveWindowSize;
   FTimer.Enabled := False;
   ReleaseOfflineCore;
   FPendingResults.Free;
@@ -383,20 +385,53 @@ procedure TPDFGlobalSearchForm.ShowSearch;
 var
   Viewer: TCustomForm;
   Flags: Cardinal;
+  Ini: TIniFile;
+  D, W, H: Integer;
+  Area: TRect;
+  TargetMonitor: TMonitor;
 begin
   Flags := LoadPDFSearchFlags('GlobalPDFSearch');
   FMatchCase.Checked := (Flags and 1) <> 0;
   FWholeWords.Checked := (Flags and 2) <> 0;
   FMatchCase.Caption := Tr('Groß-/Kleinschreibung beachten');
   FWholeWords.Caption := Tr('Ganze Wörter');
-  // Bei jedem Öffnen über dem aktuellen Viewer zentrieren.
-  // Die Bildschirmmitte ist bei mehreren Monitoren nicht geeignet.
   if Owner is TCustomForm then
   begin
     Viewer := TCustomForm(Owner);
-    Left := Viewer.Left + (Viewer.Width - Width) div 2;
-    Top := Viewer.Top + (Viewer.Height - Height) div 2;
+    TargetMonitor := Viewer.Monitor;
+    D := Max(96, Viewer.CurrentPPI);
+  end
+  else
+  begin
+    Viewer := nil;
+    TargetMonitor := Screen.MonitorFromWindow(Handle);
+    D := Max(96, CurrentPPI);
   end;
+  Area := TargetMonitor.WorkareaRect;
+  W := MulDiv(Width, 96, Max(96, CurrentPPI));
+  H := MulDiv(Height, 96, Max(96, CurrentPPI));
+  try
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      W := Ini.ReadInteger('GlobalPDFSearch', 'WindowWidth96', W);
+      H := Ini.ReadInteger('GlobalPDFSearch', 'WindowHeight96', H);
+    finally
+      Ini.Free;
+    end;
+  except
+    on E: Exception do begin end;
+  end;
+  WindowState := wsNormal;
+  Constraints.MinWidth := Min(MulDiv(650, D, 96), Area.Right - Area.Left);
+  Constraints.MinHeight := Min(MulDiv(450, D, 96), Area.Bottom - Area.Top);
+  W := Min(Area.Right - Area.Left, Max(Constraints.MinWidth, MulDiv(EnsureRange(W, 1, 32767), D, 96)));
+  H := Min(Area.Bottom - Area.Top, Max(Constraints.MinHeight, MulDiv(EnsureRange(H, 1, 32767), D, 96)));
+  if Viewer <> nil then
+    SetBounds(EnsureRange(Viewer.Left + (Viewer.Width - W) div 2, Area.Left, Area.Right - W),
+      EnsureRange(Viewer.Top + (Viewer.Height - H) div 2, Area.Top, Area.Bottom - H), W, H)
+  else
+    SetBounds(Area.Left + (Area.Right - Area.Left - W) div 2,
+      Area.Top + (Area.Bottom - Area.Top - H) div 2, W, H);
   Show;
   LayoutSearchControls(nil);
   BringToFront;
@@ -404,8 +439,33 @@ begin
   FTerm.SelectAll;
 end;
 
+procedure TPDFGlobalSearchForm.SaveWindowSize;
+var
+  Ini: TIniFile;
+  D: Integer;
+  W, H: Integer;
+begin
+  D := Max(96, CurrentPPI);
+  W := Width;
+  H := Height;
+  if WindowState <> wsNormal then Exit;
+  if (W <= 0) or (H <= 0) then Exit;
+  try
+    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    try
+      Ini.WriteInteger('GlobalPDFSearch', 'WindowWidth96', MulDiv(W, 96, D));
+      Ini.WriteInteger('GlobalPDFSearch', 'WindowHeight96', MulDiv(H, 96, D));
+    finally
+      Ini.Free;
+    end;
+  except
+    on E: Exception do begin end;
+  end;
+end;
+
 procedure TPDFGlobalSearchForm.Closing(Sender: TObject; var Action: TCloseAction);
 begin
+  SaveWindowSize;
   FTimer.Enabled := False;
   FRunning := False;
   FPendingHit := nil;
@@ -605,7 +665,7 @@ begin
         if FOfflineCore <> nil then
           TextSnippet := StringReplace(StringReplace(
             FOfflineCore.TextRange(M.PageIndex, Max(0, M.CharIndex - 35),
-              Min(110, M.CharCount + 70)), #13, ' ', [rfReplaceAll]),
+              Min(512, M.CharCount + 477)), #13, ' ', [rfReplaceAll]),
               #10, ' ', [rfReplaceAll])
         else
           TextSnippet := PDF.GlobalExcerpt(M.PageIndex, M.CharIndex, M.CharCount);

@@ -4533,14 +4533,14 @@ begin
     Dialog.ClientWidth := TextWidth + Margin * 2;
     Dialog.ClientHeight := Px(132);
     Dialog.Font.Name := 'Segoe UI';
-    Dialog.Font.Size := 10;
+    Dialog.Font.Size := 9;
 
     Prompt := TLabel.Create(Dialog);
     Prompt.Parent := Dialog;
     Prompt.ParentFont := True;
     Prompt.Caption := Tr('Suchbegriff:');
     Prompt.Font.Name := 'Segoe UI Semibold';
-    Prompt.Font.Size := 11;
+    Prompt.Font.Size := 10;
     Prompt.SetBounds(Margin, Gap, TextWidth, Px(24));
 
     Entry := TEdit.Create(Dialog);
@@ -4724,7 +4724,7 @@ var
   StartAt: Integer;
 begin
   StartAt := Max(0, AChar - 35);
-  Result := FCore.TextRange(APage, StartAt, Min(110, ALength + 70));
+  Result := FCore.TextRange(APage, StartAt, Min(512, ALength + 477));
   Result := StringReplace(Result, #13, ' ', [rfReplaceAll]);
   Result := StringReplace(Result, #10, ' ', [rfReplaceAll]);
 end;
