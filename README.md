@@ -6,6 +6,8 @@
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
+**No ads · No AI features · No subscriptions** | **Werbefrei · Keine KI-Funktionen · Keine Abonnements**
+
 [English](#english) · [Deutsch](#deutsch)
 
 [**Download / Releases**](https://github.com/FreePDF64/FreePDF64ViewerPortable/releases) · [**Projektseite**](https://github.com/FreePDF64/FreePDF64ViewerPortable)
@@ -25,6 +27,10 @@
 # English
 
 FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It combines a fast PDF and image viewer with tabs, **named, reusable workspaces**, cross-document search, side-by-side viewing, and practical PDF tools. Save a collection of open documents and return to it later instead of reopening every file individually. Settings are stored locally in the application folder.
+
+## Privacy and independence
+
+FreePDF64-Viewer Portable contains no advertising, uses no artificial intelligence (AI) and requires no subscription. PDF processing takes place locally on your computer.
 
 ## New in version 3.4.0 - 3.4.2
 
@@ -115,6 +121,10 @@ License texts and copyright notices for PDFium, V8, and bundled third-party libr
 # Deutsch
 
 FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Windows. Er vereint einen schnellen PDF- und Bildbetrachter mit Registerkarten, **benannten und wiederverwendbaren Arbeitsbereichen**, dokumentübergreifender Suche, Zweifensteransicht und praktischen PDF-Werkzeugen. Zusammengehörige Dokumente lassen sich als Arbeitsbereich speichern und später bequem wieder öffnen. Die Einstellungen bleiben lokal im Programmordner.
+
+## Datenschutz und Unabhängigkeit
+
+FreePDF64-Viewer Portable enthält keine Werbung, setzt keine künstliche Intelligenz (KI) ein und erfordert kein Abonnement. Die PDF-Verarbeitung erfolgt lokal auf deinem Computer.
 
 ## Neu in Version 3.4.0 - 3.4.2
 
