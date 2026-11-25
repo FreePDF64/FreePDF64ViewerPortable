@@ -9,5 +9,6 @@
     <File Path="uPDFPortableAttachments.pas"/>
     <File Path="uPDFTabsForm.pas"/>
     <File Path="uPDFErrorLogger.pas"/>
+    <File Path="uPDFPortablePaths.pas"/>
   </ProjectSortOrder>
 </BorlandProject>

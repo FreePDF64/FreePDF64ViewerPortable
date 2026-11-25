@@ -3,6 +3,7 @@
 interface
 
 uses
+  uPDFPortablePaths,
   uPDFLanguage,
   System.SysUtils, System.Classes, System.Generics.Collections, Winapi.Windows, Winapi.Messages,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Graphics,
@@ -416,7 +417,7 @@ begin
   W := MulDiv(Width, 96, Max(96, CurrentPPI));
   H := MulDiv(Height, 96, Max(96, CurrentPPI));
   try
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       W := Ini.ReadInteger('GlobalPDFSearch', 'WindowWidth96', W);
       H := Ini.ReadInteger('GlobalPDFSearch', 'WindowHeight96', H);
@@ -460,7 +461,7 @@ begin
   if WindowState <> wsNormal then Exit;
   if (W <= 0) or (H <= 0) then Exit;
   try
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       Ini.WriteInteger('GlobalPDFSearch', 'WindowWidth96', MulDiv(W, 96, D));
       Ini.WriteInteger('GlobalPDFSearch', 'WindowHeight96', MulDiv(H, 96, D));

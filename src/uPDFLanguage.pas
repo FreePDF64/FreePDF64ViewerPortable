@@ -2,7 +2,9 @@
 
 interface
 
-uses System.SysUtils, System.Classes, Winapi.Windows, System.IniFiles,
+uses
+  uPDFPortablePaths,
+  System.SysUtils, System.Classes, Winapi.Windows, System.IniFiles,
      Vcl.Controls, Vcl.Forms, Vcl.Menus, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Vcl.Graphics;
 
 procedure InitializePDFLanguage(const IniPath: string);
@@ -30,7 +32,7 @@ function LoadPDFSearchFlags(const ASection: string): Cardinal;
 var Ini: TIniFile;
 begin
   Result := 0;
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Result := Cardinal(Ini.ReadInteger(ASection, 'Flags', 0)) and 3;
   finally
@@ -41,7 +43,7 @@ end;
 procedure SavePDFSearchFlags(const ASection: string; AFlags: Cardinal);
 var Ini: TIniFile;
 begin
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Ini.WriteInteger(ASection, 'Flags', Integer(AFlags and 3));
   finally

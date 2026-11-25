@@ -20,6 +20,7 @@ uses
   uPDFBrowserForm in 'uPDFBrowserForm.pas' {PDFBrowserForm},
   uPDFTabsForm in 'uPDFTabsForm.pas',
   uPDFPortableAttachments in 'uPDFPortableAttachments.pas',
+  uPDFPortablePaths in 'uPDFPortablePaths.pas',
   uPDFErrorLogger in 'uPDFErrorLogger.pas';
 
 {$R *.res}

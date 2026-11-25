@@ -2,6 +2,7 @@
 unit uPDFBrowserForm;
 interface
 uses
+  uPDFPortablePaths,
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Classes, System.SyncObjs,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.ExtCtrls, Vcl.Dialogs, uPDFModernDialogs,
@@ -301,7 +302,7 @@ begin
   for I := 1 to Length(LowerName) do
     Hash := (Hash xor Ord(LowerName[I])) * UInt64($100000001B3);
   Key := IntToHex(Hash, 16);
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Ini.WriteInteger('RecentPDFPageCount', Key, APageCount);
     Ini.WriteString('RecentPDFPageCount', Key + '_Stamp',
@@ -1312,7 +1313,7 @@ begin
   // erzeugen: sonst koennen Kindfenster ohne gueltiges Parent-HWND entstehen.
   FPDFiumView := nil;
   // Nicht blockierende, animierte Aktivitaetsanzeige unter der Werkzeugleiste.
-  IniDat := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  IniDat := TIniFile.Create(ViewerIniFileName);
   try
     Left := IniDat.ReadInteger('Position', 'PDFBrowserForm_Left', Left);
     Top := IniDat.ReadInteger('Position', 'PDFBrowserForm_Top', Top);
@@ -3464,7 +3465,7 @@ begin
   if Assigned(FPageNavigationTimer) then FPageNavigationTimer.Enabled := False;
   if not FTabbedPDFMode then
   begin
-    IniDat := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    IniDat := TIniFile.Create(ViewerIniFileName);
     try
       IniDat.WriteInteger('Position', 'PDFBrowserForm_Left', Left);
       IniDat.WriteInteger('Position', 'PDFBrowserForm_Top', Top);

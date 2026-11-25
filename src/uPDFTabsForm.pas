@@ -3,6 +3,7 @@
 interface
 
 uses
+  uPDFPortablePaths,
   uPDFLanguage,
   System.SysUtils, System.Classes, System.Types, System.Net.HttpClient, System.JSON, Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, Winapi.RichEdit, Winapi.ShellAPI, Winapi.ShlObj,
   Vcl.Forms, Vcl.Controls, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Buttons,
@@ -538,7 +539,7 @@ begin
     LastDateWidth := List.Columns[1].Width;
     LastPDFWidth := List.Columns[2].Width;
     ResizeColumns(List);
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       Ini.WriteInteger('Arbeitsbereiche', 'DateColumnWidth', LastDateWidth);
       Ini.WriteInteger('Arbeitsbereiche', 'PDFColumnWidth', LastPDFWidth);
@@ -711,7 +712,7 @@ begin
     SortAscending := Column.Index = 0;
   end;
   // Sortierung dauerhaft in der bereits vorhandenen Viewer-INI speichern.
-  with TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini') do
+  with TIniFile.Create(ViewerIniFileName) do
   try
     WriteInteger('Arbeitsbereiche', 'SortColumn', SortColumn);
     WriteBool('Arbeitsbereiche', 'SortAscending', SortAscending);
@@ -1318,7 +1319,7 @@ end;
 function TabsIniFileName: string;
 begin
   // Alle Viewer-Einstellungen in der gemeinsamen INI im Programmverzeichnis.
-  Result := ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini';
+  Result := ViewerIniFileName;
 end;
 
 procedure TPDFTabsForm.RememberNormalBounds;
@@ -1638,7 +1639,11 @@ begin
                 if not (Asset is TJSONObject) then Continue;
                 AssetName := TJSONObject(Asset).GetValue<string>('name', '');
                 AssetUrl := TJSONObject(Asset).GetValue<string>('browser_download_url', '');
-                if SameText(ExtractFileExt(AssetName), '.zip') and
+                if ((IsPAFViewer and AssetName.ToLower.EndsWith('.paf.exe')) or
+                    (not IsPAFViewer and AssetName.ToLower.EndsWith('.zip') and
+                     not AssetName.ToLower.Contains('source') and
+                     not AssetName.ToLower.Contains('paf'))) and
+                   AssetName.ToLower.StartsWith('freepdf64viewerportable') and
                    AssetUrl.StartsWith('https://github.com/FreePDF64/FreePDF64ViewerPortable/releases/download/') then
                 begin
                   DownloadUrl := AssetUrl;
@@ -1691,8 +1696,8 @@ begin
                      'Installierte Version: ') + ViewerVersionString,
                    ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Available version: ',
                      'Verfügbare Version: ') + Tag,
-                   ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Open download page on GitHub?',
-                     'Downloadseite auf GitHub öffnen?'), True, DownloadUrl) then
+                   ViewerUpdateText(SameText(PDFLanguage, 'en'), 'Open the matching download?',
+                     'Passenden Download öffnen?'), True, DownloadUrl) then
               begin
                 if DownloadUrl <> '' then
                   ShellExecute(0, 'open', PChar(DownloadUrl), nil, nil, SW_SHOWNORMAL)
@@ -1876,7 +1881,7 @@ var
   FileName: string;
 begin
   FClosedPDFs.Clear;
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Count := Ini.ReadInteger('ClosedPDFs', 'Count', 0);
     if Count < 0 then Count := 0;
@@ -1899,7 +1904,7 @@ var
   S: string;
 begin
   FSessionPDFs.Clear;
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     N := Ini.ReadInteger('PDFSession', 'Count', 0);
     if N < 0 then N := 0;
@@ -1937,7 +1942,7 @@ begin
       if (S <> '') and not IsFreePDFTempAttachment(S) and (Files.IndexOf(S) < 0) then
         Files.Add(S);
     end;
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       Ini.EraseSection('PDFSession');
       Ini.WriteInteger('PDFSession', 'Count', Files.Count);
@@ -1963,7 +1968,7 @@ function TPDFTabsForm.WorkspaceFolder: string;
 var
   BaseDir, OldDir, NewDir: string;
 begin
-  BaseDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName));
+  BaseDir := ViewerDataFolder;
   OldDir := BaseDir + 'Arbeitsbereiche';
   NewDir := BaseDir + 'Workspaces';
   // Vorhandene Arbeitsbereiche bei der ersten Verwendung uebernehmen.
@@ -2308,7 +2313,7 @@ begin
     if UIUnit < 96 then UIUnit := 96;
     // Die zuletzt gewaehlte Dialoggroesse aus der portablen Viewer-INI laden.
     // Bei fehlenden Eintraegen gelten die bisherigen Standardabmessungen.
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       SavedWidth := Ini.ReadInteger('Arbeitsbereiche', 'WindowWidth',
         MulDiv(780, UIUnit, 96));
@@ -2391,7 +2396,7 @@ begin
     Controller.OwnerForm := Form;
     Controller.DesignIndex := FDesignIndex;
     // Letzte Sortierung beim Öffnen wiederherstellen.
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       Controller.SortColumn := Ini.ReadInteger('Arbeitsbereiche', 'SortColumn', 1);
       if (Controller.SortColumn < 0) or (Controller.SortColumn > 2) then
@@ -2428,7 +2433,7 @@ begin
     List.Columns.Add.Caption := Tr('PDFs');
     List.Columns[2].Width := MulDiv(85, UIUnit, 96);
     // Die zuletzt vom Benutzer gewaehlten Breiten aus der Viewer-INI laden.
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       List.Columns[1].Width := Ini.ReadInteger('Arbeitsbereiche',
         'DateColumnWidth', List.Columns[1].Width);
@@ -2590,7 +2595,7 @@ begin
   finally
     if (Controller <> nil) and (List <> nil) and (List.Columns.Count >= 3) then
     begin
-      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      Ini := TIniFile.Create(ViewerIniFileName);
       try
         Ini.WriteInteger('Arbeitsbereiche', 'DateColumnWidth', List.Columns[1].Width);
         Ini.WriteInteger('Arbeitsbereiche', 'PDFColumnWidth', List.Columns[2].Width);
@@ -2626,7 +2631,7 @@ var
   Ini: TIniFile;
   I, N: Integer;
 begin
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     // Nur den eigenen Abschnitt aktualisieren; andere Einstellungen erhalten.
     Ini.EraseSection('ClosedPDFs');
@@ -3137,7 +3142,7 @@ begin
     D.Constraints.MinHeight := Px(400);
     if not (AAbout or AMergeHelp) then
     begin
-      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      Ini := TIniFile.Create(ViewerIniFileName);
       try
         SavedWidth := Ini.ReadInteger('Funktionsuebersicht', 'Breite', D.ClientWidth);
         SavedHeight := Ini.ReadInteger('Funktionsuebersicht', 'Hoehe', D.ClientHeight);
@@ -3321,7 +3326,7 @@ begin
           'The complete license is provided in TablerIcons/LICENSE.txt.' + sLineBreak +
           'https://github.com/tabler/tabler-icons');
         AddSection('Settings file',
-          IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
+          ViewerIniFileName);
         AddSection('Application executable', Application.ExeName);
       end
       else
@@ -3351,7 +3356,7 @@ begin
           'Der vollständige Lizenztext befindet sich in TablerIcons/LICENSE.txt.' + sLineBreak +
           'https://github.com/tabler/tabler-icons');
         AddSection('Einstellungsdatei',
-          IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'FreePDFViewer.ini');
+          ViewerIniFileName);
         AddSection('Programmdatei', Application.ExeName);
       end;
     end
@@ -3410,7 +3415,7 @@ begin
         'When no PDF is open, the scrollable start page shows the 15 most recently opened PDFs. '
         + 'Entries are arranged in two columns, or one column in a narrow window. A thumbnail of the first page appears beside the file name and path. '
         + 'Click an entry or thumbnail to open the PDF. Right-click an entry to remove it or open its folder. '
-        + 'Use Clear history to remove the whole list after confirmation and delete all cached start-page thumbnails. The history is stored in FreePDFViewer.ini; thumbnail BMP files are stored in the Thumbnails folder next to the viewer and are automatically deleted at startup if older than 30 days.');
+        + 'Use Clear history to remove the whole list after confirmation and delete all cached start-page thumbnails. The history is stored in FreePDFViewer.ini; thumbnail BMP files are stored in the Thumbnails folder in the settings directory and are automatically deleted at startup if older than 30 days.');
       AddSection('Reopen closed PDFs',
         'Right-click the empty start page. Recently closed documents are listed under Reopen closed PDFs. Unavailable entries are greyed out.');
       AddSection('Manage tabs',
@@ -3714,7 +3719,7 @@ begin
       AddSection('File > Options: notification area',
         'Minimize to notification area on close is available both in standalone mode and when the viewer runs from the FreePDF64 folder. '
         + 'When enabled, closing the window minimizes the viewer to the Windows notification area instead of exiting. '
-        + 'The setting is saved in FreePDFViewer.ini beside the EXE. File > Exit closes the viewer; unsaved changes may still trigger a save prompt.');
+        + 'The ZIP edition stores settings beside the EXE; the PortableApps edition uses Data/settings. Updates offer the matching ZIP or PAF installer. The setting is saved in FreePDFViewer.ini in the settings directory. File > Exit closes the viewer; unsaved changes may still trigger a save prompt.');
       AddSection('Project page and more information',
         'https://github.com/FreePDF64/FreePDF64ViewerPortable');
     end
@@ -3779,7 +3784,7 @@ begin
         + 'Ein Klick auf den Eintrag oder das Vorschaubild öffnet die PDF-Datei. '
         + 'Per Rechtsklick können Sie einen Eintrag aus der Liste entfernen oder den Dateiordner öffnen. '
         + 'Mit „Verlauf löschen“ entfernen Sie die gesamte Liste nach einer Bestätigung. '
-        + 'Der Verlauf wird in FreePDFViewer.ini gespeichert. Vorschaubilder liegen als BMP-Dateien im Ordner Thumbnails neben dem Viewer. Beim Start werden Vorschaubilder gelöscht, die älter als 30 Tage sind; „Verlauf löschen“ entfernt zusätzlich alle gespeicherten Vorschaubilder.');
+        + 'Der Verlauf wird in FreePDFViewer.ini gespeichert. Vorschaubilder liegen als BMP-Dateien im Ordner Thumbnails im Einstellungsverzeichnis. Beim Start werden Vorschaubilder gelöscht, die älter als 30 Tage sind; „Verlauf löschen“ entfernt zusätzlich alle gespeicherten Vorschaubilder.');
       AddSection('Geschlossene PDFs wieder öffnen',
         'Klicken Sie auf der leeren Startseite mit der rechten Maustaste. '
         + 'Unter „Geschlossene PDFs wieder öffnen“ finden Sie zuletzt geschlossene Dokumente. '
@@ -4136,7 +4141,7 @@ begin
       AddSection('Datei > Optionen: Infobereich',
         '„Beim Schließen in den Infobereich“ ist sowohl beim eigenständigen Viewer als auch beim Betrieb aus dem FreePDF64-Verzeichnis verfügbar. ' +
         'Ist die Option aktiviert, wird das Fenster beim Schließen in den Windows-Infobereich minimiert, statt das Programm zu beenden. ' +
-        'Die Einstellung wird in FreePDFViewer.ini neben der EXE gespeichert. „Datei → Exit“ beendet den Viewer; bei ungespeicherten Änderungen kann eine Speicherabfrage erscheinen.');
+        'Die ZIP-Version speichert Einstellungen neben der EXE, die PortableApps-Version unter Data/settings. Updates bieten das passende ZIP oder den PAF-Installer an. Die Einstellung wird in FreePDFViewer.ini im Einstellungsverzeichnis gespeichert. „Datei → Exit“ beendet den Viewer; bei ungespeicherten Änderungen kann eine Speicherabfrage erscheinen.');
       AddSection('Projektseite und weitere Informationen',
         'https://github.com/FreePDF64/FreePDF64ViewerPortable');
     end;
@@ -4154,7 +4159,7 @@ begin
     D.ShowModal;
     if not (AAbout or AMergeHelp) and (D.WindowState <> wsMinimized) then
     begin
-      Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+      Ini := TIniFile.Create(ViewerIniFileName);
       try
         Ini.WriteInteger('Funktionsuebersicht', 'Breite', D.ClientWidth);
         Ini.WriteInteger('Funktionsuebersicht', 'Hoehe', D.ClientHeight);
@@ -5981,7 +5986,7 @@ var
   S: string;
 begin
   FRecentPDFs.Clear;
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     N := EnsureRange(Ini.ReadInteger('RecentPDFs', 'Count', 0), 0, 15);
     for I := 1 to N do
@@ -6000,7 +6005,7 @@ var
   Ini: TIniFile;
   I: Integer;
 begin
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Ini.EraseSection('RecentPDFs');
     Ini.WriteInteger('RecentPDFs', 'Count', FRecentPDFs.Count);
@@ -6036,8 +6041,7 @@ var
 begin
   // Ausschliesslich die vom Viewer erzeugten BMP-Vorschaubilder entfernen.
   // Andere Dateien und Unterordner im portablen Verzeichnis bleiben erhalten.
-  CacheDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) +
-    'Thumbnails';
+  CacheDir := ViewerDataFolder + 'Thumbnails';
   if not DirectoryExists(CacheDir) then Exit;
   Cutoff := Now - 30;
   if System.SysUtils.FindFirst(IncludeTrailingPathDelimiter(CacheDir) + '*.bmp', faAnyFile, Search) <> 0 then
@@ -6100,7 +6104,7 @@ begin
   Hash := UInt64($CBF29CE484222325);
   for I := 1 to Length(Key) do
     Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
-  CacheDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'Thumbnails';
+  CacheDir := ViewerDataFolder + 'Thumbnails';
   CacheFile := IncludeTrailingPathDelimiter(CacheDir) + IntToHex(Hash, 16) + '.bmp';
   if FileExists(CacheFile) then
   begin
@@ -6239,7 +6243,7 @@ begin
     Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
   Key := IntToHex(Hash, 16);
   Fingerprint := IntToStr(FileAge(AFileName));
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     if Ini.ReadString('RecentPDFPageCount', Key + '_Stamp', '') = Fingerprint then
     begin
@@ -10231,7 +10235,7 @@ begin
   Hash := UInt64($CBF29CE484222325);
   for I := 1 to Length(Key) do
     Hash := (Hash xor Ord(Key[I])) * UInt64($100000001B3);
-  CacheDir := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + 'Thumbnails';
+  CacheDir := ViewerDataFolder + 'Thumbnails';
   CacheFile := IncludeTrailingPathDelimiter(CacheDir) + IntToHex(Hash, 16) + '.bmp';
   if (GraphicTab <> nil) and not FileExists(CacheFile) then
   begin

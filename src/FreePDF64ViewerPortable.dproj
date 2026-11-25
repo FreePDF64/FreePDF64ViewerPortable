@@ -141,6 +141,7 @@
         <DCCReference Include="uPDFTabsForm.pas"/>
         <DCCReference Include="uPDFPortableAttachments.pas"/>
         <DCCReference Include="uPDFErrorLogger.pas"/>
+        <DCCReference Include="uPDFPortablePaths.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

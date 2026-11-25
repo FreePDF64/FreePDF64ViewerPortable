@@ -3,6 +3,7 @@
 interface
 
 uses
+  uPDFPortablePaths,
   uPDFLanguage,
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.ShellAPI, Winapi.UxTheme, System.SysUtils, System.Classes, Vcl.Controls,
   Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Buttons, Vcl.Graphics, Vcl.Forms, Vcl.Dialogs, uPDFModernDialogs,
@@ -1554,7 +1555,7 @@ var Ini: TIniFile;
 begin
   if GThumbnailsLoaded then Exit;
   GThumbnailsLoaded := True;
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     GThumbnailsVisible := Ini.ReadBool('Viewer', 'ThumbnailsVisible', False);
   finally
@@ -1565,7 +1566,7 @@ end;
 procedure SaveGlobalThumbnails;
 var Ini: TIniFile;
 begin
-  Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+  Ini := TIniFile.Create(ViewerIniFileName);
   try
     Ini.WriteBool('Viewer', 'ThumbnailsVisible', GThumbnailsVisible);
   finally
@@ -3226,7 +3227,7 @@ begin
   FStrokeRedo := TList<TPDFInkStroke>.Create;
   FStrokeRedoPages := TList<Integer>.Create;
   FMeasureScale := 25.4 / 72.0;
-  with TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini') do
+  with TIniFile.Create(ViewerIniFileName) do
   try
     FMeasureColor := TColor(ReadInteger('Viewer', 'MeasureColor', Integer(clRed)));
   finally
@@ -7516,7 +7517,7 @@ begin
   if (Choice <> mrYes) and (Choice <> mrNo) and (Choice <> mrRetry) then Exit;
   FileName := '';
   Temporary := False;
-  SignatureFolder := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'Signaturen';
+  SignatureFolder := ViewerDataFolder + 'Signaturen';
   if Choice = mrRetry then
   begin
     ForceDirectories(SignatureFolder);
@@ -12765,7 +12766,7 @@ begin
     if not D.Execute then Exit;
     FMeasureColor := D.Color;
     FMeasureColorSwatch.Color := FMeasureColor;
-    Ini := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    Ini := TIniFile.Create(ViewerIniFileName);
     try
       Ini.WriteInteger('Viewer', 'MeasureColor', Integer(FMeasureColor));
     finally
@@ -15144,7 +15145,7 @@ begin
     D.Font.Size := 10;
     SavedW := MulDiv(1040, P, 96);
     SavedH := MulDiv(660, P, 96);
-    SizeIni := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    SizeIni := TIniFile.Create(ViewerIniFileName);
     try
       SavedW := SizeIni.ReadInteger('PDFEmbeddedImages', 'ClientWidth', SavedW);
       SavedH := SizeIni.ReadInteger('PDFEmbeddedImages', 'ClientHeight', SavedH);
@@ -15269,7 +15270,7 @@ begin
       D.SelectionChanged(L, L.Items[0], True);
     end;
     D.ShowModal;
-    SizeIni := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'FreePDFViewer.ini');
+    SizeIni := TIniFile.Create(ViewerIniFileName);
     try
       SizeIni.WriteInteger('PDFEmbeddedImages', 'ClientWidth', D.ClientWidth);
       SizeIni.WriteInteger('PDFEmbeddedImages', 'ClientHeight', D.ClientHeight);

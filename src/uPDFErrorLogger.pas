@@ -3,6 +3,7 @@
 interface
 
 uses
+  uPDFPortablePaths,
   System.SysUtils,
   System.Classes,
   System.SyncObjs;
@@ -31,8 +32,7 @@ constructor TPDFErrorLogger.Create;
 begin
   inherited Create;
   FCriticalSection := TCriticalSection.Create;
-  FLogFileName := IncludeTrailingPathDelimiter(
-    ExtractFilePath(ParamStr(0))) + 'FreePDF_Error.log';
+  FLogFileName := ViewerDataFolder + 'FreePDF_Error.log';
 end;
 
 destructor TPDFErrorLogger.Destroy;
