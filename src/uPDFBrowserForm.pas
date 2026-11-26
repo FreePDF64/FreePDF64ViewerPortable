@@ -52,6 +52,9 @@ type
     FImageModified: Boolean; // Nur echte Bildaenderungen (Drehen), kein Zoom
     FImagePreviewRevision: Cardinal; // Cache-Version fuer Registerkartenvorschau
     FImageButtons: array[0..8] of TSpeedButton;
+    FImageCursorTimer: TTimer;
+    FImageWheelUntil: UInt64;
+    FImageWheelCursor: TCursor;
     FImageZoomLabel: TLabel; // Berechneter Grafikzoom, nur Anzeige
     FTIFFImage: Pointer;
     FTIFFGDIPlusToken: NativeUInt;
@@ -105,6 +108,7 @@ type
     FTabbedPDFMode: Boolean;
     FStandalonePDFMode: Boolean;
     FStandaloneHintShown: Boolean;
+    procedure ImageCursorTimerTick(Sender: TObject);
     procedure ShowBasicImage;
     procedure UpdateImageSaveIndicator;
     procedure ImageMouseWheel(Sender: TObject; Shift: TShiftState;
@@ -525,6 +529,7 @@ end;
 
 destructor TPDFBrowserForm.Destroy;
 begin
+  FreeAndNil(FImageCursorTimer);
   // Der Worker benutzt ausschliesslich seinen eigenen Ladeauftrag.
   // Beim Schliessen muss er fertig sein, bevor dessen Speicher frei wird.
   FreeAndNil(FBackgroundLoad);
@@ -2202,12 +2207,129 @@ begin
   UpdateImageLayout;
 end;
 
+// Monochrome zoom cursor, scaled to the Windows cursor dimensions.
+const
+  crImageZoom = TCursor(24101);
+
+var
+  ImageZoomCursorRegistered: Boolean;
+
+function ImageZoomCursor: TCursor;
+var
+  W, H, Stride, X, Y, I: Integer;
+  U, V, D, Dist: Double;
+  Mask: Byte;
+  AndBits, XorBits: TBytes;
+  C: HCURSOR;
+  Ink, Outline: Boolean;
+begin
+  Result := crCross;
+  if not ImageZoomCursorRegistered then
+  begin
+    W := Max(16, GetSystemMetrics(SM_CXCURSOR));
+    H := Max(16, GetSystemMetrics(SM_CYCURSOR));
+    Stride := ((W + 15) div 16) * 2;
+    SetLength(AndBits, Stride * H);
+    SetLength(XorBits, Stride * H);
+    FillChar(AndBits[0], Length(AndBits), $FF);
+    for Y := 0 to H - 1 do
+      for X := 0 to W - 1 do
+      begin
+        U := X * 32.0 / W;
+        V := Y * 32.0 / H;
+        D := Sqrt(Sqr(U - 11) + Sqr(V - 11));
+        Dist := Abs(U - V) / Sqrt(2.0);
+        Ink := (Abs(D - 8) <= 1.1) or
+          ((U >= 17) and (V >= 17) and (U <= 27) and (V <= 27) and (Dist <= 1.5)) or
+          ((Abs(U - 11) <= 0.8) and (Abs(V - 11) <= 4)) or
+          ((Abs(V - 11) <= 0.8) and (Abs(U - 11) <= 4));
+        Outline := (Abs(D - 8) <= 2.2) or
+          ((U >= 16) and (V >= 16) and (U <= 28) and (V <= 28) and (Dist <= 2.7)) or
+          ((Abs(U - 11) <= 1.8) and (Abs(V - 11) <= 5)) or
+          ((Abs(V - 11) <= 1.8) and (Abs(U - 11) <= 5));
+        if Ink or Outline then
+        begin
+          I := Y * Stride + X div 8;
+          Mask := Byte($80 shr (X mod 8));
+          AndBits[I] := AndBits[I] and Byte(not Mask);
+          if not Ink then XorBits[I] := XorBits[I] or Mask;
+        end;
+      end;
+    C := CreateCursor(HInstance, MulDiv(11, W, 32), MulDiv(11, H, 32),
+      W, H, @AndBits[0], @XorBits[0]);
+    if C <> 0 then
+    begin
+      Screen.Cursors[crImageZoom] := C;
+      ImageZoomCursorRegistered := True;
+    end;
+  end;
+  if ImageZoomCursorRegistered then
+    Result := crImageZoom;
+end;
+
+procedure TPDFBrowserForm.ImageCursorTimerTick(Sender: TObject);
+var
+  P: TPoint;
+  C: TCursor;
+  Wnd: HWND;
+  R: TRect;
+  LocalP: TPoint;
+begin
+  if FClosing or (FImageScroll = nil) or (FImageDisplay = nil) then Exit;
+  C := crDefault;
+  if FImageScroll.HandleAllocated and IsWindowVisible(FImageScroll.Handle) and
+     GetCursorPos(P) then
+  begin
+    Wnd := WindowFromPoint(P);
+    LocalP := FImageScroll.ScreenToClient(P);
+    R := FImageScroll.ClientRect;
+    if (Wnd = FImageScroll.Handle) and Winapi.Windows.PtInRect(R, LocalP) and
+       (GetAncestor(Wnd, GA_ROOT) = GetForegroundWindow) then
+    begin
+      if GetAsyncKeyState(VK_CONTROL) < 0 then
+        C := ImageZoomCursor
+      else if GetTickCount64 < FImageWheelUntil then
+        C := FImageWheelCursor;
+      if FImageDisplay.Cursor <> C then
+      begin
+        FImageDisplay.Cursor := C;
+        FImageScroll.Cursor := C;
+        Winapi.Windows.SetCursor(Screen.Cursors[C]);
+      end;
+      Exit;
+    end;
+  end;
+  FImageWheelUntil := 0;
+  if FImageDisplay.Cursor <> crDefault then FImageDisplay.Cursor := crDefault;
+  if FImageScroll.Cursor <> crDefault then FImageScroll.Cursor := crDefault;
+end;
+
 procedure TPDFBrowserForm.ImageMouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 var
-  Steps: Integer;
+  Steps, StepSize, NewPos: Integer;
+  ScrollBar: TControlScrollBar;
 begin
-  if (not (ssCtrl in Shift)) or (FImageDisplay = nil) then Exit;
+  if (FImageDisplay = nil) or (FImageScroll = nil) or
+     (not IsBasicImage) or (WheelDelta = 0) then Exit;
+  if not (ssCtrl in Shift) then
+  begin
+    if ssShift in Shift then
+      ScrollBar := FImageScroll.HorzScrollBar
+    else
+      ScrollBar := FImageScroll.VertScrollBar;
+    if ssShift in Shift then FImageWheelCursor := crSizeWE
+    else FImageWheelCursor := crSizeNS;
+    FImageWheelUntil := GetTickCount64 + 300;
+    ImageCursorTimerTick(nil);
+    StepSize := Max(1, MulDiv(48, CurrentPPI, 96));
+    NewPos := ScrollBar.Position - MulDiv(WheelDelta, StepSize, WHEEL_DELTA);
+    ScrollBar.Position := Max(0, NewPos);
+    Handled := True;
+    Exit;
+  end;
+  FImageWheelUntil := 0;
+  ImageCursorTimerTick(nil);
   Steps := Abs(WheelDelta) div WHEEL_DELTA;
   if Steps = 0 then Steps := 1;
   FImageFitMode := 0;
@@ -2516,6 +2638,11 @@ begin
 
     // Mausrad-Ereignis wird vom Formular empfangen (VCL-Ereignisweitergabe).
     OnMouseWheel := ImageMouseWheel;
+    FImageScroll.OnMouseWheel := ImageMouseWheel;
+    FImageCursorTimer := TTimer.Create(Self);
+    FImageCursorTimer.Interval := 60;
+    FImageCursorTimer.OnTimer := ImageCursorTimerTick;
+    FImageCursorTimer.Enabled := True;
     FImageZoom := 1.0;
     FImageFitMode := 1;
     if FImageWorkspacePending then
