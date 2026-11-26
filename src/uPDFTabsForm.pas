@@ -211,6 +211,7 @@ type
     FTabSearchForm: TForm;
     FTabSearchEdit: TEdit;
     FTabSearchList: TListBox;
+    FTabSearchHoverIndex: Integer;
     FLastNormalBounds: TRect;
     FRestoringWindowSettings: Boolean;
     FAddingPDF: Boolean;
@@ -336,6 +337,10 @@ type
     procedure TabSearchClick(Sender: TObject);
     procedure TabSearchChanged(Sender: TObject);
     procedure TabSearchChoose(Sender: TObject);
+    procedure TabSearchListMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure TabSearchListMouseLeave(Sender: TObject);
+    procedure TabSearchListDrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
+    procedure SetTabSearchHover(Index: Integer);
     procedure TabSearchListMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure TabSearchKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure TabSearchDeactivate(Sender: TObject);
@@ -5850,9 +5855,13 @@ begin
   FTabSearchList.Align := alClient;
   FTabSearchList.ParentFont := True;
   FTabSearchList.Font.Size := 10;
+  FTabSearchHoverIndex := -1;
+  FTabSearchList.Style := lbOwnerDrawFixed;
+  FTabSearchList.OnDrawItem := TabSearchListDrawItem;
+  FTabSearchList.OnMouseLeave := TabSearchListMouseLeave;
   FTabSearchList.ItemHeight := Max(MulDiv(32, Dpi, 96),
     FTabSearchList.Canvas.TextHeight('Ag') + MulDiv(8, Dpi, 96));
-  FTabSearchList.OnDblClick := TabSearchChoose;
+  FTabSearchList.OnMouseUp := TabSearchListMouseUp;
   FTabSearchList.OnMouseMove := TabSearchListMouseMove;
   FTabSearchList.OnKeyDown := TabSearchKeyDown;
   FTabSearchList.ShowHint := True;
@@ -7457,6 +7466,7 @@ var
   Tab: TTabSheet;
   Filter: string;
 begin
+  SetTabSearchHover(-1);
   Filter := Trim(FTabSearchEdit.Text);
   FTabSearchList.Items.BeginUpdate;
   try
@@ -7483,6 +7493,84 @@ begin
   end;
 end;
 
+procedure TPDFTabsForm.TabSearchListMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  Index: Integer;
+begin
+  if Button <> mbLeft then Exit;
+  Index := FTabSearchList.ItemAtPos(Point(X, Y), True);
+  if Index < 0 then Exit;
+  FTabSearchList.ItemIndex := Index;
+  TabSearchChoose(Sender);
+end;
+
+procedure TPDFTabsForm.SetTabSearchHover(Index: Integer);
+var
+  R: TRect;
+  Old: Integer;
+begin
+  if FTabSearchHoverIndex = Index then Exit;
+  Old := FTabSearchHoverIndex;
+  FTabSearchHoverIndex := Index;
+  if not FTabSearchList.HandleAllocated then Exit;
+  if (Old >= 0) and (Old < FTabSearchList.Count) then
+  begin
+    R := FTabSearchList.ItemRect(Old);
+    InvalidateRect(FTabSearchList.Handle, @R, False);
+  end;
+  if (Index >= 0) and (Index < FTabSearchList.Count) then
+  begin
+    R := FTabSearchList.ItemRect(Index);
+    InvalidateRect(FTabSearchList.Handle, @R, False);
+  end;
+end;
+
+procedure TPDFTabsForm.TabSearchListMouseLeave(Sender: TObject);
+begin
+  SetTabSearchHover(-1);
+end;
+
+procedure TPDFTabsForm.TabSearchListDrawItem(Control: TWinControl;
+  Index: Integer; Rect: TRect; State: TOwnerDrawState);
+var
+  C, F: COLORREF;
+  R: TRect;
+  S: string;
+begin
+  if (Index < 0) or (Index >= FTabSearchList.Count) then Exit;
+  with FTabSearchList.Canvas do
+  begin
+    Font.Assign(FTabSearchList.Font);
+    Brush.Style := bsSolid;
+    if odSelected in State then
+    begin
+      Brush.Color := clHighlight;
+      Font.Color := clHighlightText;
+    end
+    else
+    begin
+      Brush.Color := FTabSearchList.Color;
+      if Index = FTabSearchHoverIndex then
+      begin
+        C := ColorToRGB(FTabSearchList.Color);
+        F := ColorToRGB(FTabSearchList.Font.Color);
+        Brush.Color := RGB((GetRValue(C)*7 + GetRValue(F)) div 8,
+          (GetGValue(C)*7 + GetGValue(F)) div 8,
+          (GetBValue(C)*7 + GetBValue(F)) div 8);
+      end;
+    end;
+    FillRect(Rect);
+    R := Rect;
+    Inc(R.Left, MulDiv(5, FTabSearchForm.PixelsPerInch, 96));
+    S := FTabSearchList.Items[Index];
+    SetBkMode(Handle, TRANSPARENT);
+    Winapi.Windows.DrawText(Handle, PChar(S), Length(S), R,
+      DT_SINGLELINE or DT_VCENTER or DT_NOPREFIX or DT_END_ELLIPSIS);
+    if odFocused in State then DrawFocusRect(Rect);
+  end;
+end;
+
 procedure TPDFTabsForm.TabSearchListMouseMove(Sender: TObject;
   Shift: TShiftState; X, Y: Integer);
 var
@@ -7491,6 +7579,7 @@ var
   FullName: string;
 begin
   Index := FTabSearchList.ItemAtPos(Point(X, Y), True);
+  SetTabSearchHover(Index);
   if Index >= 0 then
   begin
     Tab := TTabSheet(FTabSearchList.Items.Objects[Index]);
