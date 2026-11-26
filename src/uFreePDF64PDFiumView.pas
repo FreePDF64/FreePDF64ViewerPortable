@@ -3061,7 +3061,7 @@ begin
   FZoomSeparator.SetBounds(0, 0, 2, 22);
   FMinus := Btn('+', 387, 34, ZoomClick);
   FPlus := Btn('−', 427, 34, ZoomClick);
-  FZoom100Button := Btn('100 %', 460, 58, Zoom100Click);
+  FZoom100Button := Btn('100%', 460, 58, Zoom100Click);
   FZoom100Button.Hint := 'Originalgröße (100 %)';
   FZoom100Button.ShowHint := True;
   FMinus.Font.Name := 'Segoe UI Symbol';
@@ -5431,7 +5431,7 @@ begin
     NewImageY := P.Y;
     NewImageH := Img.Height;
     NewScrollPos := FScroll.VertScrollBar.Position + NewImageY +
-      Round(AnchorRatio * NewImageH) - AnchorScreenY;
+      Round(AnchorRatio * NewImageH) - FScroll.ClientHeight div 2;
     MaxScrollPos := Max(0, FScroll.VertScrollBar.Range - FScroll.ClientHeight);
     FScroll.VertScrollBar.Position := EnsureRange(NewScrollPos, 0, MaxScrollPos);
   end;
@@ -5502,7 +5502,6 @@ begin
     FFitMode := False;
     FViewMode := 2;
     if FViewSelect <> nil then FViewSelect.ItemIndex := 2;
-    PaintPage;
   end;
   FViewMode := 2;
   if FViewSelect <> nil then FViewSelect.ItemIndex := 2;
@@ -5790,7 +5789,7 @@ begin
     begin
       P := FScroll.ScreenToClient(Img.ClientToScreen(Point(0, 0)));
       TargetY := FScroll.VertScrollBar.Position + P.Y +
-        Round(KeepRatio * Img.Height) - AnchorY;
+        Round(KeepRatio * Img.Height) - FScroll.ClientHeight div 2;
       MaxScrollY := Max(0, FScroll.VertScrollBar.Range - FScroll.ClientHeight);
       FScroll.VertScrollBar.Position := EnsureRange(TargetY, 0, MaxScrollY);
     end;
@@ -5817,7 +5816,7 @@ begin
   FGoPage.Caption := Tr('Gehe zu');
   FStatus.Caption := ToolbarHint('Seite:', 'Page:');
   FFit.Caption := '';
-  FZoom100Button.Caption := '100 %';
+  FZoom100Button.Caption := '100%';
   FMinus.Hint := ToolbarHint('Vergrößern', 'Zoom in');
   FPlus.Hint := ToolbarHint('Verkleinern', 'Zoom out');
   FPrint.Caption := '🖨';
@@ -11046,7 +11045,7 @@ var
   Img: TPDFiumImage;
   S: Double;
   PairPW, PairPH, MaxPairWidth, MaxPairHeight, QW, QH: Single;
-  PreviousScrollY: Integer;
+  PreviousScrollY, PreviousScrollX: Integer;
   LayoutWidth: Integer;
 begin
   if FRendering or (FCore.PageCount = 0) then Exit;
@@ -11065,22 +11064,15 @@ begin
   // Vor einem neuen Layout zuerst den Scrollursprung normalisieren:
   // andernfalls wandert die erste Seite immer weiter nach unten.
   PreviousScrollY := FScroll.VertScrollBar.Position;
+  PreviousScrollX := FScroll.HorzScrollBar.Position;
   // Das kurzzeitige Zuruecksetzen der Scrollposition darf nicht auf dem
   // Bildschirm erscheinen. Sonst flackert die Hauptansicht beim Batch-Layout.
   SendMessage(FScroll.Handle, WM_SETREDRAW, 0, 0);
   FScroll.DisableAlign;
   try
     FScroll.VertScrollBar.Position := 0;
-    // Beim Wiederaktivieren nach Maximieren koennen inaktive Tabs
-    // einen horizontalen Scrollursprung aus der alten Breite behalten.
-    if (FLayoutViewportWidth <> FScroll.ClientWidth) or
-       (FLayoutViewportHeight <> FScroll.ClientHeight) then
-      FScroll.HorzScrollBar.Position := 0;
-    // Horizontalen Scrollursprung vor SetBounds ebenfalls normalisieren.
-    // Sonst beziehen sich die neuen Left-Koordinaten auf einen alten
-    // Scrolloffset aus der zuvor aktivierten Registerkarte.
-    if FFitMode and (FViewMode = 1) and not FTwoPage then
-      FScroll.HorzScrollBar.Position := 0;
+    // SetBounds erwartet Koordinaten relativ zum Scrollursprung.
+    FScroll.HorzScrollBar.Position := 0;
     // Vorhandene Seitencontrols behalten: insbesondere F11/4K loest
     // sonst fuer jede Seite Destroy/Create und Bitmap-Neuberechnung aus.
     while FPages.Count > FCore.PageCount do
@@ -11258,6 +11250,8 @@ begin
       // Position vor dem Wiederfreigeben der Darstellung wiederherstellen.
       if FContinuous and (PreviousScrollY > 0) then
         FScroll.VertScrollBar.Position := PreviousScrollY;
+      if not (FFitMode and (FViewMode = 1) and not FTwoPage) then
+        FScroll.HorzScrollBar.Position := PreviousScrollX;
     finally
       SendMessage(FScroll.Handle, WM_SETREDRAW, 1, 0);
       // Neuzeichnen ohne vorheriges Loeschen des gesamten Hintergrunds.
@@ -11288,9 +11282,19 @@ begin
 end;
 
 procedure TFreePDF64PDFiumView.PaintPage;
+var
+  Pass, CW, CH: Integer;
 begin
-
-  LayoutAllPages;
+  if FRendering or (FCore = nil) or (FCore.PageCount = 0) then Exit;
+  // Scrollleisten koennen erst durch das Layout sichtbar werden.
+  // Noch im selben Aufruf mit der neuen Clientflaeche nachrechnen.
+  for Pass := 1 to 3 do
+  begin
+    CW := FScroll.ClientWidth;
+    CH := FScroll.ClientHeight;
+    LayoutAllPages;
+    if (CW = FScroll.ClientWidth) and (CH = FScroll.ClientHeight) then Break;
+  end;
 
   // LayoutAllPages aktualisiert sichtbare Seite und rendert bereits.
   // ShowPage hier erneut aufzurufen erzwingt unnötiges Scrollen/Rendering

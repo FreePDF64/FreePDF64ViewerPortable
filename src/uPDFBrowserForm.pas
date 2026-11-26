@@ -1976,7 +1976,7 @@ begin
       4: SetCrispImageGlyph(FImageButtons[I], 4);
       5: SetCrispImageGlyph(FImageButtons[I], 5);
       6: begin
-           FImageButtons[I].Caption := '100 %';
+           FImageButtons[I].Caption := '100%';
            FImageButtons[I].Font.Style := [fsBold];
            FImageButtons[I].Font.Size := 9;
          end;
@@ -1995,7 +1995,7 @@ begin
   FImageZoomLabel.Layout := tlCenter;
   FImageZoomLabel.Width := MulDiv(45, CurrentPPI, 96);
   FImageZoomLabel.Height := MulDiv(28, CurrentPPI, 96);
-  FImageZoomLabel.Caption := '100 %';
+  FImageZoomLabel.Caption := '100%';
   FImageZoomLabel.ShowHint := True;
   FImageZoomLabel.Font.Size := 9;
   RefreshLanguage;
@@ -2007,33 +2007,46 @@ end;
 
 procedure TPDFBrowserForm.UpdateImageLayout;
 var
-  W, H: Integer;
+  W, H, SourceW, SourceH, Pass, CW, CH, OldX, OldY: Integer;
   Factor: Double;
 begin
   if (FImageDisplay = nil) or (FImageScroll = nil) or
      (FImageDisplay.Picture.Graphic = nil) then Exit;
-  W := FImageDisplay.Picture.Width;
-  H := FImageDisplay.Picture.Height;
-  if (W < 1) or (H < 1) then Exit;
-  Factor := FImageZoom;
-  if FImageFitMode = 1 then
-    Factor := Min(FImageScroll.ClientWidth / W, FImageScroll.ClientHeight / H)
-  else if FImageFitMode = 2 then
-    Factor := FImageScroll.ClientWidth / W;
-  Factor := EnsureRange(Factor, 0.01, 16.0);
+  SourceW := FImageDisplay.Picture.Width;
+  SourceH := FImageDisplay.Picture.Height;
+  if (SourceW < 1) or (SourceH < 1) then Exit;
+  if (FImageScroll.ClientWidth < 1) or (FImageScroll.ClientHeight < 1) then Exit;
+  OldX := FImageScroll.HorzScrollBar.Position;
+  OldY := FImageScroll.VertScrollBar.Position;
   FImageDisplay.AutoSize := False;
   FImageDisplay.Stretch := True;
   FImageDisplay.Proportional := False;
-  // Kleinere Grafiken innerhalb der sichtbaren Flaeche zentrieren.
-  // Bei groesseren Grafiken bleibt der Ursprung 0,0, damit die
-  // Scrollbars unveraendert zum Navigieren verwendet werden koennen.
-  W := Max(1, Round(W * Factor));
-  H := Max(1, Round(H * Factor));
-  FImageDisplay.SetBounds(
-    Max(0, (FImageScroll.ClientWidth - W) div 2),
-    Max(0, (FImageScroll.ClientHeight - H) div 2), W, H);
+  // Child-Koordinaten beziehen sich auf den aktuellen Scrollursprung.
+  // Erst normalisieren, dann mit der endgueltigen Clientflaeche rechnen.
+  FImageScroll.HorzScrollBar.Position := 0;
+  FImageScroll.VertScrollBar.Position := 0;
+  Factor := FImageZoom;
+  for Pass := 1 to 4 do
+  begin
+    CW := Max(1, FImageScroll.ClientWidth);
+    CH := Max(1, FImageScroll.ClientHeight);
+    Factor := FImageZoom;
+    if FImageFitMode = 1 then
+      Factor := Min(CW / SourceW, CH / SourceH)
+    else if FImageFitMode = 2 then
+      Factor := CW / SourceW;
+    Factor := EnsureRange(Factor, 0.01, 16.0);
+    W := Max(1, Round(SourceW * Factor));
+    H := Max(1, Round(SourceH * Factor));
+    FImageDisplay.SetBounds(Max(0, (CW - W) div 2),
+      Max(0, (CH - H) div 2), W, H);
+    if (CW = FImageScroll.ClientWidth) and
+       (CH = FImageScroll.ClientHeight) then Break;
+  end;
+  FImageScroll.HorzScrollBar.Position := OldX;
+  FImageScroll.VertScrollBar.Position := OldY;
   if FImageZoomLabel <> nil then
-    FImageZoomLabel.Caption := FormatFloat('0.#', Factor * 100) + ' %';
+    FImageZoomLabel.Caption := FormatFloat('0.#', Factor * 100) + '%';
 end;
 
 procedure TPDFBrowserForm.ImageContextClick(Sender: TObject);
@@ -3464,7 +3477,7 @@ begin
       FImageButtons[ImageButtonIndex].Font.Color := TextColor;
       if ImageButtonIndex = 6 then
       begin
-        FImageButtons[ImageButtonIndex].Caption := '100 %';
+        FImageButtons[ImageButtonIndex].Caption := '100%';
         FImageButtons[ImageButtonIndex].Font.Style := [fsBold];
         FImageButtons[ImageButtonIndex].Font.Size := 9;
       end

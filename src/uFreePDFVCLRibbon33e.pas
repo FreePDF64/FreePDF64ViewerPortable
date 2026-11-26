@@ -345,7 +345,7 @@ begin
     else if S = 'Fit page' then Result := 'Seite anpassen'
     else if S = 'Zoom +' then Result := 'Zoom +'
     else if S = 'Zoom -' then Result := 'Zoom -'
-    else if S = '100 %' then Result := '100 %'
+    else if S = '100%' then Result := '100%'
     else if S = 'Split view' then Result := 'Doppelansicht'
     else if S = 'Single page' then Result := 'Einzelansicht'
     else if S = 'Continuous' then Result := 'Durchgehend'
@@ -1788,7 +1788,7 @@ begin
     FZoomEdit.Font.Name := 'Segoe UI';
     FZoomEdit.Font.Size := 8;
     FZoomEdit.SetBounds(158, 64, 132, 25);
-    FZoomEdit.Text := '100 %';
+    FZoomEdit.Text := '100%';
     FZoomEdit.Enabled := False;
     FZoomEdit.ShowHint := True;
     if SameText(PDFLanguage, 'en') then
@@ -2685,7 +2685,7 @@ begin
   if FZoomEdit = nil then Exit;
   FZoomEdit.Enabled := AEnabled;
   if not AEnabled then S := '–'
-  else S := IntToStr(APercent) + ' %';
+  else S := IntToStr(APercent) + '%';
   // Do not overwrite the user's input while the edit is focused.
   if not FZoomEdit.Focused and (FZoomEdit.Text <> S) then
     FZoomEdit.Text := S;
@@ -2778,7 +2778,7 @@ begin
   AddCommand(1, 115, 'Seite anpassen', true);
   AddCommand(1, 116, 'Zoom +', false);
   AddCommand(1, 117, 'Zoom -', false);
-  AddCommand(1, 214, '100 %', false);
+  AddCommand(1, 214, '100%', false);
   AddCommand(1, 215, 'Doppelansicht', false);
   AddCommand(1, 216, 'Seitenweise', false);
   AddGroup(1, 'Seiten');
