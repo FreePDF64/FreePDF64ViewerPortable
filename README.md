@@ -93,8 +93,6 @@ See the **Workspaces** screenshot below for the management interface.
 2. Run **`FreePDF64ViewerPortable.exe`**.
 3. Open PDFs using **Ctrl+O**, drag and drop, or Windows File Explorer. Supported image files can also be opened.
 
-**Upgrade note:** The `Xpdf` and `qpdf` folders from older viewer versions are no longer needed by FreePDF64-Viewer Portable and can be deleted from the viewer installation.
-
 **Notes:** Measurements depend on the drawing scale and source PDF. **Visual redaction** only covers content; it does not securely remove it. Not every PDF JavaScript feature or XFA form is supported. Existing-object editing is limited to supported page objects; pages containing unsupported object types are protected from object transformations.
 
 ## Portable use and license
@@ -181,8 +179,6 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 1. Release-ZIP vollständig in einen Ordner entpacken; mitgelieferte Bibliotheken und Zusatzprogramme beibehalten.
 2. **`FreePDF64ViewerPortable.exe`** starten.
 3. PDFs über **Strg+O**, Drag & Drop oder den Windows-Explorer öffnen. Unterstützte Bilddateien können ebenfalls geöffnet werden.
-
-**Hinweis zum Update:** Die Verzeichnisse `Xpdf` und `qpdf` aus älteren Viewer-Versionen werden von FreePDF64-Viewer Portable nicht mehr benötigt und können aus der Viewer-Installation gelöscht werden.
 
 **Hinweise:** Messwerte hängen vom Maßstab und der PDF-Vorlage ab. Die **optische Schwärzung** verdeckt Inhalte nur und entfernt sie nicht sicher. PDF-JavaScript und XFA werden nicht in allen Varianten unterstützt. Die Bearbeitung vorhandener Objekte ist auf unterstützte Seitenobjekte begrenzt; Seiten mit nicht unterstützten Objekttypen sind vor Objekttransformationen geschützt.
 
