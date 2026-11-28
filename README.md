@@ -2,7 +2,7 @@
 
 <img src="images/freepdf64-viewer-logo.png" alt="FreePDF64-Viewer Portable" width="200">
 
-# FreePDF64-Viewer Portable 3.4.2
+# FreePDF64-Viewer Portable 3.5.0
 
 **Free, open-source PDF and image viewer for Windows – portable, fast and versatile.**
 
@@ -16,9 +16,9 @@
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable 3.4.2 – new VCL Ribbon and main window" width="900"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="FreePDF64-Viewer Portable – VCL Ribbon and main window" width="900"></a>
 
-*FreePDF64-Viewer Portable 3.4.2 – redesigned main window and VCL Ribbon. Click to enlarge.*
+*FreePDF64-Viewer Portable – main window and VCL Ribbon. Click to enlarge.*
 
 </div>
 
@@ -32,7 +32,16 @@ FreePDF64-Viewer Portable is a free, open-source PDF viewer for Windows. It comb
 
 FreePDF64-Viewer Portable contains no advertising, uses no artificial intelligence (AI) and requires no subscription. PDF processing takes place locally on your computer.
 
-## New in version 3.4.0 - 3.4.2
+## New in version 3.5.0
+
+- **Smoother PDF navigation:** Optimized scrolling, rendering and synchronized scrolling in side-by-side view, with particular attention to large PDFs and high-DPI displays.
+- **Improved hand tool:** Pan PDF pages horizontally and vertically using the hand tool, Alt + left mouse button, or the middle mouse button. Open-hand and grabbing-hand cursors provide clearer feedback.
+- **Adaptive Ribbon layout:** Column widths are calculated from text, icons and DPI scaling. Reorganized File, Send, Export and Options groups, single-line theme labels and clearer measurement and redaction controls improve usability on WQHD and 4K displays.
+- **Improved workspace management:** More compact management window, clearer labels and confirmation messages, and a dedicated **Restore workspace** command.
+- **Refined bilingual interface:** Updated German and English labels, tooltips, icons and feature help.
+- **Bug fixes:** Corrected attachment selection and action states for extraction and removal, and fixed the missing taskbar icon when launching the viewer directly with a file from Windows Explorer or the command line.
+
+### Highlights from versions 3.4.0–3.4.2
 
 - **Ribbon Interface Improvements:** The Ribbon interface automatically adjusts to the available window width.
 - **Edit metadata.**
@@ -43,7 +52,7 @@ FreePDF64-Viewer Portable contains no advertising, uses no artificial intelligen
 
 - **Redesigned VCL Ribbon:** Replaced the Windows Ribbon Framework with a custom VCL Ribbon. Clearly organized tabs, including **Objects**, provide direct access to viewing, editing, image, and PDF tools. Monochrome Tabler icons are embedded in the executable; no external icon folder is required.
 - **Editable PDF zoom percentage:** View the current zoom level in the **View** ribbon, enter a value such as `150 %`, and press Enter to apply it. The display follows zoom changes and switching between open PDFs.
-- **Clearer PDF saving:** **Save** (Ctrl+S) writes changes directly to the open PDF; **Save PDF As…** opens a separate dialog. An orange highlight indicates unsaved changes, with a warning when closing modified documents.
+- **Clearer PDF saving:** **Save** (Ctrl+S) writes changes directly to the open PDF; **Save PDF as...** opens a separate dialog. An orange highlight indicates unsaved changes, with a warning when closing modified documents.
 - **Redaction controls:** Improved Ribbon access to optical redaction and permanent redaction, including an orange active-tool outline. **Optical redaction only hides content; use permanent redaction to remove it.**
 - **Image and multipage TIFF tools:** Reorganized Ribbon commands for image zoom, fit, original size, rotation, saving, and printing, with navigation between pages of multipage TIFFs.
 - **Improved editing feedback:** Newly placed PDF hyperlinks can show their target URL as a tooltip before the PDF is saved. Refined Ribbon hover states, button spacing, and tool selection.
@@ -58,9 +67,10 @@ FreePDF64-Viewer Portable contains no advertising, uses no artificial intelligen
 
 ## Key features
 
-- **VCL Ribbon:** Organized commands with embedded monochrome icons and an editable PDF zoom-percentage field.
+- **VCL Ribbon:** Adaptive column widths, organized commands with embedded monochrome icons and an editable PDF zoom-percentage field.
 - **Tabs and workspaces:** Open multiple PDFs and images in tabs, save named workspaces, and restore collections of documents and their zoom settings.
 - **Side-by-side comparison:** View two PDFs together; **S** synchronizes scrolling and **Z** synchronizes zoom (left → right).
+- **Navigation:** Smooth scrolling and mouse panning with the hand tool or middle mouse button.
 - **Search:** Search one PDF or all open PDFs using **Ctrl+Shift+F**.
 - **Page management:** Resizable thumbnails; drag and drop pages to reorder, rotate, delete, or extract them.
 - **PDF editing:** Move, resize and rotate supported existing text, image and vector objects; insert images, text, comments, drawings, highlights, watermarks, and clickable hyperlinks; Undo/Redo for supported edits.
@@ -84,7 +94,7 @@ See the **Workspaces** screenshot below for the management interface.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window – version 3.4.1" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Main window" width="260"></a>
 <a href="images/Twowindows_english.png"><img src="images/Twowindows_english.png" alt="Side-by-side view" width="260"></a>
 <a href="images/Globalsearch_english.png"><img src="images/Globalsearch_english.png" alt="Global PDF search" width="260"></a>
 <a href="images/Measure_english.png"><img src="images/Measure_english.png" alt="PDF measurement tools" width="260"></a>
@@ -126,7 +136,16 @@ FreePDF64-Viewer Portable ist ein kostenloser Open-Source-PDF-Viewer für Window
 
 FreePDF64-Viewer Portable enthält keine Werbung, setzt keine künstliche Intelligenz (KI) ein und erfordert kein Abonnement. Die PDF-Verarbeitung erfolgt lokal auf deinem Computer.
 
-## Neu in Version 3.4.0 - 3.4.2
+## Neu in Version 3.5.0
+
+- **Flüssigere PDF-Navigation:** Optimiertes Scrollen, Rendering und synchronisiertes Scrollen in der Zweifensteransicht, insbesondere für große PDFs und Bildschirme mit hoher DPI-Skalierung.
+- **Verbessertes Handwerkzeug:** PDF-Seiten horizontal und vertikal mit dem Handwerkzeug, Alt + linker Maustaste oder gedrückter mittlerer Maustaste verschieben. Offene und greifende Hand als Mauszeiger verdeutlichen den aktuellen Zustand.
+- **Adaptives Ribbon-Layout:** Spaltenbreiten werden anhand von Text, Symbolen und DPI-Skalierung automatisch berechnet. Neu organisierte Gruppen für Datei, Senden, Export und Optionen, einzeilige Designbeschriftungen sowie verständlichere Mess- und Schwärzungswerkzeuge verbessern die Bedienung unter WQHD und 4K.
+- **Verbesserte Arbeitsbereichsverwaltung:** Kompakteres Verwaltungsfenster, verständlichere Beschriftungen und Bestätigungsmeldungen sowie der Befehl **„Arbeitsbereich wiederherstellen“**.
+- **Überarbeitete zweisprachige Oberfläche:** Aktualisierte deutsche und englische Beschriftungen, Tooltips, Symbole und Funktionsübersicht.
+- **Fehlerkorrekturen:** Korrigierter Auswahl- und Schaltflächenstatus beim Extrahieren und Entfernen von PDF-Anlagen sowie behobenes Taskleistensymbol beim direkten Start mit einer Datei über den Windows-Explorer oder die Kommandozeile.
+
+### Highlights der Versionen 3.4.0–3.4.2
 
 - **Verbesserungen der Ribbon-Oberfläche:** Die Ribbon-Oberfläche passt sich automatisch an die verfügbare Fensterbreite an.
 - **Metadaten bearbeiten.**
@@ -137,7 +156,7 @@ FreePDF64-Viewer Portable enthält keine Werbung, setzt keine künstliche Intell
 
 - **Neu gestaltetes VCL-Ribbon:** Das Windows Ribbon Framework wurde durch ein eigenes VCL-Ribbon ersetzt. Übersichtlich angeordnete Registerkarten, darunter **„Objekte“**, bieten direkten Zugriff auf Anzeige-, Bearbeitungs-, Grafik- und PDF-Werkzeuge. Einfarbige Tabler-Symbole sind direkt in die EXE eingebettet; ein externer Symbolordner ist nicht erforderlich.
 - **Editierbare PDF-Zoom-Prozentanzeige:** Den aktuellen Zoomfaktor im Ribbon unter **„Ansicht“** ablesen, einen Wert wie `150 %` eingeben und mit Enter übernehmen. Die Anzeige folgt Zoomänderungen und dem Wechsel zwischen geöffneten PDFs.
-- **Übersichtlichere PDF-Speicherung:** **„Speichern“** (Strg+S) schreibt Änderungen direkt in die geöffnete PDF; **„PDF speichern unter …“** öffnet einen eigenen Dialog. Ein orangefarbener Rahmen kennzeichnet ungespeicherte Änderungen; beim Schließen geänderter Dokumente erscheint eine Warnung.
+- **Übersichtlichere PDF-Speicherung:** **„Speichern“** (Strg+S) schreibt Änderungen direkt in die geöffnete PDF; **„PDF speichern unter...“** öffnet einen eigenen Dialog. Ein orangefarbener Rahmen kennzeichnet ungespeicherte Änderungen; beim Schließen geänderter Dokumente erscheint eine Warnung.
 - **Schwärzungswerkzeuge:** Verbesserter Zugriff auf optische und endgültige Schwärzung im Ribbon, einschließlich orangefarbener Aktivmarkierung. **Die optische Schwärzung verdeckt Inhalte nur; zum Entfernen ist die endgültige Schwärzung erforderlich.**
 - **Grafik- und mehrseitige TIFF-Werkzeuge:** Neu angeordnete Ribbon-Befehle für Grafikzoom, Einpassen, Originalgröße, Drehen, Speichern und Drucken sowie Navigation durch mehrseitige TIFF-Dateien.
 - **Verbesserte Rückmeldungen bei der Bearbeitung:** Neu platzierte PDF-Hyperlinks können ihre Zieladresse bereits vor dem Speichern als Hinweis anzeigen. Überarbeitete Ribbon-Hover-Markierungen, Buttonabstände und Werkzeugauswahl.
@@ -152,9 +171,10 @@ FreePDF64-Viewer Portable enthält keine Werbung, setzt keine künstliche Intell
 
 ## Funktionen im Überblick
 
-- **VCL-Ribbon:** Übersichtlich angeordnete Befehle mit eingebetteten einfarbigen Symbolen und editierbarer PDF-Zoom-Prozentanzeige.
+- **VCL-Ribbon:** Adaptive Spaltenbreiten, übersichtlich angeordnete Befehle mit eingebetteten einfarbigen Symbolen und editierbarer PDF-Zoom-Prozentanzeige.
 - **Registerkarten und Arbeitsbereiche:** Mehrere PDFs und Bilder in Registerkarten öffnen, benannte Arbeitsbereiche speichern und Dokumente samt Zoom-Einstellungen wiederherstellen.
 - **PDF-Vergleich:** Zwei PDFs nebeneinander anzeigen; **S** synchronisiert das Scrollen, **Z** den Zoom (jeweils links → rechts).
+- **Navigation:** Flüssiges Scrollen und Verschieben mit dem Handwerkzeug oder der mittleren Maustaste.
 - **Suche:** Einzelne PDFs durchsuchen oder alle geöffneten PDFs gemeinsam mit **Strg+Umschalt+F**.
 - **Seitenverwaltung:** Vergrößerbare Miniaturen; Seiten per Drag & Drop verschieben, drehen, löschen oder extrahieren.
 - **PDF-Bearbeitung:** Unterstützte vorhandene Text-, Bild- und Vektorobjekte verschieben, skalieren und drehen; Bilder, Text, Kommentare, Zeichnungen, Markierungen, Wasserzeichen und anklickbare Hyperlinks hinzufügen; Rückgängig/Wiederholen für unterstützte Bearbeitungen.
@@ -178,7 +198,7 @@ Der Screenshot **Arbeitsbereiche** weiter unten zeigt die Verwaltung.
 
 <div align="center">
 
-<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster – Version 3.4.1" width="260"></a>
+<a href="images/Mainwindow.png"><img src="images/Mainwindow.png" alt="Hauptfenster" width="260"></a>
 <a href="images/Zweifensteransicht_deutsch.png"><img src="images/Zweifensteransicht_deutsch.png" alt="Zweifensteransicht" width="260"></a>
 <a href="images/Globalesuche_deutsch.png"><img src="images/Globalesuche_deutsch.png" alt="Globale PDF-Suche" width="260"></a>
 <a href="images/Messen_deutsch.png"><img src="images/Messen_deutsch.png" alt="PDF-Messwerkzeuge" width="260"></a>
