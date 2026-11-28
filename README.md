@@ -41,29 +41,14 @@ FreePDF64-Viewer Portable contains no advertising, uses no artificial intelligen
 - **Refined bilingual interface:** Updated German and English labels, tooltips, icons and feature help.
 - **Bug fixes:** Corrected attachment selection and action states for extraction and removal, and fixed the missing taskbar icon when launching the viewer directly with a file from Windows Explorer or the command line.
 
-### Highlights from versions 3.4.0–3.4.2
+### Highlights from earlier releases (3.2.0–3.4.2)
 
-- **Ribbon Interface Improvements:** The Ribbon interface automatically adjusts to the available window width.
-- **Edit metadata.**
-- **Added email sharing for single or multiple PDF and image files.**
-- **Edit existing PDF objects:** Select, move, resize and rotate existing text, image and vector objects (where supported), with a persistent selection outline, live rotation preview, angle display, 15° snapping (Shift), Undo/Redo and one-key Esc exit. Unlike simply adding annotations, this changes existing page objects. A safety check blocks object transformations on pages containing unsupported PDFium object types, helping prevent content loss when saving.
-- **Comparison-only split view:** Compare two PDFs side by side, with navigation and zoom targeting the active pane. Editing and ambiguous document actions are disabled; ribbon state and update controls are restored after leaving split view.
-
-
-- **Redesigned VCL Ribbon:** Replaced the Windows Ribbon Framework with a custom VCL Ribbon. Clearly organized tabs, including **Objects**, provide direct access to viewing, editing, image, and PDF tools. Monochrome Tabler icons are embedded in the executable; no external icon folder is required.
-- **Editable PDF zoom percentage:** View the current zoom level in the **View** ribbon, enter a value such as `150 %`, and press Enter to apply it. The display follows zoom changes and switching between open PDFs.
-- **Clearer PDF saving:** **Save** (Ctrl+S) writes changes directly to the open PDF; **Save PDF as...** opens a separate dialog. An orange highlight indicates unsaved changes, with a warning when closing modified documents.
-- **Redaction controls:** Improved Ribbon access to optical redaction and permanent redaction, including an orange active-tool outline. **Optical redaction only hides content; use permanent redaction to remove it.**
-- **Image and multipage TIFF tools:** Reorganized Ribbon commands for image zoom, fit, original size, rotation, saving, and printing, with navigation between pages of multipage TIFFs.
-- **Improved editing feedback:** Newly placed PDF hyperlinks can show their target URL as a tooltip before the PDF is saved. Refined Ribbon hover states, button spacing, and tool selection.
-- **German/English and high-DPI layouts:** Updated bilingual labels, tooltips, and feature help; refined Ribbon presentation for 4K and WQHD displays.
-
-### Highlights from earlier releases (3.2.0–3.3.0)
-
-- Insert and edit images in PDF pages, including visual multipage TIFF selection.
-- Extract embedded PDF images, export complete pages, and view document fonts.
-- Use signatures, measurement tools, hyperlink editing, and permanent PDF redaction.
-- Benefit from improved PDFium integration, themes, and portable operation.
+- Custom VCL Ribbon with embedded monochrome icons, automatic width adjustment, editable zoom percentage and high-DPI support.
+- Edit PDF metadata and supported existing text, image and vector objects, with Undo/Redo and safety checks.
+- Insert and extract PDF images, export pages, view document fonts and navigate multipage TIFF files.
+- Signatures, measurement tools, hyperlink editing, optical and permanent redaction.
+- Side-by-side PDF comparison, improved saving with unsaved-change indicators, and email sharing of PDF and image files.
+- Improved PDFium integration, interface themes, bilingual tooltips and portable operation.
 
 ## Key features
 
@@ -145,29 +130,14 @@ FreePDF64-Viewer Portable enthält keine Werbung, setzt keine künstliche Intell
 - **Überarbeitete zweisprachige Oberfläche:** Aktualisierte deutsche und englische Beschriftungen, Tooltips, Symbole und Funktionsübersicht.
 - **Fehlerkorrekturen:** Korrigierter Auswahl- und Schaltflächenstatus beim Extrahieren und Entfernen von PDF-Anlagen sowie behobenes Taskleistensymbol beim direkten Start mit einer Datei über den Windows-Explorer oder die Kommandozeile.
 
-### Highlights der Versionen 3.4.0–3.4.2
+### Highlights früherer Versionen (3.2.0–3.4.2)
 
-- **Verbesserungen der Ribbon-Oberfläche:** Die Ribbon-Oberfläche passt sich automatisch an die verfügbare Fensterbreite an.
-- **Metadaten bearbeiten.**
-- **E-Mail-Versand einzelner oder mehrerer PDF- und Bilddateien.**
-- **Vorhandene PDF-Objekte bearbeiten:** Vorhandene Text-, Bild- und Vektorobjekte (soweit unterstützt) auswählen, verschieben, skalieren und drehen. Anders als beim bloßen Hinzufügen von Anmerkungen werden bestehende Seitenobjekte verändert. Mit dauerhaftem Auswahlrahmen, Live-Drehvorschau, Winkelanzeige, 15°-Raster (Umschalt), Rückgängig/Wiederholen und Beenden mit einmal ESC. Eine Sicherheitsprüfung verhindert Objekttransformationen auf Seiten mit nicht unterstützten PDFium-Objekttypen und schützt so vor möglichen Inhaltsverlusten beim Speichern.
-- **Geteilte Ansicht als Vergleichsmodus:** Zwei PDFs nebeneinander vergleichen; Navigation und Zoom steuern die aktive Teilansicht. Bearbeitung und mehrdeutige Dokumentbefehle sind deaktiviert; Ribbon-Zustände einschließlich Update werden beim Beenden wiederhergestellt.
-
-
-- **Neu gestaltetes VCL-Ribbon:** Das Windows Ribbon Framework wurde durch ein eigenes VCL-Ribbon ersetzt. Übersichtlich angeordnete Registerkarten, darunter **„Objekte“**, bieten direkten Zugriff auf Anzeige-, Bearbeitungs-, Grafik- und PDF-Werkzeuge. Einfarbige Tabler-Symbole sind direkt in die EXE eingebettet; ein externer Symbolordner ist nicht erforderlich.
-- **Editierbare PDF-Zoom-Prozentanzeige:** Den aktuellen Zoomfaktor im Ribbon unter **„Ansicht“** ablesen, einen Wert wie `150 %` eingeben und mit Enter übernehmen. Die Anzeige folgt Zoomänderungen und dem Wechsel zwischen geöffneten PDFs.
-- **Übersichtlichere PDF-Speicherung:** **„Speichern“** (Strg+S) schreibt Änderungen direkt in die geöffnete PDF; **„PDF speichern unter...“** öffnet einen eigenen Dialog. Ein orangefarbener Rahmen kennzeichnet ungespeicherte Änderungen; beim Schließen geänderter Dokumente erscheint eine Warnung.
-- **Schwärzungswerkzeuge:** Verbesserter Zugriff auf optische und endgültige Schwärzung im Ribbon, einschließlich orangefarbener Aktivmarkierung. **Die optische Schwärzung verdeckt Inhalte nur; zum Entfernen ist die endgültige Schwärzung erforderlich.**
-- **Grafik- und mehrseitige TIFF-Werkzeuge:** Neu angeordnete Ribbon-Befehle für Grafikzoom, Einpassen, Originalgröße, Drehen, Speichern und Drucken sowie Navigation durch mehrseitige TIFF-Dateien.
-- **Verbesserte Rückmeldungen bei der Bearbeitung:** Neu platzierte PDF-Hyperlinks können ihre Zieladresse bereits vor dem Speichern als Hinweis anzeigen. Überarbeitete Ribbon-Hover-Markierungen, Buttonabstände und Werkzeugauswahl.
-- **Deutsch/Englisch und hohe DPI-Auflösungen:** Aktualisierte zweisprachige Beschriftungen, Hinweise und Funktionsübersicht; optimierte Ribbon-Darstellung für 4K und WQHD.
-
-### Highlights früherer Versionen (3.2.0–3.3.0)
-
-- Bilder in PDF-Seiten einfügen und bearbeiten, einschließlich visueller Auswahl mehrseitiger TIFF-Dateien.
-- Eingebettete PDF-Bilder extrahieren, ganze Seiten exportieren und PDF-Schriftarten anzeigen.
-- Unterschriften, Messwerkzeuge, Hyperlink-Bearbeitung und endgültige PDF-Schwärzung nutzen.
-- Verbesserte PDFium-Integration, Designs und portable Nutzung.
+- Eigenes VCL-Ribbon mit eingebetteten einfarbigen Symbolen, automatischer Breitenanpassung, editierbarer Zoom-Prozentanzeige und Unterstützung hoher DPI-Auflösungen.
+- PDF-Metadaten und unterstützte vorhandene Text-, Bild- und Vektorobjekte bearbeiten, mit Rückgängig/Wiederholen und Sicherheitsprüfungen.
+- PDF-Bilder einfügen und extrahieren, Seiten exportieren, Dokumentenschriftarten anzeigen und durch mehrseitige TIFF-Dateien navigieren.
+- Unterschriften, Messwerkzeuge, Hyperlink-Bearbeitung sowie optische und endgültige Schwärzung.
+- PDF-Vergleich in geteilter Ansicht, verbesserte Speicherung mit Kennzeichnung ungespeicherter Änderungen und E-Mail-Versand von PDF- und Bilddateien.
+- Verbesserte PDFium-Integration, Designs, zweisprachige Tooltips und portable Nutzung.
 
 ## Funktionen im Überblick
 
